@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns02e.muenchen.de
+status: success
+records:
+  - unsigned_answer:
+    - 'ns02e.muenchen.de. 78767 IN A 194.246.140.219'

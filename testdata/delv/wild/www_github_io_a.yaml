@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: www.github.io
+status: success
+records:
+  - unsigned_answer:
+    - 'www.github.io. 3600 IN A 185.199.108.153'
+    - 'www.github.io. 3600 IN A 185.199.109.153'
+    - 'www.github.io. 3600 IN A 185.199.110.153'
+    - 'www.github.io. 3600 IN A 185.199.111.153'

@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: _dmarc.google.com
+status: success
+records:
+  - unsigned_answer:
+    - '_dmarc.google.com. 300 IN TXT "v=DMARC1; p=reject; rua=mailto:mailauth-reports@google.com"'

@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: spf2.outlook.com
+status: success
+records:
+  - fully_validated:
+    - 'spf2.outlook.com. 230 IN TXT "v=spf1 ip4:40.92.0.0/16 ip4:52.103.0.0/17 ip6:2a01:111:f403:2800::/53 ip6:2a01:111:f403:d000::/53 -all"'
+    - 'spf2.outlook.com. 230 IN RRSIG TXT 13 3 300 20260907225940 20260905205940 1050 outlook.com. NY9gAF0Bt/7fx1R2byrrKYeB9dNKwemEPeLcepReF5YZP3KeRwCj/6oM oXMlPPn1eszJlgNAB5PUFELxHSAY6Q=='

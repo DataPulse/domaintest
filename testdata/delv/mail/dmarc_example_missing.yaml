@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: _dmarc.example.com
+status: success
+records:
+  - fully_validated:
+    - '_dmarc.example.com. 300 IN TXT "v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s"'
+    - '_dmarc.example.com. 300 IN RRSIG TXT 13 3 300 20260907224127 20260905204127 34505 example.com. iSrwYKE/P7w4ysKBR5Ia/6GJJpo0hjTElHdwnTS/aPbsdAa+T2DD+sV1 iuR64NobNuagHZmdiG+UNTn9ir90JQ=='

@@ -1,0 +1,91 @@
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T22:00:14.081Z
+    response_time: !!timestamp 2026-09-06T22:00:14.113Z
+    message_size: 117b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "68.87.68.244"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 30711
+      flags: qr aa
+      QUESTION: 1
+      ANSWER: 1
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 4096
+      QUESTION_SECTION:
+        - 'dnssec-failed.org. IN SOA'
+      ANSWER_SECTION:
+        - 'dnssec-failed.org. 86400 IN SOA dns101.comcast.org. dnsadmin.comcast.net. 2010102605 900 180 604800 7200'
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T22:00:14.145Z
+    response_time: !!timestamp 2026-09-06T22:00:14.177Z
+    message_size: 117b
+    socket_family: INET
+    socket_protocol: TCP
+    response_address: "68.87.68.244"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 42508
+      flags: qr aa
+      QUESTION: 1
+      ANSWER: 1
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 4096
+      QUESTION_SECTION:
+        - 'dnssec-failed.org. IN SOA'
+      ANSWER_SECTION:
+        - 'dnssec-failed.org. 86400 IN SOA dns101.comcast.org. dnsadmin.comcast.net. 2010102605 900 180 604800 7200'
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T22:00:14.177Z
+    response_time: !!timestamp 2026-09-06T22:00:14.217Z
+    message_size: 230b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "68.87.68.244"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 56841
+      flags: qr aa
+      QUESTION: 1
+      ANSWER: 2
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags: do
+          udp: 4096
+      QUESTION_SECTION:
+        - 'dnssec-failed.org. IN SOA'
+      ANSWER_SECTION:
+        - 'dnssec-failed.org. 86400 IN SOA dns101.comcast.org. dnsadmin.comcast.net. 2010102605 900 180 604800 7200'
+        - 'dnssec-failed.org. 86400 IN RRSIG SOA 13 2 86400 20260910015706 20260902225206 32784 dnssec-failed.org. xf49qgFpg8OcvDJ3qJataCMOh1nC5Pv89+1R5odhgyqT/7wEJOYPF3uF I/oht1uFZwwK2A9OoUVCgVVIwhfHZw=='

@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns02e.muenchen.de
+status: success
+records:
+  - unsigned_answer:
+    - 'ns02e.muenchen.de. 86400 IN AAAA 2a02:102e:f::b001'

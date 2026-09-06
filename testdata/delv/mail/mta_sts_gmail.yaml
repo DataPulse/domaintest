@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: _mta-sts.gmail.com
+status: success
+records:
+  - unsigned_answer:
+    - '_mta-sts.gmail.com. 300 IN TXT "v=STSv1; id=20190429T010101;"'

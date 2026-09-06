@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns05e.muenchen.de
+status: success
+records:
+  - unsigned_answer:
+    - 'ns05e.muenchen.de. 78751 IN A 194.113.41.238'

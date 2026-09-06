@@ -271,3 +271,57 @@ func TestBuildFindings_NullMXAndNotAZone(t *testing.T) {
 	buildFindings(rep)
 	check(t, "warning without zone", contains(rep.Warnings, "host.example.net is not a zone apex: delegation"), true)
 }
+
+func TestTLSFindings_Aggregation(t *testing.T) {
+	rep := healthyReport(t)
+	v4, v6 := googleAddrs(t)
+	valid := &CertInfo{DaysRemaining: 60, CoversApex: true, CoversWWW: false}
+	rep.Web.Apex.IPv4[0].TLS = &TLSResult{Chain: ChainValid, Version: "TLS 1.2", TLS10: true, Cert: valid}
+	rep.Web.Apex.IPv6[0].TLS = &TLSResult{Chain: ChainValid, Version: "TLS 1.3", TLS11: true, Cert: &CertInfo{DaysRemaining: 10, CoversApex: true, CoversWWW: false}}
+	rep.Web.WWW = hostWeb([]netip.Addr{v4, v6}, map[portKey]PortState{{v4, 443}: PortOpen}, nil) // resolves, no cert
+	buildFindings(rep)
+	check(t, "ok", rep.OK, true)
+	for _, want := range []string{
+		"apex: TLS 1.0/1.1 still accepted on 1 of 2 addresses",
+		"apex: no TLS 1.3 on 1 of 2 addresses",
+		"apex: certificate expires in 10 days",
+		"apex: certificate does not cover www, which resolves but has no valid certificate",
+	} {
+		check(t, want, contains(rep.Warnings, want), true)
+	}
+	// Once www has its own valid certificate the coverage warning goes away.
+	rep.Web.WWW.IPv4[0].TLS = &TLSResult{Chain: ChainValid, Version: "TLS 1.3", Cert: &CertInfo{DaysRemaining: 90, CoversWWW: true}}
+	buildFindings(rep)
+	check(t, "no coverage warning", contains(rep.Warnings, "does not cover"), false)
+	// Urgent expiry wording and per-address chain errors.
+	rep.Web.Apex.IPv6[0].TLS.Cert.DaysRemaining = 3
+	rep.Web.Apex.IPv4[0].TLS = &TLSResult{Chain: ChainSelfSigned, Error: "self-signed certificate", Cert: valid}
+	buildFindings(rep)
+	check(t, "urgent", contains(rep.Warnings, "certificate expires in 3 days (urgent)"), true)
+	check(t, "chain error", contains(rep.Errors, "apex "+v4.String()+": certificate self signed: self-signed certificate"), true)
+	check(t, "not ok", rep.OK, false)
+}
+
+func TestHTTPFindings_Aggregation(t *testing.T) {
+	rep := healthyReport(t)
+	a := &rep.Web.Apex.IPv4[0]
+	b := &rep.Web.Apex.IPv6[0]
+	a.HTTPRes = &HTTPResult{Status: 200}
+	b.HTTPRes = &HTTPResult{Status: 302, Location: "http://www.google.com/"}
+	a.HTTPSRes = &HTTPResult{Status: 503, HSTS: &HSTS{MaxAge: 100}}
+	b.HTTPSRes = &HTTPResult{Status: 503, HSTS: &HSTS{MaxAge: 99999999}}
+	rep.Web.Apex.Redirects = map[string]*RedirectChain{
+		familyIPv4: {Hops: []RedirectHop{{"http://google.com/", 302}, {"https://google.com/", 404}}, FinalURL: "https://google.com/"},
+		familyIPv6: {Loop: true, Hops: []RedirectHop{{"http://google.com/", 302}, {"http://www.google.com/", 302}}},
+	}
+	buildFindings(rep)
+	check(t, "5xx everywhere is an error", contains(rep.Errors, "apex: every address returns a server error on port 443"), true)
+	check(t, "cleartext once", contains(rep.Warnings, "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 2 addresses)"), true)
+	check(t, "non-https redirect", contains(rep.Warnings, "apex: HTTP redirects to a non-HTTPS URL (1 of 2 addresses)"), true)
+	check(t, "shortest hsts", contains(rep.Warnings, "apex: HSTS max-age 100 is under 180 days"), true)
+	check(t, "chain ends 404", contains(rep.Warnings, "apex (ipv4): redirect chain ends in HTTP 404"), true)
+	check(t, "loop", contains(rep.Errors, "apex (ipv6): redirect loop http://google.com/ (302) -> http://www.google.com/ (302)"), true)
+	rep.Web.Apex.IPv6[0].HTTPSRes.Status = 200
+	buildFindings(rep)
+	check(t, "partial 5xx is a warning", contains(rep.Warnings, "apex: 1 of 2 addresses return a server error on port 443"), true)
+}

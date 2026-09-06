@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: google._domainkey.gmail.com
+status: ncache nxdomain
+records:
+  - negative_response_unsigned_answer:
+    - 'google._domainkey.gmail.com. 299 IN \-ANY ;-$NXDOMAIN'
+    - 'gmail.com. SOA ns1.google.com. dns-admin.google.com. 976724645 900 900 1800 60'

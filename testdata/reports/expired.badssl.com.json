@@ -1,0 +1,256 @@
+{
+  "domain": "expired.badssl.com",
+  "not_a_zone": true,
+  "enclosing_zone": "badssl.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "104.154.89.105"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "MX": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "NS": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "TXT": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "104.154.89.105"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false,
+    "detail": "not a zone apex; state taken from answer validation"
+  },
+  "delegation": {
+    "status": "not_a_zone",
+    "error": "name is a host inside badssl.com"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "104.154.89.105",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://expired.badssl.com/",
+            "server": "nginx/1.10.3 (Ubuntu)"
+          },
+          "https": {
+            "status": 200,
+            "server": "nginx/1.10.3 (Ubuntu)"
+          },
+          "tls": {
+            "chain": "expired",
+            "version": "TLS 1.2",
+            "alpn": "http/1.1",
+            "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+            "tls10": true,
+            "tls11": true,
+            "cert": {
+              "subject": "*.badssl.com",
+              "issuer": "COMODO RSA Domain Validation Secure Server CA",
+              "not_before": "2015-04-09T00:00:00Z",
+              "not_after": "2015-04-12T23:59:59Z",
+              "days_remaining": -4164,
+              "sans": [
+                "*.badssl.com",
+                "badssl.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "ba105ce02bac76888ecee47cd4eb7941653e9ac993b61b2eb3dcc82014d21b4f"
+            },
+            "chain_length": 3,
+            "error": "certificate expired 2015-04-12T23:59:59Z"
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://expired.badssl.com/",
+              "status": 301
+            },
+            {
+              "url": "https://expired.badssl.com/",
+              "status": 200
+            }
+          ],
+          "final_url": "https://expired.badssl.com/"
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "same_as_apex": true,
+      "via_wildcard": true,
+      "ipv4": [
+        {
+          "ip": "104.154.89.105",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 302,
+            "location": "https://www.expired.badssl.com/",
+            "server": "nginx/1.10.3 (Ubuntu)"
+          },
+          "https": {
+            "status": 421,
+            "server": "nginx/1.10.3 (Ubuntu)"
+          },
+          "tls": {
+            "chain": "expired",
+            "version": "TLS 1.2",
+            "alpn": "http/1.1",
+            "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+            "tls10": true,
+            "tls11": true,
+            "cert": {
+              "subject": "badssl-fallback-unknown-subdomain-or-no-sni",
+              "issuer": "BadSSL Intermediate Certificate Authority",
+              "not_before": "2016-08-08T21:17:05Z",
+              "not_after": "2018-08-08T21:17:05Z",
+              "days_remaining": -2951,
+              "sans": [
+                "badssl-fallback-unknown-subdomain-or-no-sni"
+              ],
+              "covers_apex": false,
+              "covers_www": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "d073b38943b36bd970ec8f61b3a1aea66e58eff160daee143bcb9d9967867813"
+            },
+            "chain_length": 1,
+            "error": "certificate expired 2018-08-08T21:17:05Z"
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.expired.badssl.com/",
+              "status": 302
+            },
+            {
+              "url": "https://www.expired.badssl.com/",
+              "status": 421
+            }
+          ],
+          "final_url": "https://www.expired.badssl.com/"
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": false,
+      "pct": 100,
+      "rua": false,
+      "records": 0
+    },
+    "spf": {
+      "records": 0,
+      "lookups": 0,
+      "void_lookups": 0
+    },
+    "dkim": {},
+    "mta_sts": {
+      "record": false,
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "caa": {
+    "issuer": "COMODO CA Limited",
+    "note": "no CAA records; any CA may issue"
+  },
+  "tlsa": {
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "present": true,
+    "addresses": [
+      "104.154.89.105"
+    ],
+    "www_via_wildcard": true
+  },
+  "hsts_preload": "unknown",
+  "errors": [
+    "apex 104.154.89.105: certificate expired: certificate expired 2015-04-12T23:59:59Z",
+    "www 104.154.89.105: certificate expired: certificate expired 2018-08-08T21:17:05Z"
+  ],
+  "warnings": [
+    "expired.badssl.com is not a zone apex (inside zone badssl.com): delegation and DNSSEC zone checks skipped",
+    "apex has no AAAA record",
+    "www has no AAAA record",
+    "apex has no MX records",
+    "no SPF (v=spf1) record in apex TXT",
+    "www is answered by a wildcard record, not a real host",
+    "apex: TLS 1.0/1.1 still accepted on 1 of 1 addresses",
+    "apex: no TLS 1.3 on 1 of 1 addresses",
+    "www: TLS 1.0/1.1 still accepted on 1 of 1 addresses",
+    "www: no TLS 1.3 on 1 of 1 addresses",
+    "www: every address returns a client error on port 443",
+    "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/",
+    "no DMARC record"
+  ],
+  "ok": false,
+  "elapsed_ms": 2526
+}

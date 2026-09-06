@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/x509"
 	"net"
 	"net/netip"
 	"os"
@@ -14,49 +15,132 @@ import (
 // netDialer is the production dialer.
 type netDialer struct{ net.Dialer }
 
+// lookupCache memoises delv lookups for one run so that SPF includes, MX
+// targets and NS names are fetched once however many checks need them.
+type lookupCache struct {
+	ctx  context.Context // the current phase's context; run() advances it
+	r    Runner
+	cfg  config
+	mu   sync.Mutex
+	done map[string]Lookup
+}
+
+// setContext binds later lookups to a new phase context.
+func (c *lookupCache) setContext(ctx context.Context) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ctx = ctx
+}
+
+func newLookupCache(ctx context.Context, cfg config, r Runner) *lookupCache {
+	return &lookupCache{ctx: ctx, r: r, cfg: cfg, done: map[string]Lookup{}}
+}
+
+// get returns the memoised lookup, running delv on first use. Each miss
+// gets its own timeout so that lookups requested after the DNS phase
+// (nameserver names learned from the parent, for instance) still have a
+// budget instead of inheriting an expired deadline.
+func (c *lookupCache) get(name, qtype string) Lookup {
+	name = strings.ToLower(strings.TrimSuffix(name, "."))
+	key := name + "/" + qtype
+	c.mu.Lock()
+	l, ok := c.done[key]
+	base := c.ctx
+	c.mu.Unlock()
+	if ok {
+		return l
+	}
+	lctx, cancel := context.WithTimeout(base, c.cfg.timeout())
+	defer cancel()
+	l = delvLookup(lctx, c.r, c.cfg.DelvPath, c.cfg.Resolver, "", name, qtype)
+	c.mu.Lock()
+	c.done[key] = l
+	c.mu.Unlock()
+	return l
+}
+
 // dnsResults collects every delv lookup for one run.
 type dnsResults struct {
-	apex   map[string]Lookup
-	www    map[string]Lookup
-	ds     Lookup
-	dnskey Lookup
-	reach  map[string]string
+	apex     map[string]Lookup
+	www      map[string]Lookup
+	ds       Lookup
+	dnskey   Lookup
+	reach    map[string]string
+	dmarc    Lookup
+	mtaSTS   Lookup
+	tlsRPT   Lookup
+	wildA    Lookup
+	wildAAAA Lookup
+	caaApex  Lookup
+	caaWWW   Lookup
+	tlsaApex Lookup
+	tlsaWWW  Lookup
+	cache    *lookupCache
 }
 
 // run performs every check for cfg and returns the finished report.
 func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	start := time.Now()
-	rep := &Report{
-		Domain:         cfg.Domain,
-		Resolver:       cfg.Resolver.String(),
-		Families:       cfg.Families,
-		TimeoutSec:     cfg.TimeoutSec,
-		TCPTimeoutSec:  cfg.TCPTimeoutSec,
-		QuicTimeoutSec: cfg.QuicTimeoutSec,
-		UnicodeDomain:  cfg.UnicodeDomain,
-	}
+	rep := newReport(cfg)
 
 	var dns dnsResults
 	parallel(
 		func() { rep.Delegation = runTrace(ctx, cfg, r) },
 		func() { dns = gatherDNS(ctx, cfg, r) },
 	)
-
 	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach}
-	probeCtx, cancel := context.WithTimeout(ctx, cfg.timeout()+time.Second)
+	classifyZone(rep, cfg, dns, r)
+
+	probeCtx, cancel := context.WithTimeout(ctx, probeBudget(cfg))
 	defer cancel()
-	if rep.NotAZone, rep.EnclosingZone = detectNotAZone(cfg.Domain, dns, rep.Delegation); rep.NotAZone {
-		rep.DNSSEC = classifyByTrust(dns.apex)
-		rep.Delegation = Delegation{Status: DelegationNotAZone, Error: "name is a host inside " + firstNonEmpty(rep.EnclosingZone, "another zone")}
-	} else {
-		rep.DNSSEC = classifyDNSSEC(dns.ds, dns.dnskey, dns.apex,
-			newBogusProbe(probeCtx, r, cfg.DigPath, cfg.Resolver, cfg.TimeoutSec))
-	}
-	rep.Web = probeWeb(probeCtx, cfg, r, d, dns)
+	dns.cache.setContext(probeCtx) // late lookups share the probe budget
+	parallel(
+		func() { rep.Web = probeWeb(probeCtx, cfg, r, d, dns, rep) },
+		func() { rep.Nameservers = auditNameservers(probeCtx, cfg, r, dns, rep) },
+		func() { rep.Mail = assessMail(probeCtx, cfg, dns) },
+		func() { rep.HSTSPreload = checkPreload(probeCtx, cfg) },
+	)
+	rep.Wildcard = wildcardSection(dns, rep.Web)
+	rep.CAA, rep.TLSA = assessCertPolicies(dns, rep)
 
 	buildFindings(rep)
 	rep.ElapsedMs = time.Since(start).Milliseconds()
 	return rep
+}
+
+func newReport(cfg config) *Report {
+	return &Report{
+		Domain:         cfg.Domain,
+		UnicodeDomain:  cfg.UnicodeDomain,
+		Resolver:       cfg.Resolver.String(),
+		Families:       cfg.Families,
+		TimeoutSec:     cfg.TimeoutSec,
+		TCPTimeoutSec:  cfg.TCPTimeoutSec,
+		QuicTimeoutSec: cfg.QuicTimeoutSec,
+	}
+}
+
+// probeBudget bounds the whole probe phase: connect, TLS, HTTP and one
+// redirect chain, plus QUIC.
+func probeBudget(cfg config) time.Duration {
+	b := 3 * cfg.tcpTimeout()
+	if q := time.Duration(cfg.QuicTimeoutSec)*time.Second + time.Second; q > b {
+		b = q
+	}
+	return b + time.Second
+}
+
+// classifyZone fills the not-a-zone and DNSSEC verdicts.
+func classifyZone(rep *Report, cfg config, dns dnsResults, r Runner) {
+	if rep.NotAZone, rep.EnclosingZone = detectNotAZone(cfg.Domain, dns, rep.Delegation); rep.NotAZone {
+		rep.DNSSEC = classifyByTrust(dns.apex)
+		rep.Delegation = Delegation{Status: DelegationNotAZone, Error: "name is a host inside " + firstNonEmpty(rep.EnclosingZone, "another zone")}
+		return
+	}
+	bctx, cancel := context.WithTimeout(context.Background(), cfg.timeout())
+	defer cancel()
+	rep.DNSSEC = classifyDNSSEC(dns.ds, dns.dnskey, dns.apex,
+		newBogusProbe(bctx, r, cfg.DigPath, cfg.Resolver, cfg.TimeoutSec))
 }
 
 // detectNotAZone reports whether the name is a host inside a zone rather
@@ -120,14 +204,19 @@ func parallel(fns ...func()) {
 func runTrace(ctx context.Context, cfg config, r Runner) Delegation {
 	tctx, cancel := context.WithTimeout(ctx, 2*cfg.timeout())
 	defer cancel()
-	family := familyIPv4
-	if !cfg.wantsFamily(familyIPv4) {
-		family = familyIPv6
-	}
-	return traceDelegation(tctx, r, cfg.DigPath, family, cfg.TimeoutSec, cfg.Domain)
+	return traceDelegation(tctx, r, cfg.DigPath, traceFamily(cfg), cfg.TimeoutSec, cfg.Domain)
 }
 
-// gatherDNS runs all delv lookups in parallel under one deadline.
+func traceFamily(cfg config) string {
+	if !cfg.wantsFamily(familyIPv4) {
+		return familyIPv6
+	}
+	return familyIPv4
+}
+
+// gatherDNS runs all delv lookups in parallel under one deadline: first
+// the fixed set, then the lookups that depend on those answers (SPF
+// includes, MX targets, DKIM selectors, NS names).
 func gatherDNS(ctx context.Context, cfg config, r Runner) dnsResults {
 	dctx, cancel := context.WithTimeout(ctx, cfg.timeout())
 	defer cancel()
@@ -135,29 +224,66 @@ func gatherDNS(ctx context.Context, cfg config, r Runner) dnsResults {
 		apex:  make(map[string]Lookup, len(apexTypes)),
 		www:   make(map[string]Lookup, len(wwwTypes)),
 		reach: make(map[string]string, len(cfg.Families)),
+		cache: newLookupCache(dctx, cfg, r),
 	}
 	var mu sync.Mutex
-	look := func(name, qtype string) Lookup {
-		return delvLookup(dctx, r, cfg.DelvPath, cfg.Resolver, "", name, qtype)
-	}
-	var tasks []func()
-	for _, t := range apexTypes {
-		tasks = append(tasks, func() { store(&mu, res.apex, t, look(cfg.Domain, t)) })
-	}
-	for _, t := range wwwTypes {
-		tasks = append(tasks, func() { store(&mu, res.www, t, look("www."+cfg.Domain, t)) })
-	}
-	tasks = append(tasks,
-		func() { l := look(cfg.Domain, "DS"); mu.Lock(); res.ds = l; mu.Unlock() },
-		func() { l := look(cfg.Domain, "DNSKEY"); mu.Lock(); res.dnskey = l; mu.Unlock() },
-	)
+	get := res.cache.get
+	tasks := fixedLookups(&res, &mu, cfg, get)
 	for _, fam := range cfg.Families {
 		tasks = append(tasks, func() {
 			store(&mu, res.reach, fam, checkReachability(dctx, cfg, r, fam))
 		})
 	}
 	parallel(tasks...)
+	parallel(dependentLookups(&res, cfg, get)...)
 	return res
+}
+
+// fixedLookups are the lookups known before any answer arrives.
+func fixedLookups(res *dnsResults, mu *sync.Mutex, cfg config, get lookupFn) []func() {
+	d, www := cfg.Domain, "www."+cfg.Domain
+	wild := wildcardName(d)
+	set := func(dst *Lookup, name, qtype string) func() {
+		return func() {
+			l := get(name, qtype)
+			mu.Lock()
+			*dst = l
+			mu.Unlock()
+		}
+	}
+	var tasks []func()
+	for _, t := range apexTypes {
+		tasks = append(tasks, func() { store(mu, res.apex, t, get(d, t)) })
+	}
+	for _, t := range wwwTypes {
+		tasks = append(tasks, func() { store(mu, res.www, t, get(www, t)) })
+	}
+	tasks = append(tasks,
+		set(&res.ds, d, "DS"), set(&res.dnskey, d, "DNSKEY"),
+		set(&res.dmarc, "_dmarc."+d, "TXT"), set(&res.mtaSTS, "_mta-sts."+d, "TXT"), set(&res.tlsRPT, "_smtp._tls."+d, "TXT"),
+		set(&res.wildA, wild, "A"), set(&res.wildAAAA, wild, "AAAA"),
+		set(&res.caaApex, d, "CAA"), set(&res.caaWWW, www, "CAA"),
+		set(&res.tlsaApex, "_443._tcp."+d, "TLSA"), set(&res.tlsaWWW, "_443._tcp."+www, "TLSA"),
+	)
+	return tasks
+}
+
+// dependentLookups warm the cache for names learned from the first wave so
+// that the evaluators run against memoised answers.
+func dependentLookups(res *dnsResults, cfg config, get lookupFn) []func() {
+	var tasks []func()
+	for _, sel := range dkimSelectors {
+		name := sel + "._domainkey." + cfg.Domain
+		tasks = append(tasks, func() { get(name, "TXT") })
+	}
+	for _, host := range mxHosts(res.apex["MX"]) {
+		tasks = append(tasks, func() { get(host, "A") }, func() { get(host, "AAAA") })
+	}
+	for _, ns := range nsNames(res.apex["NS"]) {
+		tasks = append(tasks, func() { get(ns, "A") }, func() { get(ns, "AAAA") })
+	}
+	tasks = append(tasks, func() { evaluateSPF(cfg.Domain, res.apex["TXT"], get) })
+	return tasks
 }
 
 func store[V any](mu *sync.Mutex, m map[string]V, k string, v V) {
@@ -222,31 +348,121 @@ func resolvConfFamilies(path string) map[string]bool {
 	return fams
 }
 
-// probeWeb runs TCP and QUIC probes for apex and www, collapsing www into
-// apex when both resolve to the same addresses.
-func probeWeb(ctx context.Context, cfg config, r Runner, d dialer, dns dnsResults) WebSection {
-	apexAddrs := wantedAddrs(cfg, dns.apex["A"], dns.apex["AAAA"])
-	wwwAddrs := wantedAddrs(cfg, dns.www["A"], dns.www["AAAA"])
-	same := len(apexAddrs) > 0 && sameAddressSet(apexAddrs, wwwAddrs)
+// ------------------------------------------------------------------ web
 
-	var ports map[portKey]PortState
-	var apexQUIC, wwwQUIC map[string]*QUICResult
-	tasks := []func(){
-		func() { ports = probePorts(ctx, d, append(apexAddrs, wwwAddrs...), webPorts, cfg.tcpTimeout()) },
-		func() { apexQUIC = quicPerFamily(ctx, cfg, r, cfg.Domain, apexAddrs) },
-	}
-	if !same {
-		tasks = append(tasks, func() { wwwQUIC = quicPerFamily(ctx, cfg, r, "www."+cfg.Domain, wwwAddrs) })
-	}
-	parallel(tasks...)
+// probeWeb probes apex and www separately (the TLS name and Host header
+// differ even when the addresses are shared), records reserved addresses,
+// and follows one redirect chain per family per name.
+func probeWeb(ctx context.Context, cfg config, r Runner, d dialer, dns dnsResults, rep *Report) WebSection {
+	apexAll := wantedAddrs(cfg, dns.apex["A"], dns.apex["AAAA"])
+	wwwAll := wantedAddrs(cfg, dns.www["A"], dns.www["AAAA"])
+	apexAddrs, reservedApex := splitReserved(apexAll)
+	wwwAddrs, reservedWWW := splitReserved(wwwAll)
+	rep.ReservedAddresses = append(reservedApex, reservedWWW...)
 
-	web := WebSection{Apex: hostWeb(apexAddrs, ports, apexQUIC)}
-	if same {
-		web.WWW = &HostWeb{SameAsApex: true}
-	} else {
-		web.WWW = hostWeb(wwwAddrs, ports, wwwQUIC)
+	apex, www := cfg.Domain, "www."+cfg.Domain
+	hosts := hostAddrsByFamily(map[string][]netip.Addr{apex: apexAddrs, www: wwwAddrs})
+	var web WebSection
+	parallel(
+		func() { web.Apex = probeHost(ctx, cfg, r, d, apex, apexAddrs, reservedApex, hosts) },
+		func() { web.WWW = probeHost(ctx, cfg, r, d, www, wwwAddrs, reservedWWW, hosts) },
+	)
+	if web.WWW != nil && len(apexAll) > 0 && sameAddressSet(apexAll, wwwAll) {
+		web.WWW.SameAsApex = true
 	}
 	return web
+}
+
+// hostAddrsByFamily builds, per family, the address the redirect follower
+// uses for each host.
+func hostAddrsByFamily(addrs map[string][]netip.Addr) map[string]hostAddrs {
+	out := map[string]hostAddrs{familyIPv4: {}, familyIPv6: {}}
+	for host, list := range addrs {
+		for _, ip := range list {
+			fam := familyOf(ip)
+			if _, ok := out[fam][host]; !ok {
+				out[fam][host] = ip
+			}
+		}
+	}
+	return out
+}
+
+// probeHost runs the per-address probes for one hostname and assembles
+// its HostWeb entry.
+func probeHost(ctx context.Context, cfg config, r Runner, d dialer, host string, addrs []netip.Addr, reserved []string, hosts map[string]hostAddrs) *HostWeb {
+	if len(addrs) == 0 && len(reserved) == 0 {
+		return nil
+	}
+	apex, www := cfg.Domain, "www."+cfg.Domain
+	probes := make([]addrProbe, len(addrs))
+	var tasks []func()
+	for i, ip := range addrs {
+		tasks = append(tasks, func() { probes[i] = probeAddress(ctx, d, ip, host, apex, www, cfg.tcpTimeout()) })
+	}
+	var quic map[string]*QUICResult
+	tasks = append(tasks, func() { quic = quicPerFamily(ctx, cfg, r, host, addrs) })
+	parallel(tasks...)
+
+	h := &HostWeb{}
+	for _, p := range probes {
+		h.add(addrEntry(p, quic[p.IP.String()]))
+	}
+	for _, res := range reserved {
+		h.add(AddrWeb{IP: strings.Fields(res)[0], HTTP: PortSkipped, HTTPS: PortSkipped})
+	}
+	h.Redirects = redirectChains(ctx, d, host, hosts, cfg.tcpTimeout())
+	h.CertConsistent = certConsistent(h.addrs())
+	return h
+}
+
+func addrEntry(p addrProbe, q *QUICResult) AddrWeb {
+	return AddrWeb{IP: p.IP.String(), HTTP: p.HTTP, HTTPS: p.HTTPS, HTTPRes: p.HTTPRes, HTTPSRes: p.HTTPSRes, TLS: p.TLS, QUIC: q}
+}
+
+// redirectChains follows the HTTP entry point of host once per family.
+func redirectChains(ctx context.Context, d dialer, host string, hosts map[string]hostAddrs, timeout time.Duration) map[string]*RedirectChain {
+	out := map[string]*RedirectChain{}
+	var mu sync.Mutex
+	var tasks []func()
+	for _, fam := range []string{familyIPv4, familyIPv6} {
+		if _, ok := hosts[fam][host]; !ok {
+			continue
+		}
+		tasks = append(tasks, func() {
+			c := followRedirects(ctx, d, "http", host, hosts[fam], timeout)
+			mu.Lock()
+			out[fam] = &c
+			mu.Unlock()
+		})
+	}
+	parallel(tasks...)
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// certConsistent is nil without certificates, otherwise whether every
+// address served the same leaf.
+func certConsistent(addrs []AddrWeb) *bool {
+	var first string
+	seen := false
+	for _, a := range addrs {
+		if a.TLS == nil || a.TLS.Cert == nil {
+			continue
+		}
+		if seen && a.TLS.Cert.Fingerprint != first {
+			f := false
+			return &f
+		}
+		first, seen = a.TLS.Cert.Fingerprint, true
+	}
+	if !seen {
+		return nil
+	}
+	t := true
+	return &t
 }
 
 // wantedAddrs returns the addresses from A/AAAA lookups that belong to an
@@ -294,29 +510,147 @@ func quicPerFamily(ctx context.Context, cfg config, r Runner, host string, addrs
 	return out
 }
 
-// hostWeb assembles the per-address results for one hostname.
-func hostWeb(addrs []netip.Addr, ports map[portKey]PortState, quic map[string]*QUICResult) *HostWeb {
-	if len(addrs) == 0 {
+// --------------------------------------------------------------- others
+
+// auditNameservers resolves the NS set, audits every address and checks
+// glue. Skipped for names that are not zones.
+func auditNameservers(ctx context.Context, cfg config, r Runner, dns dnsResults, rep *Report) *NSReport {
+	if rep.NotAZone {
 		return nil
 	}
-	h := &HostWeb{}
-	seen := map[netip.Addr]bool{}
-	for _, ip := range addrs {
-		if seen[ip] {
-			continue
-		}
-		seen[ip] = true
-		a := AddrWeb{
-			IP:    ip.String(),
-			HTTP:  ports[portKey{IP: ip, Port: 80}],
-			HTTPS: ports[portKey{IP: ip, Port: 443}],
-			QUIC:  quic[ip.String()],
-		}
-		if ip.Is4() {
-			h.IPv4 = append(h.IPv4, a)
-		} else {
-			h.IPv6 = append(h.IPv6, a)
+	names := nsNames(dns.apex["NS"])
+	if len(names) == 0 {
+		names = rep.Delegation.ParentNS
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	ns := resolveNS(names, dns.cache.get)
+	auditAll(ctx, r, cfg.DigPath, &ns, cfg.Domain, cfg.Families, cfg.TimeoutSec)
+	if rep.Delegation.ParentServer != "" && rep.Delegation.Status != DelegationSameServers {
+		msgs := runDig(ctx, r, cfg.DigPath, glueArgs(rep.Delegation.ParentServer, traceFamily(cfg), cfg.TimeoutSec, cfg.Domain)...)
+		ns.Glue = checkGlue(msgs, cfg.Domain, ns.addrs)
+	}
+	return &ns
+}
+
+// assessMail evaluates DMARC, SPF, MX, DKIM, MTA-STS and TLS-RPT.
+func assessMail(ctx context.Context, cfg config, dns dnsResults) *MailReport {
+	get := dns.cache.get
+	m := &MailReport{
+		DMARC:  parseDMARC(dns.dmarc),
+		SPF:    evaluateSPF(cfg.Domain, dns.apex["TXT"], get),
+		MX:     checkMX(dns.apex["MX"], get),
+		DKIM:   probeDKIM(cfg.Domain, get),
+		TLSRPT: hasTLSRPT(dns.tlsRPT),
+	}
+	m.MTASTS = checkMTASTS(ctx, cfg.Domain, dns.mtaSTS, mxHosts(dns.apex["MX"]), cfg.tcpTimeout())
+	return m
+}
+
+// checkPreload consults the HSTS preload list when -hsts-preload is set.
+func checkPreload(ctx context.Context, cfg config) string {
+	if !cfg.HSTSPreload {
+		return ""
+	}
+	status, err := preloadFetcher(ctx, cfg.Domain, cfg.tcpTimeout())
+	if err != nil {
+		return "error: " + err.Error()
+	}
+	return status
+}
+
+// wildcardSection evaluates the nonce probe and stamps www when its
+// addresses are just the wildcard's.
+func wildcardSection(dns dnsResults, web WebSection) *WildcardReport {
+	w := assessWildcard(dns.wildA, dns.wildAAAA, dns.www["A"], dns.www["AAAA"])
+	if w.WWWViaWildcard && web.WWW != nil {
+		web.WWW.ViaWildcard = true
+	}
+	return &w
+}
+
+// assessCertPolicies evaluates CAA and TLSA against the certificates that
+// were actually served.
+func assessCertPolicies(dns dnsResults, rep *Report) (*CAAReport, *TLSAReport) {
+	leaf, wildcard := servedLeaf(rep.Web)
+	issuer := ""
+	if leaf != nil {
+		issuer = issuerOrg(leaf)
+	}
+	caa := assessCAA(dns.caaApex, dns.caaWWW, issuer, wildcard)
+	tlsa := assessTLSA(dns.tlsaApex, dns.tlsaWWW, rep.Web)
+	return &caa, tlsa
+}
+
+// servedLeaf returns the first leaf certificate observed (apex first).
+func servedLeaf(web WebSection) (*x509.Certificate, bool) {
+	for _, h := range []*HostWeb{web.Apex, web.WWW} {
+		for _, a := range h.addrs() {
+			if a.TLS != nil && len(a.TLS.chain) > 0 {
+				return a.TLS.chain[0], a.TLS.Cert != nil && a.TLS.Cert.Wildcard
+			}
 		}
 	}
-	return h
+	return nil, false
+}
+
+// TLSAReport is the tlsa section of the report.
+type TLSAReport struct {
+	Apex   []string `json:"apex,omitempty"`
+	WWW    []string `json:"www,omitempty"`
+	Signed bool     `json:"signed"`
+	Result string   `json:"result"` // none, match, mismatch, unverified
+}
+
+// assessTLSA matches the TLSA sets against every address's chain and
+// stamps each address with its own verdict.
+func assessTLSA(apexRec, wwwRec Lookup, web WebSection) *TLSAReport {
+	rep := &TLSAReport{Apex: apexRec.Records, WWW: wwwRec.Records, Result: TLSANone}
+	if len(apexRec.Records)+len(wwwRec.Records) == 0 {
+		return rep
+	}
+	rep.Signed = tlsaSigned(apexRec) && tlsaSigned(wwwRec)
+	anyMatch, anyChecked := false, false
+	for _, pair := range []struct {
+		h   *HostWeb
+		rec Lookup
+	}{{web.Apex, apexRec}, {web.WWW, wwwRec}} {
+		records := parseTLSARecords(pair.rec.Records)
+		if pair.h == nil || len(records) == 0 {
+			continue
+		}
+		m, c := stampHost(pair.h, records)
+		anyMatch, anyChecked = anyMatch || m, anyChecked || c
+	}
+	switch {
+	case !anyChecked:
+		rep.Result = "unverified"
+	case anyMatch:
+		rep.Result = TLSAMatch
+	default:
+		rep.Result = TLSAMismatch
+	}
+	return rep
+}
+
+func tlsaSigned(l Lookup) bool {
+	return len(l.Records) == 0 || l.Trust == TrustSecure
+}
+
+// stampHost applies matchTLSA to every address of a host and reports
+// whether any matched and whether any could be checked.
+func stampHost(h *HostWeb, records []tlsaRecord) (anyMatch, anyChecked bool) {
+	for _, list := range [][]AddrWeb{h.IPv4, h.IPv6} {
+		for i := range list {
+			a := &list[i]
+			if a.TLS == nil || len(a.TLS.chain) == 0 {
+				continue
+			}
+			a.TLSA = matchTLSA(records, a.TLS.chain, a.TLS.pkixValid)
+			anyChecked = true
+			anyMatch = anyMatch || a.TLSA == TLSAMatch
+		}
+	}
+	return anyMatch, anyChecked
 }

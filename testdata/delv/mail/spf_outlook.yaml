@@ -1,0 +1,11 @@
+type: DELV_RESULT
+query_name: outlook.com
+status: success
+records:
+  - fully_validated:
+    - 'outlook.com. 300 IN TXT "_ofl74f250a84g188pro5arwqa23zle2"'
+    - 'outlook.com. 300 IN TXT "v=spf1 include:spf2.outlook.com -all"'
+    - 'outlook.com. 300 IN TXT "google-site-verification=0iLWhIMhXEkeWwWfFU4ursTn-_OvoOjaA0Lr7Pg1sEM"'
+    - 'outlook.com. 300 IN TXT "google-site-verification=DC2uC-T8kD33lINhNzfo0bNBrw-vrCXs5BPF5BXY56g"'
+    - 'outlook.com. 300 IN TXT "google-site-verification=u61khn2j2qt8IdrjskRMSZ0p_HaFURXKrSsu-uXKyNA"'
+    - 'outlook.com. 300 IN RRSIG TXT 13 2 300 20260907224110 20260905204110 1050 outlook.com. +yBR2sZ+Sv1jFxndeJsGEqM2qn8k0tgVSo2b50Q0NVeM6dlwTzruiwnk 6r6bjqAuwQETHioFIbnd1IQBN6N4tA=='

@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: www.xn--mnchen-3ya.de
+status: success
+records:
+  - unsigned_answer:
+    - 'www.xn--mnchen-3ya.de. 78807 IN AAAA 2a00:1830:a001:f00a::100'

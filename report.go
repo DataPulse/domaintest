@@ -33,21 +33,28 @@ type Report struct {
 	UnicodeDomain string `json:"unicode_domain,omitempty"`
 	// NotAZone is set when the name is a host inside a zone rather than a
 	// zone apex; EnclosingZone names that zone when a SOA revealed it.
-	NotAZone       bool         `json:"not_a_zone,omitempty"`
-	EnclosingZone  string       `json:"enclosing_zone,omitempty"`
-	Resolver       string       `json:"resolver"`
-	Families       []string     `json:"families"`
-	TimeoutSec     int          `json:"timeout_sec"`
-	TCPTimeoutSec  int          `json:"tcp_timeout_sec"`
-	QuicTimeoutSec int          `json:"quic_timeout_sec"`
-	DNS            DNSSection   `json:"dns"`
-	DNSSEC         DNSSECReport `json:"dnssec"`
-	Delegation     Delegation   `json:"delegation"`
-	Web            WebSection   `json:"web"`
-	Errors         []string     `json:"errors"`
-	Warnings       []string     `json:"warnings"`
-	OK             bool         `json:"ok"`
-	ElapsedMs      int64        `json:"elapsed_ms"`
+	NotAZone          bool            `json:"not_a_zone,omitempty"`
+	EnclosingZone     string          `json:"enclosing_zone,omitempty"`
+	Resolver          string          `json:"resolver"`
+	Families          []string        `json:"families"`
+	TimeoutSec        int             `json:"timeout_sec"`
+	TCPTimeoutSec     int             `json:"tcp_timeout_sec"`
+	QuicTimeoutSec    int             `json:"quic_timeout_sec"`
+	DNS               DNSSection      `json:"dns"`
+	DNSSEC            DNSSECReport    `json:"dnssec"`
+	Delegation        Delegation      `json:"delegation"`
+	Web               WebSection      `json:"web"`
+	Mail              *MailReport     `json:"mail,omitempty"`
+	Nameservers       *NSReport       `json:"nameservers,omitempty"`
+	CAA               *CAAReport      `json:"caa,omitempty"`
+	TLSA              *TLSAReport     `json:"tlsa,omitempty"`
+	Wildcard          *WildcardReport `json:"wildcard,omitempty"`
+	ReservedAddresses []string        `json:"reserved_addresses,omitempty"`
+	HSTSPreload       string          `json:"hsts_preload,omitempty"`
+	Errors            []string        `json:"errors"`
+	Warnings          []string        `json:"warnings"`
+	OK                bool            `json:"ok"`
+	ElapsedMs         int64           `json:"elapsed_ms"`
 }
 
 // DNSSection holds the record lookups.
@@ -65,17 +72,34 @@ type WebSection struct {
 
 // HostWeb holds per-family probe results for one hostname.
 type HostWeb struct {
-	SameAsApex bool      `json:"same_as_apex,omitempty"`
-	IPv4       []AddrWeb `json:"ipv4,omitempty"`
-	IPv6       []AddrWeb `json:"ipv6,omitempty"`
+	SameAsApex     bool                      `json:"same_as_apex,omitempty"`
+	ViaWildcard    bool                      `json:"via_wildcard,omitempty"`
+	IPv4           []AddrWeb                 `json:"ipv4,omitempty"`
+	IPv6           []AddrWeb                 `json:"ipv6,omitempty"`
+	Redirects      map[string]*RedirectChain `json:"redirects,omitempty"`
+	CertConsistent *bool                     `json:"cert_consistent,omitempty"`
+}
+
+// add appends an address entry to the right family list.
+func (h *HostWeb) add(a AddrWeb) {
+	ip, err := netip.ParseAddr(a.IP)
+	if err == nil && ip.Is6() {
+		h.IPv6 = append(h.IPv6, a)
+		return
+	}
+	h.IPv4 = append(h.IPv4, a)
 }
 
 // AddrWeb is the probe outcome for one address.
 type AddrWeb struct {
-	IP    string      `json:"ip"`
-	HTTP  PortState   `json:"80"`
-	HTTPS PortState   `json:"443"`
-	QUIC  *QUICResult `json:"quic,omitempty"`
+	IP       string      `json:"ip"`
+	HTTP     PortState   `json:"80"`
+	HTTPS    PortState   `json:"443"`
+	HTTPRes  *HTTPResult `json:"http,omitempty"`
+	HTTPSRes *HTTPResult `json:"https,omitempty"`
+	TLS      *TLSResult  `json:"tls,omitempty"`
+	TLSA     string      `json:"tlsa,omitempty"`
+	QUIC     *QUICResult `json:"quic,omitempty"`
 }
 
 func (h *HostWeb) addrs() []AddrWeb {
@@ -107,6 +131,7 @@ func buildFindings(rep *Report) {
 	f.reachabilityFindings(rep.DNS.ResolverReachable)
 	f.webFindings("apex", rep.Web.Apex)
 	f.webFindings("www", rep.Web.WWW)
+	f.deepFindings(rep)
 	rep.Errors = nonNil(f.errors)
 	rep.Warnings = nonNil(f.warnings)
 	rep.OK = len(rep.Errors) == 0
@@ -305,4 +330,426 @@ func sortedKeys(m map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// deepFindings runs the rules for the TLS, HTTP, mail, nameserver, CAA,
+// TLSA, wildcard and reserved-address sections.
+func (f *findings) deepFindings(rep *Report) {
+	f.reservedFindings(rep)
+	f.wildcardFindings(rep)
+	f.tlsFindings("apex", rep.Web.Apex, rep.Web.WWW)
+	f.tlsFindings("www", rep.Web.WWW, rep.Web.Apex)
+	f.httpFindings("apex", rep.Web.Apex)
+	f.httpFindings("www", rep.Web.WWW)
+	f.mailFindings(rep.Mail)
+	f.nsFindings(rep.Nameservers)
+	f.caaFindings(rep.CAA)
+	f.tlsaFindings(rep.TLSA)
+}
+
+// ------------------------------------------------------------ deep checks
+
+// expiryWarnDays is the threshold below which certificate expiry warns.
+const expiryWarnDays = 30
+
+// hstsMinAge is the max-age below which HSTS is considered too short.
+const hstsMinAge = 15552000 // 180 days
+
+func (f *findings) reservedFindings(rep *Report) {
+	for _, r := range rep.ReservedAddresses {
+		f.errorf("reserved address published in DNS: %s", r)
+	}
+}
+
+func (f *findings) wildcardFindings(rep *Report) {
+	if rep.Wildcard != nil && rep.Wildcard.WWWViaWildcard {
+		f.warningf("www is answered by a wildcard record, not a real host")
+	}
+}
+
+// tlsFindings judges the certificates and protocol versions of one host.
+// Chain problems are errors per address; facts that repeat across a CDN's
+// addresses (old protocol versions, no TLS 1.3, coverage, expiry) are
+// reported once per host with a count.
+func (f *findings) tlsFindings(label string, h *HostWeb, sibling *HostWeb) {
+	addrs := withTLS(h.addrs())
+	if len(addrs) == 0 {
+		return
+	}
+	for _, a := range addrs {
+		if a.TLS.Chain != ChainValid {
+			f.errorf("%s %s: certificate %s: %s", label, a.IP, strings.ReplaceAll(a.TLS.Chain, "_", " "), a.TLS.Error)
+		}
+	}
+	f.expiryFindings(label, addrs)
+	f.coverageFindings(label, addrs, sibling)
+	f.versionFindings(label, addrs)
+	if h.CertConsistent != nil && !*h.CertConsistent {
+		f.warningf("%s: addresses serve different certificates", label)
+	}
+}
+
+func withTLS(addrs []AddrWeb) []AddrWeb {
+	var out []AddrWeb
+	for _, a := range addrs {
+		if a.TLS != nil {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// expiryFindings warns once per host about the soonest-expiring valid
+// certificate; expired ones are already errors.
+func (f *findings) expiryFindings(label string, addrs []AddrWeb) {
+	soonest := -1
+	for _, a := range addrs {
+		if a.TLS.Cert == nil || a.TLS.Chain == ChainExpired {
+			continue
+		}
+		if soonest < 0 || a.TLS.Cert.DaysRemaining < soonest {
+			soonest = a.TLS.Cert.DaysRemaining
+		}
+	}
+	switch {
+	case soonest < 0 || soonest >= expiryWarnDays:
+	case soonest < 7:
+		f.warningf("%s: certificate expires in %d days (urgent)", label, soonest)
+	default:
+		f.warningf("%s: certificate expires in %d days", label, soonest)
+	}
+}
+
+// coverageFindings warns when this host's valid certificate does not
+// cover the sibling name, but only if the sibling resolves and has no
+// valid certificate of its own: a separately certified www is fine.
+func (f *findings) coverageFindings(label string, addrs []AddrWeb, sibling *HostWeb) {
+	if sibling == nil || len(sibling.addrs()) == 0 || hasValidCert(sibling) {
+		return
+	}
+	for _, a := range addrs {
+		if a.TLS.Chain != ChainValid || a.TLS.Cert == nil {
+			continue
+		}
+		covers := a.TLS.Cert.CoversWWW
+		other := "www"
+		if label == "www" {
+			covers, other = a.TLS.Cert.CoversApex, "the apex"
+		}
+		if !covers {
+			f.warningf("%s: certificate does not cover %s, which resolves but has no valid certificate", label, other)
+			return
+		}
+	}
+}
+
+func hasValidCert(h *HostWeb) bool {
+	for _, a := range h.addrs() {
+		if a.TLS != nil && a.TLS.Chain == ChainValid {
+			return true
+		}
+	}
+	return false
+}
+
+// versionFindings aggregates protocol facts per host.
+func (f *findings) versionFindings(label string, addrs []AddrWeb) {
+	old10, old11, no13, total := 0, 0, 0, 0
+	for _, a := range addrs {
+		if a.TLS.Chain == ChainHandshakeFailed {
+			continue
+		}
+		total++
+		if a.TLS.TLS10 {
+			old10++
+		}
+		if a.TLS.TLS11 {
+			old11++
+		}
+		if a.TLS.Version != "" && a.TLS.Version != "TLS 1.3" {
+			no13++
+		}
+	}
+	if old10+old11 > 0 {
+		f.warningf("%s: TLS 1.0/1.1 still accepted on %d of %d addresses", label, maxInt(old10, old11), total)
+	}
+	if no13 > 0 {
+		f.warningf("%s: no TLS 1.3 on %d of %d addresses", label, no13, total)
+	}
+}
+
+// httpFindings judges status codes per port, clear-text serving, redirect
+// chains and HSTS strength for one host.
+func (f *findings) httpFindings(label string, h *HostWeb) {
+	if h == nil {
+		return
+	}
+	addrs := h.addrs()
+	f.statusFindings(label, "80", addrs, func(a AddrWeb) *HTTPResult { return a.HTTPRes })
+	f.statusFindings(label, "443", addrs, func(a AddrWeb) *HTTPResult { return a.HTTPSRes })
+	f.cleartextFindings(label, addrs)
+	f.redirectFindings(label, h.Redirects)
+	f.hstsFindings(label, addrs)
+}
+
+// statusFindings: every address ≥ 500 is an error, some is a warning, every
+// address 4xx is a warning.
+func (f *findings) statusFindings(label, port string, addrs []AddrWeb, pick func(AddrWeb) *HTTPResult) {
+	total, server5xx, client4xx := 0, 0, 0
+	for _, a := range addrs {
+		r := pick(a)
+		if r == nil || r.Status == 0 {
+			continue
+		}
+		total++
+		switch {
+		case r.Status >= 500:
+			server5xx++
+		case r.Status >= 400:
+			client4xx++
+		}
+	}
+	switch {
+	case total == 0:
+	case server5xx == total:
+		f.errorf("%s: every address returns a server error on port %s", label, port)
+	case server5xx > 0:
+		f.warningf("%s: %d of %d addresses return a server error on port %s", label, server5xx, total, port)
+	case client4xx == total:
+		f.warningf("%s: every address returns a client error on port %s", label, port)
+	}
+}
+
+// cleartextFindings warns once per host when port 80 serves content or
+// redirects somewhere that is not https.
+func (f *findings) cleartextFindings(label string, addrs []AddrWeb) {
+	served, elsewhere, total := 0, 0, 0
+	for _, a := range addrs {
+		r := a.HTTPRes
+		if r == nil || r.Status == 0 {
+			continue
+		}
+		total++
+		switch {
+		case r.Status < 300:
+			served++
+		case isRedirect(r.Status) && !strings.HasPrefix(strings.ToLower(r.Location), "https://"):
+			elsewhere++
+		}
+	}
+	if served > 0 {
+		f.warningf("%s: HTTP serves content in the clear instead of redirecting to HTTPS (%d of %d addresses)", label, served, total)
+	}
+	if elsewhere > 0 {
+		f.warningf("%s: HTTP redirects to a non-HTTPS URL (%d of %d addresses)", label, elsewhere, total)
+	}
+}
+
+func (f *findings) redirectFindings(label string, chains map[string]*RedirectChain) {
+	for _, fam := range sortedChainKeys(chains) {
+		c := chains[fam]
+		switch {
+		case len(c.Hops) == 0:
+			// The entry point did not answer; port 80's state already says so.
+		case c.Loop:
+			f.errorf("%s (%s): redirect loop %s", label, fam, describeHops(c.Hops))
+		case c.Error != "" && strings.HasPrefix(c.Error, "more than"):
+			f.errorf("%s (%s): %s: %s", label, fam, c.Error, describeHops(c.Hops))
+		case c.Error != "":
+			f.warningf("%s (%s): redirect chain broke: %s", label, fam, c.Error)
+		case c.Hops[len(c.Hops)-1].Status >= 400:
+			f.warningf("%s (%s): redirect chain ends in HTTP %d at %s", label, fam, c.Hops[len(c.Hops)-1].Status, c.FinalURL)
+		}
+	}
+}
+
+func describeHops(hops []RedirectHop) string {
+	var parts []string
+	for _, h := range hops {
+		parts = append(parts, fmt.Sprintf("%s (%d)", h.URL, h.Status))
+	}
+	return strings.Join(parts, " -> ")
+}
+
+func sortedChainKeys(m map[string]*RedirectChain) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// hstsFindings warns once per host about the shortest HSTS max-age seen.
+func (f *findings) hstsFindings(label string, addrs []AddrWeb) {
+	shortest := int64(-1)
+	for _, a := range addrs {
+		if a.HTTPSRes == nil || a.HTTPSRes.HSTS == nil {
+			continue
+		}
+		if shortest < 0 || a.HTTPSRes.HSTS.MaxAge < shortest {
+			shortest = a.HTTPSRes.HSTS.MaxAge
+		}
+	}
+	if shortest >= 0 && shortest < hstsMinAge {
+		f.warningf("%s: HSTS max-age %d is under 180 days", label, shortest)
+	}
+}
+
+// mailFindings covers DMARC, SPF, MX, DKIM and MTA-STS.
+func (f *findings) mailFindings(m *MailReport) {
+	if m == nil {
+		return
+	}
+	f.dmarcFindings(m.DMARC)
+	f.spfFindings(m.SPF)
+	for _, mx := range m.MX {
+		for _, p := range mx.Problems {
+			f.errorf("MX %s: %s", mx.Host, p)
+		}
+	}
+	for _, sel := range m.DKIM.Revoked {
+		f.warningf("DKIM selector %s publishes a revoked (empty) key", sel)
+	}
+	f.mtaSTSFindings(m.MTASTS)
+}
+
+func (f *findings) dmarcFindings(d DMARC) {
+	switch {
+	case !d.Present:
+		f.warningf("no DMARC record")
+		return
+	case d.Policy == "none":
+		f.warningf("DMARC policy is p=none (monitor only)")
+	}
+	if d.Pct < 100 {
+		f.warningf("DMARC applies to only %d%% of mail (pct=%d)", d.Pct, d.Pct)
+	}
+	for _, p := range d.Problems {
+		f.errorf("DMARC: %s", p)
+	}
+}
+
+// spfFindings maps evaluator problems to severities: anything that makes
+// SPF fail outright or authorise everyone is an error.
+func (f *findings) spfFindings(s SPFResult) {
+	for _, p := range s.Problems {
+		if strings.Contains(p, "permerror") || strings.HasPrefix(p, "+all") || strings.HasPrefix(p, "unknown mechanism") {
+			f.errorf("SPF: %s", p)
+		} else {
+			f.warningf("SPF: %s", p)
+		}
+	}
+}
+
+func (f *findings) mtaSTSFindings(m *MTASTS) {
+	if m == nil || !m.Record {
+		return
+	}
+	severity := f.warningf
+	if m.Mode == "enforce" {
+		severity = f.errorf
+	}
+	switch {
+	case m.Error != "":
+		severity("MTA-STS: %s", m.Error)
+	case !m.MXCovered:
+		severity("MTA-STS policy mx patterns do not cover every MX host")
+	}
+}
+
+// nsFindings covers count, resolution, per-server behaviour, serials,
+// diversity and glue.
+func (f *findings) nsFindings(n *NSReport) {
+	if n == nil {
+		return
+	}
+	if n.Count < 2 {
+		f.errorf("only %d nameserver (at least two required)", n.Count)
+	}
+	for _, name := range n.NSCNAME {
+		f.errorf("nameserver %s is a CNAME (RFC 2181 §10.3)", name)
+	}
+	for _, name := range n.Unresolvable {
+		f.errorf("nameserver %s has no address", name)
+	}
+	f.serverFindings(n.Servers)
+	if !n.SerialsConsistent {
+		f.warningf("SOA serial differs between nameservers: %s", serialList(n.Servers))
+	}
+	f.diversityFindings(n)
+	f.glueFindings(n.Glue)
+}
+
+func (f *findings) serverFindings(servers []NSServer) {
+	for _, s := range servers {
+		switch {
+		case s.Error != "" && !s.AA:
+			f.errorf("nameserver %s (%s): %s", s.Name, s.IP, s.Error)
+			continue
+		}
+		if !s.TCP {
+			f.warningf("nameserver %s (%s): no answer over TCP", s.Name, s.IP)
+		}
+		if !s.EDNS {
+			f.warningf("nameserver %s (%s): no EDNS support", s.Name, s.IP)
+		}
+	}
+}
+
+func serialList(servers []NSServer) string {
+	var parts []string
+	for _, s := range servers {
+		if s.AA {
+			parts = append(parts, fmt.Sprintf("%s=%d", s.Name, s.Serial))
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+func (f *findings) diversityFindings(n *NSReport) {
+	v4, v6 := 0, 0
+	for _, s := range n.Servers {
+		if ip, err := netip.ParseAddr(s.IP); err == nil && ip.Is4() {
+			v4++
+		} else if err == nil {
+			v6++
+		}
+	}
+	if v4 >= 2 && n.IPv4Prefixes24 == 1 {
+		f.warningf("all IPv4 nameserver addresses share one /24")
+	}
+	if v6 >= 2 && n.IPv6Prefixes48 == 1 {
+		f.warningf("all IPv6 nameserver addresses share one /48")
+	}
+}
+
+func (f *findings) glueFindings(g *GlueReport) {
+	if g == nil {
+		return
+	}
+	for _, name := range g.Missing {
+		f.errorf("no glue at the parent for in-bailiwick nameserver %s", name)
+	}
+	for _, m := range g.Mismatch {
+		f.warningf("glue at the parent differs from the zone for %s", m)
+	}
+}
+
+func (f *findings) caaFindings(c *CAAReport) {
+	if c != nil && c.Permitted != nil && !*c.Permitted {
+		f.errorf("CAA records do not permit the certificate issuer %q", c.Issuer)
+	}
+}
+
+func (f *findings) tlsaFindings(t *TLSAReport) {
+	if t == nil || t.Result == TLSANone {
+		return
+	}
+	if !t.Signed {
+		f.warningf("TLSA records are published in an unsigned zone (DANE clients ignore them)")
+	}
+	if t.Result == TLSAMismatch {
+		f.errorf("no TLSA record matches the certificate served (DANE validation fails)")
+	}
 }

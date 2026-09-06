@@ -1,0 +1,213 @@
+{
+  "domain": "dnssec-failed.org",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "AAAA": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "MX": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "NS": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "TXT": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      }
+    },
+    "www": {
+      "A": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "AAAA": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped"
+    }
+  },
+  "dnssec": {
+    "state": "bogus",
+    "ds": true,
+    "dnskey": false,
+    "detail": "resolver fails validation but data exists with checking disabled"
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "dns101.comcast.net.",
+      "dns102.comcast.net.",
+      "dns103.comcast.net.",
+      "dns104.comcast.net.",
+      "dns105.comcast.net."
+    ],
+    "parent_server": "a2.org.afilias-nst.info",
+    "child_ns": [
+      "dns101.comcast.net.",
+      "dns102.comcast.net.",
+      "dns103.comcast.net.",
+      "dns104.comcast.net.",
+      "dns105.comcast.net."
+    ],
+    "child_server": "dns102.comcast.net"
+  },
+  "web": {},
+  "mail": {
+    "dmarc": {
+      "present": false,
+      "pct": 100,
+      "rua": false,
+      "records": 0
+    },
+    "spf": {
+      "records": 0,
+      "lookups": 0,
+      "void_lookups": 0
+    },
+    "dkim": {},
+    "mta_sts": {
+      "record": false,
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 5,
+    "servers": [
+      {
+        "name": "dns101.comcast.net.",
+        "ip": "2001:558:fe23:8:69:252:250:103",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns101.comcast.net.",
+        "ip": "69.252.250.103",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns102.comcast.net.",
+        "ip": "2001:558:1004:7:68:87:85:132",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns102.comcast.net.",
+        "ip": "68.87.85.132",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns103.comcast.net.",
+        "ip": "2001:558:1014:c:68:87:76:228",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns103.comcast.net.",
+        "ip": "68.87.76.228",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns104.comcast.net.",
+        "ip": "2001:558:100a:5:68:87:68:244",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns104.comcast.net.",
+        "ip": "68.87.68.244",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns105.comcast.net.",
+        "ip": "2001:558:100e:5:68:87:72:244",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns105.comcast.net.",
+        "ip": "68.87.72.244",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2010102605,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 5,
+    "ipv6_prefixes_48": 5,
+    "glue": {}
+  },
+  "caa": {
+    "note": "no certificate observed"
+  },
+  "tlsa": {
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "present": false
+  },
+  "hsts_preload": "unknown",
+  "errors": [
+    "DNSSEC validation fails (bogus): resolver fails validation but data exists with checking disabled"
+  ],
+  "warnings": [
+    "no DMARC record"
+  ],
+  "ok": false,
+  "elapsed_ms": 1417
+}

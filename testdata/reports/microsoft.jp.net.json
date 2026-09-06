@@ -1,0 +1,231 @@
+{
+  "domain": "microsoft.jp.net",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "150.95.255.38"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "0 ."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "dns1.onamae.com.",
+          "dns2.onamae.com."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "v=spf1 -all"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "150.95.255.38"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "dns1.onamae.com.",
+      "dns2.onamae.com."
+    ],
+    "parent_server": "ns1.centralnic.net",
+    "child_ns": [
+      "dns1.onamae.com.",
+      "dns2.onamae.com."
+    ],
+    "child_server": "dns2.onamae.com",
+    "error": "communications error to 192.36.148.17#53: timed out"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "150.95.255.38",
+          "80": "open",
+          "443": "timeout",
+          "http": {
+            "status": 200,
+            "server": "Apache"
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://microsoft.jp.net/",
+              "status": 200
+            }
+          ],
+          "final_url": "http://microsoft.jp.net/"
+        }
+      }
+    },
+    "www": {
+      "same_as_apex": true,
+      "via_wildcard": true,
+      "ipv4": [
+        {
+          "ip": "150.95.255.38",
+          "80": "open",
+          "443": "timeout",
+          "http": {
+            "status": 200,
+            "server": "Apache"
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.microsoft.jp.net/",
+              "status": 200
+            }
+          ],
+          "final_url": "http://www.microsoft.jp.net/"
+        }
+      }
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "policy": "reject",
+      "pct": 100,
+      "rua": false,
+      "records": 1
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 0,
+      "void_lookups": 0,
+      "all": "-all"
+    },
+    "mx": [
+      {
+        "host": ".",
+        "preference": 0,
+        "addresses": 0
+      }
+    ],
+    "dkim": {},
+    "mta_sts": {
+      "record": false,
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 2,
+    "servers": [
+      {
+        "name": "dns1.onamae.com.",
+        "ip": "163.44.76.136",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 16777216,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "dns2.onamae.com.",
+        "ip": "163.44.76.150",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 16777216,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 1,
+    "ipv6_prefixes_48": 0,
+    "glue": {}
+  },
+  "caa": {
+    "note": "no certificate observed"
+  },
+  "tlsa": {
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "present": true,
+    "addresses": [
+      "150.95.255.38"
+    ],
+    "www_via_wildcard": true
+  },
+  "hsts_preload": "unknown",
+  "errors": [],
+  "warnings": [
+    "apex has no AAAA record",
+    "www has no AAAA record",
+    "apex publishes a null MX (RFC 7505): accepts no mail",
+    "apex 150.95.255.38: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
+    "www 150.95.255.38: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
+    "www is answered by a wildcard record, not a real host",
+    "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
+    "www: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
+    "all IPv4 nameserver addresses share one /24"
+  ],
+  "ok": true,
+  "elapsed_ms": 3691
+}

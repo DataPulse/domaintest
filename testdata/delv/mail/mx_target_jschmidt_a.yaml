@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: jschmidt-org.mail.protection.outlook.com
+status: success
+records:
+  - unsigned_answer:
+    - 'jschmidt-org.mail.protection.outlook.com. 300 IN A 52.101.9.24'
+    - 'jschmidt-org.mail.protection.outlook.com. 300 IN A 52.101.9.26'
+    - 'jschmidt-org.mail.protection.outlook.com. 300 IN A 52.101.11.2'
+    - 'jschmidt-org.mail.protection.outlook.com. 300 IN A 52.101.60.182'

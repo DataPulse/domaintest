@@ -224,3 +224,114 @@ func TestIntegration_Binary(t *testing.T) {
 	check(t, "usage exit", rc, 2)
 	check(t, "no stdout on usage error", out, "")
 }
+
+// ---- deep checks (network) ---------------------------------------------
+
+func TestIntegration_BadSSL(t *testing.T) {
+	cases := []struct {
+		host  string
+		chain []string // acceptable classifications
+	}{
+		{"expired.badssl.com", []string{ChainExpired}},
+		{"wrong.host.badssl.com", []string{ChainHostnameMismatch}},
+		{"self-signed.badssl.com", []string{ChainSelfSigned}},
+		{"untrusted-root.badssl.com", []string{ChainUntrustedRoot}},
+		// incomplete-chain.badssl.com currently chains to "ISRG Root YR", a
+		// root that older trust stores (Debian 12 here) do not carry, in
+		// which case fetching the intermediate cannot rescue it and
+		// untrusted_root is the honest verdict from this vantage point.
+		{"incomplete-chain.badssl.com", []string{ChainIncomplete, ChainUntrustedRoot}},
+		{"badssl.com", []string{ChainValid}},
+	}
+	for _, c := range cases {
+		t.Run(c.host, func(t *testing.T) {
+			cfg := integrationConfig(t, c.host)
+			rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+			if rep.Web.Apex == nil || len(rep.Web.Apex.IPv4) == 0 || rep.Web.Apex.IPv4[0].TLS == nil {
+				t.Fatalf("no TLS result: %+v", rep.Web)
+			}
+			tlsRes := rep.Web.Apex.IPv4[0].TLS
+			check(t, "chain "+tlsRes.Chain, contains(c.chain, tlsRes.Chain), true)
+			check(t, "certificate parsed", tlsRes.Cert != nil, true)
+			check(t, "ok only for the valid one", rep.OK, tlsRes.Chain == ChainValid)
+			if tlsRes.Chain != ChainValid {
+				check(t, "chain error surfaces", contains(rep.Errors, "certificate "+strings.ReplaceAll(tlsRes.Chain, "_", " ")), true)
+			}
+		})
+	}
+}
+
+func TestIntegration_MailPosture(t *testing.T) {
+	cfg := integrationConfig(t, "jschmidt.org")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	m := rep.Mail
+	if m == nil {
+		t.Fatal("mail section missing")
+	}
+	check(t, "dmarc", m.DMARC.Policy, "quarantine")
+	check(t, "spf softfail", m.SPF.All, "~all")
+	check(t, "spf within limit", m.SPF.Lookups <= spfLookupLimit, true)
+	check(t, "spf problems", m.SPF.Problems, []string(nil))
+	check(t, "mx resolves", m.MX[0].Addresses > 0, true)
+	check(t, "dkim selectors", m.DKIM.SelectorsFound, []string{"selector1", "selector2"})
+	check(t, "errors", rep.Errors, []string{})
+	n := rep.Nameservers
+	if n == nil {
+		t.Fatal("nameservers missing")
+	}
+	check(t, "four NS", n.Count, 4)
+	for _, s := range n.Servers {
+		check(t, "authoritative "+s.IP, s.AA, true)
+		check(t, "edns "+s.IP, s.EDNS, true)
+		check(t, "tcp "+s.IP, s.TCP, true)
+	}
+	check(t, "serials consistent", n.SerialsConsistent, true)
+}
+
+func TestIntegration_GoogleTLSAndCAA(t *testing.T) {
+	cfg := integrationConfig(t, "google.com")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	a := rep.Web.Apex.IPv4[0]
+	check(t, "chain", a.TLS.Chain, ChainValid)
+	check(t, "tls 1.3", a.TLS.Version, "TLS 1.3")
+	// Google still accepts TLS 1.0 and 1.1 on the apex; the tool reports it.
+	check(t, "old versions still accepted (warned)", a.TLS.TLS10 && contains(rep.Warnings, "TLS 1.0/1.1 still accepted"), true)
+	check(t, "https status is a redirect to www", a.HTTPSRes.Status, 301)
+	check(t, "http answers with a redirect", isRedirect(a.HTTPRes.Status), true)
+	check(t, "redirect chain ends at www", strings.Contains(rep.Web.Apex.Redirects[familyIPv4].FinalURL+rep.Web.Apex.Redirects[familyIPv4].External, "www.google.com"), true)
+	check(t, "caa permitted", rep.CAA.Permitted != nil && *rep.CAA.Permitted, true)
+	check(t, "issuer mapped", strings.HasPrefix(rep.CAA.Issuer, "Google Trust Services"), true)
+	check(t, "glue present", len(rep.Nameservers.Glue.Missing), 0)
+	check(t, "dmarc reject", rep.Mail.DMARC.Policy, "reject")
+	check(t, "preload answered", rep.HSTSPreload != "" && !strings.HasPrefix(rep.HSTSPreload, "error"), true)
+}
+
+func TestIntegration_ReservedAddress(t *testing.T) {
+	cfg := integrationConfig(t, "localtest.me")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "reserved", contains(rep.ReservedAddresses, "127.0.0.1 (loopback)"), true)
+	check(t, "error", contains(rep.Errors, "reserved address published in DNS"), true)
+	check(t, "skipped", rep.Web.Apex.IPv4[0].HTTP, PortSkipped)
+}
+
+func TestIntegration_DANE(t *testing.T) {
+	cfg := integrationConfig(t, "www.huque.com")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "tlsa records", len(rep.TLSA.Apex) > 0, true)
+	check(t, "signed", rep.TLSA.Signed, true)
+	check(t, "match", rep.TLSA.Result, TLSAMatch)
+	check(t, "per address", rep.Web.Apex.IPv4[0].TLSA, TLSAMatch)
+}
+
+func TestIntegration_Wildcard(t *testing.T) {
+	cfg := integrationConfig(t, "github.io")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "wildcard", rep.Wildcard.Present, true)
+	check(t, "addresses", len(rep.Wildcard.Addresses) > 0, true)
+}
+
+func TestIntegration_PreloadOptOut(t *testing.T) {
+	cfg := integrationConfig(t, "jschmidt.org", "-no-hsts-preload")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "not consulted", rep.HSTSPreload, "")
+}

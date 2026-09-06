@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: www.google.com
+status: ncache nxrrset
+records:
+  - negative_response_unsigned_answer:
+    - 'www.google.com. 287 IN \-CAA ;-$NXRRSET'
+    - 'google.com. SOA ns1.google.com. dns-admin.google.com. 976724645 900 900 1800 60'

@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: localtest.me
+status: success
+records:
+  - unsigned_answer:
+    - 'localtest.me. 3556 IN NS ns1.dnsimple.com.'
+    - 'localtest.me. 3556 IN NS ns2.dnsimple.com.'
+    - 'localtest.me. 3556 IN NS ns3.dnsimple.com.'
+    - 'localtest.me. 3556 IN NS ns4.dnsimple.com.'

@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns1.google.com
+status: success
+records:
+  - unsigned_answer:
+    - 'ns1.google.com. 62547 IN AAAA 2001:4860:4802:32::a'

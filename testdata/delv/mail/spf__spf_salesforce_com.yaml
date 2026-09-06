@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: _spf.salesforce.com
+status: success
+records:
+  - fully_validated:
+    - '_spf.salesforce.com. 2468 IN TXT "v=spf1 exists:%{i}._spf.mta.salesforce.com -all"'
+    - '_spf.salesforce.com. 2468 IN RRSIG TXT 13 3 3600 20261101221912 20260902212717 2317 salesforce.com. NBPaG+ItZ0IagrdrMBZGWtkEX25kl2BZkxDSE2IgztJHRlp2luyaKT28 E9MvEZHSn4N/iboZ/efBbPbVUEpnKg=='

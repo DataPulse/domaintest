@@ -1,0 +1,17 @@
+type: DELV_RESULT
+query_name: cloudflare.com
+status: success
+records:
+  - fully_validated:
+    - 'cloudflare.com. 300 IN CAA 0 iodef "mailto:tls-abuse@cloudflare.com"'
+    - 'cloudflare.com. 300 IN CAA 0 issue "comodoca.com"'
+    - 'cloudflare.com. 300 IN CAA 0 issue "digicert.com; cansignhttpexchanges=yes"'
+    - 'cloudflare.com. 300 IN CAA 0 issue "letsencrypt.org"'
+    - 'cloudflare.com. 300 IN CAA 0 issue "pki.goog; cansignhttpexchanges=yes"'
+    - 'cloudflare.com. 300 IN CAA 0 issue "ssl.com"'
+    - 'cloudflare.com. 300 IN CAA 0 issuewild "comodoca.com"'
+    - 'cloudflare.com. 300 IN CAA 0 issuewild "digicert.com; cansignhttpexchanges=yes"'
+    - 'cloudflare.com. 300 IN CAA 0 issuewild "letsencrypt.org"'
+    - 'cloudflare.com. 300 IN CAA 0 issuewild "pki.goog; cansignhttpexchanges=yes"'
+    - 'cloudflare.com. 300 IN CAA 0 issuewild "ssl.com"'
+    - 'cloudflare.com. 300 IN RRSIG CAA 13 2 300 20260907224129 20260905204129 34505 cloudflare.com. Bca1BqwauKDxen/sTui3oMIDAKInXUAX+9bs+xO7HVdOFIj2lU+QtMlL ge0rKkBeTRxdrpXISxPLyPVRTBOl1w=='

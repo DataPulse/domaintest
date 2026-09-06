@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: selector1._domainkey.jschmidt.org
+status: success
+records:
+  - fully_validated:
+    - 'selector1._domainkey.jschmidt.org. 2931 IN CNAME selector1-jschmidt-org._domainkey.jschmidt.onmicrosoft.com.'
+    - 'selector1._domainkey.jschmidt.org. 2931 IN RRSIG CNAME 13 4 3600 20260906233019 20260906203019 59958 jschmidt.org. VnTtyMDAK8VyvKxVOUfDWxwy6ziSoBvmelsVEvLaXkljqUtetWLen46d ddYZnG2oIN9wJicrpkF+Ps9ZRGLEgQ=='
+  - unsigned_answer:
+    - 'selector1-jschmidt-org._domainkey.jschmidt.onmicrosoft.com. 2931 IN TXT "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDERlSs0gZIyCMH8O2/wi215ElXhHoLlO6YuRZonXSdoj10/ApgH50FXkiZsl0Vfeww7jhl48OhBbWMnaeMo5SN8Hn++ABkax8zIXfNsJ3Vm3xuO0a4l+av6uw439D18Urbm8Ro/jB04zbzbC4vzQMmknkcLeMGVXHx9nVh3/O9LwIDAQAB; n=1024,1475851621,1"'

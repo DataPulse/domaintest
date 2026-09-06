@@ -1,0 +1,84 @@
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T21:42:17.401Z
+    response_time: !!timestamp 2026-09-06T21:42:17.421Z
+    message_size: 41b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "216.239.32.10"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: REFUSED
+      id: 63168
+      flags: qr
+      QUESTION: 1
+      ANSWER: 0
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 512
+      QUESTION_SECTION:
+        - 'jschmidt.org. IN SOA'
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T21:42:17.441Z
+    response_time: !!timestamp 2026-09-06T21:42:17.465Z
+    message_size: 41b
+    socket_family: INET
+    socket_protocol: TCP
+    response_address: "216.239.32.10"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: REFUSED
+      id: 53218
+      flags: qr
+      QUESTION: 1
+      ANSWER: 0
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 512
+      QUESTION_SECTION:
+        - 'jschmidt.org. IN SOA'
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T21:42:17.465Z
+    response_time: !!timestamp 2026-09-06T21:42:17.489Z
+    message_size: 41b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "216.239.32.10"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: REFUSED
+      id: 32194
+      flags: qr
+      QUESTION: 1
+      ANSWER: 0
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags: do
+          udp: 512
+      QUESTION_SECTION:
+        - 'jschmidt.org. IN SOA'

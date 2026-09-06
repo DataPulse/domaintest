@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: _443._tcp.torproject.org
+status: success
+records:
+  - fully_validated:
+    - '_443._tcp.torproject.org. 3551 IN TLSA 3 1 1 1599B2352EE910499C0DA1A104575935477C5765CCD10D81F43B50AC 30034C76'
+    - '_443._tcp.torproject.org. 3551 IN RRSIG TLSA 8 4 3600 20261014191155 20260904184632 32866 torproject.org. aUfACaceKNMyRJ6vJ6FK6ozijVzTW+VBbtz9Ck1A/16H7xeNmklAPbIX MTb8B3Icg8akbCAqwQPHAGCAcsVt3mnAIkBa0FcU+T4Ow5pI0y+FhZxA S7K5Q3IyMfT77OyOa3i2v6Qj1ofMTho5/F3F1ciNNtexB+Z4wsMB8hjT OyEVgC7WyrUuobG9X4GcK80pD2v3312x5Of/3yGAfb1B/+AjpE3YjVQN vpFWvPpFSq8fg+bK1rUPuZW6MlXYj8n6'

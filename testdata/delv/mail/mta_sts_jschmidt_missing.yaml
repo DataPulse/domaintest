@@ -1,0 +1,10 @@
+type: DELV_RESULT
+query_name: _mta-sts.jschmidt.org
+status: ncache nxrrset
+records:
+  - negative_response_fully_validated:
+    - '_mta-sts.jschmidt.org. 2934 IN \-TXT ;-$NXRRSET'
+    - '_mta-sts.jschmidt.org. RRSIG NSEC ...'
+    - '_mta-sts.jschmidt.org. NSEC \000._mta-sts.jschmidt.org. RRSIG NSEC'
+    - 'jschmidt.org. SOA ns-2001.awsdns-58.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400'
+    - 'jschmidt.org. RRSIG SOA ...'

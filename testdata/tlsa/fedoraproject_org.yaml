@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: _443._tcp.fedoraproject.org
+status: success
+records:
+  - fully_validated:
+    - '_443._tcp.fedoraproject.org. 259 IN TLSA 3 1 1 7473FB4202F81CCE255D4EBDC6A93A84B8234D03BC04F1A9A0C5495D DA2A22A6'
+    - '_443._tcp.fedoraproject.org. 259 IN RRSIG TLSA 14 4 300 20261004082553 20260904082553 60624 fedoraproject.org. 3U/a1XB91H9YSy4ZHRiHMSQmWIGkGlBoVl3bca6KhiMAunAcji2WkxxF 9wiXP8WC5J1hZfLRyXVdgODhBov31dCkQu/grQreH7VeBs/LP4kHRfoO IC8fajoxpOY/ZLrC'

@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: ns06e.muenchen.de
+status: ncache nxrrset
+records:
+  - negative_response_unsigned_answer:
+    - 'ns06e.muenchen.de. 1254 IN \-AAAA ;-$NXRRSET'
+    - 'muenchen.de. SOA ns01e.muenchen.de. lhm-zone-c.muenchen.de. 2020073648 10800 1800 604800 86400'

@@ -1,0 +1,5 @@
+type: DELV_RESULT
+query_name: cust-spf.cashnet.co
+status: ncache nxrrset
+records:
+  - negative_response_unsigned_additional_data:

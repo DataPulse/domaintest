@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns-1034.awsdns-01.org
+status: success
+records:
+  - unsigned_answer:
+    - 'ns-1034.awsdns-01.org. 75378 IN AAAA 2600:9000:5304:a00::1'

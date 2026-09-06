@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: dns101.comcast.net
+status: success
+records:
+  - fully_validated:
+    - 'dns101.comcast.net. 300 IN A 69.252.250.103'
+    - 'dns101.comcast.net. 300 IN RRSIG A 13 3 300 20260909072328 20260902041828 49943 comcast.net. UEtIvkfFY2p0HkH63J5fKCFWowvPWHMZ9T23ZFN3srMG1rjPxioGIPVj GfIU0ISVmYVkwC30AhJYpMTk6j4BUw=='

@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: domaintest-a1b2c3d4.google.com
+status: ncache nxdomain
+records:
+  - negative_response_unsigned_answer:
+    - 'domaintest-a1b2c3d4.google.com. 249 IN \-ANY ;-$NXDOMAIN'
+    - 'google.com. SOA ns1.google.com. dns-admin.google.com. 976724645 900 900 1800 60'

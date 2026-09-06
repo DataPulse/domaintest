@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns-1013.awsdns-62.net
+status: success
+records:
+  - unsigned_answer:
+    - 'ns-1013.awsdns-62.net. 74789 IN A 205.251.195.245'

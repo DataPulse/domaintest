@@ -1,0 +1,227 @@
+{
+  "domain": "jschmidt.org",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "nxrrset",
+        "trust": "secure"
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "secure"
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "0 jschmidt-org.mail.protection.outlook.com."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "ns-507.awsdns-63.com.",
+          "ns-1013.awsdns-62.net.",
+          "ns-1034.awsdns-01.org.",
+          "ns-2001.awsdns-58.co.uk."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "MS=ms54628650",
+          "v=spf1 include:outlook.com include:amazonses.com ~all"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "nxrrset",
+        "trust": "secure"
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "secure"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped"
+    }
+  },
+  "dnssec": {
+    "state": "secure",
+    "ds": true,
+    "dnskey": true
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "ns-1013.awsdns-62.net.",
+      "ns-1034.awsdns-01.org.",
+      "ns-2001.awsdns-58.co.uk.",
+      "ns-507.awsdns-63.com."
+    ],
+    "parent_server": "d0.org.afilias-nst.org",
+    "child_ns": [
+      "ns-1013.awsdns-62.net.",
+      "ns-1034.awsdns-01.org.",
+      "ns-2001.awsdns-58.co.uk.",
+      "ns-507.awsdns-63.com."
+    ],
+    "child_server": "ns-1013.awsdns-62.net"
+  },
+  "web": {},
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "policy": "quarantine",
+      "pct": 100,
+      "rua": true,
+      "records": 1
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 3,
+      "void_lookups": 0,
+      "all": "~all",
+      "includes": [
+        "outlook.com",
+        "spf2.outlook.com",
+        "amazonses.com"
+      ]
+    },
+    "mx": [
+      {
+        "host": "jschmidt-org.mail.protection.outlook.com.",
+        "preference": 0,
+        "addresses": 8
+      }
+    ],
+    "dkim": {
+      "selectors_found": [
+        "selector1",
+        "selector2"
+      ]
+    },
+    "mta_sts": {
+      "record": false,
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 4,
+    "servers": [
+      {
+        "name": "ns-1013.awsdns-62.net.",
+        "ip": "205.251.195.245",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns-1013.awsdns-62.net.",
+        "ip": "2600:9000:5303:f500::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns-1034.awsdns-01.org.",
+        "ip": "205.251.196.10",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns-1034.awsdns-01.org.",
+        "ip": "2600:9000:5304:a00::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns-2001.awsdns-58.co.uk.",
+        "ip": "205.251.199.209",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns-2001.awsdns-58.co.uk.",
+        "ip": "2600:9000:5307:d100::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns-507.awsdns-63.com.",
+        "ip": "205.251.193.251",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns-507.awsdns-63.com.",
+        "ip": "2600:9000:5301:fb00::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 4,
+    "ipv6_prefixes_48": 4,
+    "glue": {}
+  },
+  "caa": {
+    "apex": [
+      "0 iodef \"mailto:pki@jasadvisors.com\"",
+      "0 issue \"letsencrypt.org\""
+    ],
+    "note": "no certificate observed"
+  },
+  "tlsa": {
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "present": false
+  },
+  "hsts_preload": "unknown",
+  "errors": [],
+  "warnings": [
+    "apex has no A or AAAA records",
+    "www has no A or AAAA records"
+  ],
+  "ok": true,
+  "elapsed_ms": 693
+}

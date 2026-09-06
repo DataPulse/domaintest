@@ -1,0 +1,8 @@
+type: DELV_RESULT
+query_name: jschmidt.org
+status: success
+records:
+  - fully_validated:
+    - 'jschmidt.org. 300 IN CAA 0 iodef "mailto:pki@jasadvisors.com"'
+    - 'jschmidt.org. 300 IN CAA 0 issue "letsencrypt.org"'
+    - 'jschmidt.org. 300 IN RRSIG CAA 13 2 300 20260906224629 20260906204129 59958 jschmidt.org. agy2h0Ypu0bV+Rr9GSh25XeQNxVXdZrUHppTDlLeOKfBub41UTgdWatH lCS8CAGwGJ4lyNJbLDa0c6WWPGS7Dw=='

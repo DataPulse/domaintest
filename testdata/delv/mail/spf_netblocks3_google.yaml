@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: _netblocks3.google.com
+status: success
+records:
+  - unsigned_answer:
+    - '_netblocks3.google.com. 300 IN TXT "v=spf1 ~all"'

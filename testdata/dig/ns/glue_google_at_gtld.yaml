@@ -1,0 +1,42 @@
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T21:42:18.533Z
+    response_time: !!timestamp 2026-09-06T21:42:18.561Z
+    message_size: 287b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "192.5.6.30"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 61672
+      flags: qr
+      QUESTION: 1
+      ANSWER: 0
+      AUTHORITY: 4
+      ADDITIONAL: 9
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 4096
+      QUESTION_SECTION:
+        - 'google.com. IN NS'
+      AUTHORITY_SECTION:
+        - 'google.com. 172800 IN NS ns2.google.com.'
+        - 'google.com. 172800 IN NS ns1.google.com.'
+        - 'google.com. 172800 IN NS ns3.google.com.'
+        - 'google.com. 172800 IN NS ns4.google.com.'
+      ADDITIONAL_SECTION:
+        - 'ns2.google.com. 172800 IN AAAA 2001:4860:4802:34::a'
+        - 'ns2.google.com. 172800 IN A 216.239.34.10'
+        - 'ns1.google.com. 172800 IN AAAA 2001:4860:4802:32::a'
+        - 'ns1.google.com. 172800 IN A 216.239.32.10'
+        - 'ns3.google.com. 172800 IN AAAA 2001:4860:4802:36::a'
+        - 'ns3.google.com. 172800 IN A 216.239.36.10'
+        - 'ns4.google.com. 172800 IN AAAA 2001:4860:4802:38::a'
+        - 'ns4.google.com. 172800 IN A 216.239.38.10'

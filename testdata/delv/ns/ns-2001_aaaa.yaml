@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns-2001.awsdns-58.co.uk
+status: success
+records:
+  - unsigned_answer:
+    - 'ns-2001.awsdns-58.co.uk. 86400 IN AAAA 2600:9000:5307:d100::1'

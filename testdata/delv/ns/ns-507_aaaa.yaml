@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns-507.awsdns-63.com
+status: success
+records:
+  - unsigned_answer:
+    - 'ns-507.awsdns-63.com. 69288 IN AAAA 2600:9000:5301:fb00::1'

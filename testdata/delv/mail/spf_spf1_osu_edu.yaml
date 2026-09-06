@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: spf1.osu.edu
+status: success
+records:
+  - unsigned_answer:
+    - 'spf1.osu.edu. 2411 IN TXT "v=spf1 ip4:132.226.58.160 ip4:129.80.56.29 ip4:208.185.229.45 ip4:205.139.104.0/22 ip4:166.78.90.5 ip4:192.254.119.133 ip4:35.80.141.6 ip4:44.229.121.55 ip4:148.59.100.16/28 ip4:52.86.188.131 ip4:52.43.50.148 ip4:159.183.84.102 include:cust-spf.cashnet.co" "m include:_spf.salesforce.com include:_spf.bigcommerce.com include:_spf.explore-blue.com ~all"'

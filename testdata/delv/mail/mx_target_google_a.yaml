@@ -1,0 +1,10 @@
+type: DELV_RESULT
+query_name: smtp.google.com
+status: success
+records:
+  - unsigned_answer:
+    - 'smtp.google.com. 300 IN A 142.251.117.26'
+    - 'smtp.google.com. 300 IN A 142.251.117.27'
+    - 'smtp.google.com. 300 IN A 172.253.113.26'
+    - 'smtp.google.com. 300 IN A 192.178.162.26'
+    - 'smtp.google.com. 300 IN A 192.178.162.27'

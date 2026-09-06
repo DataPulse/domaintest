@@ -1,0 +1,10 @@
+type: DELV_RESULT
+query_name: domaintest-a1b2c3d4.jschmidt.org
+status: ncache nxrrset
+records:
+  - negative_response_fully_validated:
+    - 'domaintest-a1b2c3d4.jschmidt.org. 3600 IN \-AAAA ;-$NXRRSET'
+    - 'jschmidt.org. SOA ns-2001.awsdns-58.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400'
+    - 'jschmidt.org. RRSIG SOA ...'
+    - 'domaintest-a1b2c3d4.jschmidt.org. RRSIG NSEC ...'
+    - 'domaintest-a1b2c3d4.jschmidt.org. NSEC \000.domaintest-a1b2c3d4.jschmidt.org. RRSIG NSEC'

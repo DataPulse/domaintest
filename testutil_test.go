@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -180,4 +181,142 @@ func check(t *testing.T, what string, got, want any) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("%s = %#v, want %#v", what, got, want)
 	}
+}
+
+// hostWeb assembles a HostWeb from bare port states, for findings tests.
+func hostWeb(addrs []netip.Addr, ports map[portKey]PortState, quic map[string]*QUICResult) *HostWeb {
+	if len(addrs) == 0 {
+		return nil
+	}
+	h := &HostWeb{}
+	seen := map[netip.Addr]bool{}
+	for _, ip := range addrs {
+		if seen[ip] {
+			continue
+		}
+		seen[ip] = true
+		h.add(AddrWeb{IP: ip.String(), HTTP: ports[portKey{IP: ip, Port: 80}], HTTPS: ports[portKey{IP: ip, Port: 443}], QUIC: quic[ip.String()]})
+	}
+	return h
+}
+
+// fixtureIndex maps "query_name/TYPE" to captured delv output by scanning
+// every fixture under testdata/delv once. Positive answers are indexed by
+// the types they contain; negative answers serve any type not positively
+// covered for that name.
+type fixtureIndex struct {
+	positive map[string]string // name/TYPE -> content
+	negative map[string]string // name -> content
+}
+
+var (
+	fixtureIndexOnce sync.Once
+	fixtureIndexData *fixtureIndex
+)
+
+func loadFixtureIndex(t *testing.T) *fixtureIndex {
+	t.Helper()
+	fixtureIndexOnce.Do(func() {
+		idx := &fixtureIndex{positive: map[string]string{}, negative: map[string]string{}}
+		_ = filepath.WalkDir("testdata/delv", func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(path, ".yaml") {
+				return nil
+			}
+			b, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			indexFixture(idx, string(b))
+			return nil
+		})
+		fixtureIndexData = idx
+	})
+	return fixtureIndexData
+}
+
+func indexFixture(idx *fixtureIndex, content string) {
+	name := ""
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "query_name:") {
+			name = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(strings.TrimPrefix(line, "query_name:")), "."))
+		}
+	}
+	if name == "" {
+		return
+	}
+	l := parseDelvYAML(content, "")
+	if l.Status != StatusOK {
+		if _, ok := idx.negative[name]; !ok {
+			idx.negative[name] = content
+		}
+		return
+	}
+	for _, rr := range l.rrs {
+		switch rr.Type {
+		case "RRSIG", "NSEC", "NSEC3", "SOA":
+			continue
+		}
+		idx.positive[name+"/"+rr.Type] = content
+	}
+}
+
+// answer returns fixture content for name/qtype: a positive fixture for
+// that exact type, else a captured negative answer for the name, else a
+// generic validated NXRRSET.
+func (idx *fixtureIndex) answer(t *testing.T, name, qtype string) string {
+	name = strings.ToLower(strings.TrimSuffix(name, "."))
+	if c, ok := idx.positive[name+"/"+qtype]; ok {
+		return c
+	}
+	if c, ok := idx.negative[name]; ok {
+		return c
+	}
+	return fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml")
+}
+
+// fixtureFallback makes a fakeRunner answer every delv call from the index
+// and every nameserver-audit / glue dig from a healthy authoritative
+// capture, so scenario tests only register what they want to vary.
+func fixtureFallback(t *testing.T) func(tool string, args []string) (fakeCall, bool) {
+	idx := loadFixtureIndex(t)
+	return func(tool string, args []string) (fakeCall, bool) {
+		switch tool {
+		case "delv":
+			name, qtype := args[len(args)-2], args[len(args)-1]
+			if strings.HasPrefix(name, "domaintest-") { // random wildcard probe label
+				name = "domaintest-a1b2c3d4." + strings.SplitN(name, ".", 2)[1]
+			}
+			return fakeCall{stdout: idx.answer(t, name, qtype)}, true
+		case "dig":
+			joined := strings.Join(args, " ")
+			if strings.Contains(joined, "+norecurse") && strings.HasSuffix(joined, " NS") {
+				return fakeCall{stdout: fixture(t, "dig/jschmidt_at_org_referral.yaml")}, true
+			}
+			if strings.Contains(joined, "+norecurse") {
+				return fakeCall{stdout: fixture(t, "dig/ns/jschmidt_at_ns-507.yaml")}, true
+			}
+		case "quicprobe":
+			return fakeCall{stdout: fixture(t, "quicprobe/example_unsupported.json")}, true
+		}
+		return fakeCall{}, false
+	}
+}
+
+// indexLookup is a lookupFn over every captured delv fixture.
+func indexLookup(t *testing.T) lookupFn {
+	t.Helper()
+	idx := loadFixtureIndex(t)
+	return func(name, qtype string) Lookup {
+		l := parseDelvYAML(idx.answer(t, name, qtype), qtype)
+		l.Name = strings.ToLower(strings.TrimSuffix(name, "."))
+		return l
+	}
+}
+
+// googleAddrs returns the apex IPv4 and IPv6 address from the fixtures.
+func googleAddrs(t *testing.T) (netip.Addr, netip.Addr) {
+	t.Helper()
+	v4 := parseDelvYAML(fixture(t, "delv/google_a_unsigned.yaml"), "A").Addrs()[0]
+	v6 := parseDelvYAML(fixture(t, "delv/google_aaaa_unsigned.yaml"), "AAAA").Addrs()[0]
+	return v4, v6
 }

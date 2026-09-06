@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: _spf.bigcommerce.com
+status: success
+records:
+  - unsigned_answer:
+    - '_spf.bigcommerce.com. 900 IN TXT "v=spf1 ip4:192.200.190.165/30 ip4:104.195.80.16/28 ip4:192.200.181.144/28 ip4:63.141.144.128/28 ip4:149.72.231.47/32 ip4:149.72.196.66/32 ip4:104.195.127.0/27"'

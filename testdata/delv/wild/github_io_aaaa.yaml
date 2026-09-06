@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: github.io
+status: ncache nxrrset
+records:
+  - negative_response_unsigned_answer:
+    - 'github.io. 900 IN \-AAAA ;-$NXRRSET'
+    - 'github.io. SOA ns-1622.awsdns-10.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400'

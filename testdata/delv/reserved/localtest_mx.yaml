@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: localtest.me
+status: ncache nxrrset
+records:
+  - negative_response_unsigned_answer:
+    - 'localtest.me. 300 IN \-MX ;-$NXRRSET'
+    - 'localtest.me. SOA ns1.dnsimple.com. admin.dnsimple.com. 2013022011 86400 7200 604800 300'

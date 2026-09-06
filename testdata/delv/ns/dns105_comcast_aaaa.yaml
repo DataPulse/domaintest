@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: dns105.comcast.net
+status: success
+records:
+  - fully_validated:
+    - 'dns105.comcast.net. 298 IN AAAA 2001:558:100e:5:68:87:72:244'
+    - 'dns105.comcast.net. 298 IN RRSIG AAAA 13 3 300 20260909072328 20260902041828 49943 comcast.net. kFS8T2gvHmH1/YnFuNrafokswmP9Npcw6l9/8HaRMLf0gGF3M77RWwcF OkGkhABS/AzNDzwy0eQOQpD4fYaplA=='

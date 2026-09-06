@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: _dmarc.jschmidt.org
+status: success
+records:
+  - fully_validated:
+    - '_dmarc.jschmidt.org. 300 IN TXT "v=DMARC1;p=quarantine;rua=mailto:dmarc@jschmidt.org"'
+    - '_dmarc.jschmidt.org. 300 IN RRSIG TXT 13 3 300 20260906224626 20260906204126 59958 jschmidt.org. fNt9u3NpiMG2h9kfPp1TylOrd3VyijGtBIUItpGig360YN0g0F1QAewX q/t16bC/ymlGKsDYATcxGpCsGP7E8g=='

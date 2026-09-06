@@ -35,7 +35,7 @@ const (
 	defaultTimeoutSec     = 3
 	defaultTCPTimeoutSec  = 2
 	defaultQuicTimeoutSec = 2
-	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver]"
+	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-no-hsts-preload] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]"
 )
 
 // config is the parsed command line.
@@ -50,6 +50,7 @@ type config struct {
 	// in full by every non-QUIC site.
 	QuicTimeoutSec int
 	TCPTimeoutSec  int
+	HSTSPreload    bool // consult hstspreload.org (on by default; -no-hsts-preload disables)
 	Pretty         bool
 	DelvPath       string
 	DigPath        string
@@ -167,6 +168,7 @@ func parseArgs(args []string) (config, error) {
 	fs.IntVar(&cfg.QuicTimeoutSec, "quic-timeout", defaultQuicTimeoutSec, "QUIC handshake timeout in seconds")
 	fs.IntVar(&cfg.TCPTimeoutSec, "tcp-timeout", defaultTCPTimeoutSec, "TCP connect timeout in seconds")
 	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
+	noPreload := fs.Bool("no-hsts-preload", false, "do not consult the HSTS preload list (hstspreload.org)")
 	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")
 	fs.StringVar(&cfg.DelvPath, "delv", "", "path to delv")
 	fs.StringVar(&cfg.DigPath, "dig", "", "path to dig")
@@ -190,6 +192,7 @@ func parseArgs(args []string) (config, error) {
 		return config{}, err
 	}
 	cfg.Families = chooseFamilies(*only4, *only6)
+	cfg.HSTSPreload = !*noPreload
 	cfg.dnsFamily = serverFamily(cfg.Resolver.Host)
 	return cfg, nil
 }

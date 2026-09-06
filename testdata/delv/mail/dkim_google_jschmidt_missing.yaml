@@ -1,0 +1,10 @@
+type: DELV_RESULT
+query_name: google._domainkey.jschmidt.org
+status: ncache nxrrset
+records:
+  - negative_response_fully_validated:
+    - 'google._domainkey.jschmidt.org. 2933 IN \-TXT ;-$NXRRSET'
+    - 'google._domainkey.jschmidt.org. RRSIG NSEC ...'
+    - 'google._domainkey.jschmidt.org. NSEC \000.google._domainkey.jschmidt.org. RRSIG NSEC'
+    - 'jschmidt.org. SOA ns-2001.awsdns-58.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400'
+    - 'jschmidt.org. RRSIG SOA ...'

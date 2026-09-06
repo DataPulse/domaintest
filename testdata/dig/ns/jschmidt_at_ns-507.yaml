@@ -1,0 +1,101 @@
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T21:42:16.265Z
+    response_time: !!timestamp 2026-09-06T21:42:16.277Z
+    message_size: 240b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "205.251.193.251"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 41152
+      flags: qr aa
+      QUESTION: 1
+      ANSWER: 1
+      AUTHORITY: 4
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 4096
+      QUESTION_SECTION:
+        - 'jschmidt.org. IN SOA'
+      ANSWER_SECTION:
+        - 'jschmidt.org. 3600 IN SOA ns-2001.awsdns-58.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400'
+      AUTHORITY_SECTION:
+        - 'jschmidt.org. 172800 IN NS ns-1013.awsdns-62.net.'
+        - 'jschmidt.org. 172800 IN NS ns-1034.awsdns-01.org.'
+        - 'jschmidt.org. 172800 IN NS ns-2001.awsdns-58.co.uk.'
+        - 'jschmidt.org. 172800 IN NS ns-507.awsdns-63.com.'
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T21:42:16.289Z
+    response_time: !!timestamp 2026-09-06T21:42:16.305Z
+    message_size: 240b
+    socket_family: INET
+    socket_protocol: TCP
+    response_address: "205.251.193.251"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 39841
+      flags: qr aa
+      QUESTION: 1
+      ANSWER: 1
+      AUTHORITY: 4
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 4096
+      QUESTION_SECTION:
+        - 'jschmidt.org. IN SOA'
+      ANSWER_SECTION:
+        - 'jschmidt.org. 3600 IN SOA ns-2001.awsdns-58.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400'
+      AUTHORITY_SECTION:
+        - 'jschmidt.org. 172800 IN NS ns-1013.awsdns-62.net.'
+        - 'jschmidt.org. 172800 IN NS ns-1034.awsdns-01.org.'
+        - 'jschmidt.org. 172800 IN NS ns-2001.awsdns-58.co.uk.'
+        - 'jschmidt.org. 172800 IN NS ns-507.awsdns-63.com.'
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T21:42:16.305Z
+    response_time: !!timestamp 2026-09-06T21:42:16.321Z
+    message_size: 236b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "205.251.193.251"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 8096
+      flags: qr aa ad
+      QUESTION: 1
+      ANSWER: 2
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags: do
+          udp: 4096
+      QUESTION_SECTION:
+        - 'jschmidt.org. IN SOA'
+      ANSWER_SECTION:
+        - 'jschmidt.org. 3600 IN SOA ns-2001.awsdns-58.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400'
+        - 'jschmidt.org. 3600 IN RRSIG SOA 13 2 3600 20260906234216 20260906204216 59958 jschmidt.org. US0CB/OtC50m9mS7wHjb6HakiZrBp6w3LDcNrGwlDxbTAkTjxFoRCB3f T3DcBAjIQ2ciT5scbECwkru+e0XPqQ=='

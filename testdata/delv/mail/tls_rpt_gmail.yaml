@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: _smtp._tls.gmail.com
+status: success
+records:
+  - unsigned_answer:
+    - '_smtp._tls.gmail.com. 300 IN TXT "v=TLSRPTv1;rua=mailto:sts-reports@google.com"'

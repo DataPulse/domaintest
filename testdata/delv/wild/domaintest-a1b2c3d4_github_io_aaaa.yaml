@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: domaintest-a1b2c3d4.github.io
+status: success
+records:
+  - unsigned_answer:
+    - 'domaintest-a1b2c3d4.github.io. 3600 IN AAAA 2606:50c0:8000::153'
+    - 'domaintest-a1b2c3d4.github.io. 3600 IN AAAA 2606:50c0:8001::153'
+    - 'domaintest-a1b2c3d4.github.io. 3600 IN AAAA 2606:50c0:8002::153'
+    - 'domaintest-a1b2c3d4.github.io. 3600 IN AAAA 2606:50c0:8003::153'

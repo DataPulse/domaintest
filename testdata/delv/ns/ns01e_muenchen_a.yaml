@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: ns01e.muenchen.de
+status: success
+records:
+  - unsigned_answer:
+    - 'ns01e.muenchen.de. 78768 IN A 194.246.140.196'
