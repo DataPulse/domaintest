@@ -30,6 +30,16 @@ func TestCAAIDsFor(t *testing.T) {
 	check(t, "Sectigo", caaIDsFor("Sectigo Limited"), []string{"sectigo.com", "comodoca.com"})
 	check(t, "DigiCert", caaIDsFor("DigiCert Inc"), []string{"digicert.com"})
 	check(t, "unknown", caaIDsFor("Example Private CA"), []string(nil))
+	// cisco.com is issued by IdenTrust's HydrantID service: "entrust" must
+	// not match inside "IdenTrust".
+	check(t, "IdenTrust", caaIDsFor("IdenTrust"), []string{"identrust.com"})
+	check(t, "Entrust", caaIDsFor("Entrust, Inc."), []string{"entrust.net"})
+	check(t, "Amazon", caaIDsFor("Amazon"), []string{"amazon.com", "amazontrust.com", "awstrust.com", "amazonaws.com"})
+	check(t, "Let's Encrypt with suffix", caaIDsFor("Let's Encrypt"), []string{"letsencrypt.org"})
+	check(t, "GoDaddy with punctuation", caaIDsFor("GoDaddy.com, Inc."), []string{"godaddy.com"})
+	check(t, "Starfield", caaIDsFor("Starfield Technologies, Inc."), []string{"godaddy.com", "starfieldtech.com"})
+	check(t, "SSL Corp", caaIDsFor("SSL Corporation"), []string{"ssl.com"})
+	check(t, "ISRG", caaIDsFor("Internet Security Research Group"), []string{"letsencrypt.org"})
 }
 
 func TestCAAPermits(t *testing.T) {

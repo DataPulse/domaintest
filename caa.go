@@ -47,6 +47,7 @@ var caaIssuers = []struct {
 	{"entrust", []string{"entrust.net"}},
 	{"identrust", []string{"identrust.com"}},
 	{"ssl.com", []string{"ssl.com"}},
+	{"ssl corporation", []string{"ssl.com"}},
 	{"buypass", []string{"buypass.com"}},
 	{"actalis", []string{"actalis.it"}},
 	{"microsoft", []string{"microsoft.com"}},
@@ -54,15 +55,24 @@ var caaIssuers = []struct {
 }
 
 // caaIDsFor returns the CAA identifiers for an issuer organisation, or nil
-// when the issuer is not in the table.
+// when the issuer is not in the table. Matching is on whole words so that
+// "entrust" does not match inside "IdenTrust".
 func caaIDsFor(issuerOrg string) []string {
-	org := strings.ToLower(issuerOrg)
+	org := " " + normalizeOrg(issuerOrg) + " "
 	for _, e := range caaIssuers {
-		if strings.Contains(org, e.match) {
+		if strings.Contains(org, " "+normalizeOrg(e.match)+" ") {
 			return e.ids
 		}
 	}
 	return nil
+}
+
+// normalizeOrg lower-cases and turns punctuation into word separators so
+// that "GoDaddy.com, Inc." matches "godaddy".
+func normalizeOrg(s string) string {
+	s = strings.ToLower(s)
+	s = strings.NewReplacer(".", " ", ",", " ", "-", " ").Replace(s)
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // CAAReport is the caa section of the report.

@@ -325,3 +325,26 @@ func TestHTTPFindings_Aggregation(t *testing.T) {
 	buildFindings(rep)
 	check(t, "partial 5xx is a warning", contains(rep.Warnings, "apex: 1 of 2 addresses return a server error on port 443"), true)
 }
+
+func TestServerFindings_AggregatePerName(t *testing.T) {
+	var f findings
+	f.serverFindings([]NSServer{
+		{Name: "a.ns.", IP: "192.0.2.1", AA: false, Error: "not authoritative (REFUSED)"},
+		{Name: "a.ns.", IP: "2001:db8::1", AA: false, Error: "not authoritative (REFUSED)"},
+		{Name: "a.ns.", IP: "192.0.2.2", AA: true, TCP: true, EDNS: true},
+		{Name: "b.ns.", IP: "192.0.2.3", AA: true, TCP: false, EDNS: false},
+	})
+	check(t, "one error for a.ns.", f.errors, []string{"nameserver a.ns.: not authoritative (REFUSED) on 2 of 3 addresses"})
+	check(t, "warnings for b.ns.", f.warnings, []string{"nameserver b.ns. (192.0.2.3): no answer over TCP", "nameserver b.ns. (192.0.2.3): no EDNS support"})
+}
+
+func TestBuildFindings_ServfailFoldsLookupFailures(t *testing.T) {
+	rep := healthyReport(t)
+	for _, tt := range apexTypes {
+		rep.DNS.Apex[tt] = parseDelvYAML(fixture(t, "delv/dnssec_failed_failure.yaml"), tt)
+	}
+	rep.DNSSEC = DNSSECReport{State: DNSSECServfail, Detail: "resolver failed"}
+	buildFindings(rep)
+	check(t, "single servfail error", contains(rep.Errors, "resolver returned SERVFAIL"), true)
+	check(t, "lookup failures folded", contains(rep.Errors, "lookup failed"), false)
+}

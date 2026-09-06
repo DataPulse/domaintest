@@ -143,12 +143,13 @@ func (f *findings) dnsFindings(rep *Report) {
 		f.errorf("apex %s does not exist (NXDOMAIN)", rep.Domain)
 		return
 	}
-	bogus := rep.DNSSEC.State == DNSSECBogus
+	// A bogus or SERVFAIL verdict already explains every failed lookup.
+	folded := rep.DNSSEC.State == DNSSECBogus || rep.DNSSEC.State == DNSSECServfail
 	for _, t := range apexTypes {
-		f.lookupFindings("apex", t, apex[t], bogus)
+		f.lookupFindings("apex", t, apex[t], folded)
 	}
 	for _, t := range wwwTypes {
-		f.lookupFindings("www", t, rep.DNS.WWW[t], bogus)
+		f.lookupFindings("www", t, rep.DNS.WWW[t], folded)
 	}
 	switch {
 	case rep.NotAZone:
@@ -169,13 +170,14 @@ func enclosing(zone string) string {
 }
 
 // lookupFindings reports lookups that did not complete. Failures are
-// suppressed when DNSSEC is bogus, since that finding explains them.
-func (f *findings) lookupFindings(label, qtype string, l Lookup, bogus bool) {
+// suppressed when the DNSSEC verdict (bogus or SERVFAIL) already explains
+// them.
+func (f *findings) lookupFindings(label, qtype string, l Lookup, folded bool) {
 	switch l.Status {
 	case StatusTimeout:
 		f.errorf("%s %s lookup timed out", label, qtype)
 	case StatusFailure:
-		if !bogus {
+		if !folded {
 			f.errorf("%s %s lookup failed: %s", label, qtype, l.Error)
 		}
 	}
@@ -681,19 +683,44 @@ func (f *findings) nsFindings(n *NSReport) {
 	f.glueFindings(n.Glue)
 }
 
+// serverFindings reports one error per nameserver name whose addresses
+// failed (anycast names have many), naming the failure and the count, and
+// per-address warnings for TCP and EDNS gaps.
 func (f *findings) serverFindings(servers []NSServer) {
+	type tally struct {
+		bad, total int
+		reason     string
+	}
+	byName := map[string]*tally{}
+	var order []string
 	for _, s := range servers {
-		switch {
-		case s.Error != "" && !s.AA:
-			f.errorf("nameserver %s (%s): %s", s.Name, s.IP, s.Error)
+		t, ok := byName[s.Name]
+		if !ok {
+			t = &tally{}
+			byName[s.Name] = t
+			order = append(order, s.Name)
+		}
+		t.total++
+		if s.Error != "" && !s.AA {
+			t.bad++
+			t.reason = firstNonEmpty(t.reason, s.Error)
 			continue
 		}
-		if !s.TCP {
-			f.warningf("nameserver %s (%s): no answer over TCP", s.Name, s.IP)
+		f.serverWarnings(s)
+	}
+	for _, name := range order {
+		if t := byName[name]; t.bad > 0 {
+			f.errorf("nameserver %s: %s on %d of %d addresses", name, t.reason, t.bad, t.total)
 		}
-		if !s.EDNS {
-			f.warningf("nameserver %s (%s): no EDNS support", s.Name, s.IP)
-		}
+	}
+}
+
+func (f *findings) serverWarnings(s NSServer) {
+	if !s.TCP {
+		f.warningf("nameserver %s (%s): no answer over TCP", s.Name, s.IP)
+	}
+	if !s.EDNS {
+		f.warningf("nameserver %s (%s): no EDNS support", s.Name, s.IP)
 	}
 }
 
