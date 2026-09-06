@@ -135,7 +135,7 @@ func TestBuildFindings_Delegation(t *testing.T) {
 	rep.Delegation = Delegation{Status: DelegationSameServers}
 	buildFindings(rep)
 	check(t, "same_servers is not an error", rep.Errors, []string{})
-	for _, st := range []string{DelegationNotDelegated, DelegationNoChildAnswer, DelegationError} {
+	for _, st := range []string{DelegationNotDelegated, DelegationNoChildAnswer, DelegationError, DelegationChildNoNS} {
 		rep := healthyReport(t)
 		rep.Delegation = Delegation{Status: st, Error: "detail"}
 		buildFindings(rep)
@@ -225,4 +225,35 @@ func TestHelpers(t *testing.T) {
 	if !hasSPF([]string{"x", "  V=SPF1 -all"}) || hasSPF([]string{"spf1"}) || hasSPF(nil) {
 		t.Error("hasSPF")
 	}
+}
+
+func TestBuildFindings_LameZoneReportedOnce(t *testing.T) {
+	rep := healthyReport(t)
+	rep.DNS.Apex["NS"] = parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "NS")
+	rep.Delegation = Delegation{Status: DelegationChildNoNS, Error: "zone at ns1.example has a SOA but no NS records"}
+	buildFindings(rep)
+	check(t, "single lame-delegation error", rep.Errors, []string{"lame delegation: zone at ns1.example has a SOA but no NS records"})
+}
+
+func TestBuildFindings_NullMXAndNotAZone(t *testing.T) {
+	rep := healthyReport(t)
+	rep.DNS.Apex["MX"] = parseDelvYAML(fixture(t, "delv/microsoft_jp_net_null_mx.yaml"), "MX")
+	buildFindings(rep)
+	check(t, "null MX warning", contains(rep.Warnings, "null MX"), true)
+	check(t, "no 'no MX' warning", contains(rep.Warnings, "no MX records"), false)
+	check(t, "still ok", rep.OK, true)
+
+	rep = healthyReport(t)
+	rep.Domain = "host.example.net"
+	rep.NotAZone, rep.EnclosingZone = true, "example.net"
+	rep.DNS.Apex["NS"] = parseDelvYAML(fixture(t, "delv/outlook_host_ns_nxrrset.yaml"), "NS")
+	rep.Delegation = Delegation{Status: DelegationNotAZone}
+	buildFindings(rep)
+	check(t, "ok", rep.OK, true)
+	check(t, "warning names the zone", contains(rep.Warnings, "not a zone apex (inside zone example.net)"), true)
+	check(t, "no NS error", contains(rep.Errors, "no NS"), false)
+
+	rep.EnclosingZone = ""
+	buildFindings(rep)
+	check(t, "warning without zone", contains(rep.Warnings, "host.example.net is not a zone apex: delegation"), true)
 }

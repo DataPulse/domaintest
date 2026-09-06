@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: microsoft.jp.net
+status: success
+records:
+  - unsigned_answer:
+    - 'microsoft.jp.net. 300 IN MX 0 .'

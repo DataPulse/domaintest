@@ -28,10 +28,17 @@ const (
 
 // Report is the JSON document domaintest prints.
 type Report struct {
-	Domain         string       `json:"domain"`
+	Domain string `json:"domain"`
+	// UnicodeDomain is the U-label form when Domain is an IDN A-label.
+	UnicodeDomain string `json:"unicode_domain,omitempty"`
+	// NotAZone is set when the name is a host inside a zone rather than a
+	// zone apex; EnclosingZone names that zone when a SOA revealed it.
+	NotAZone       bool         `json:"not_a_zone,omitempty"`
+	EnclosingZone  string       `json:"enclosing_zone,omitempty"`
 	Resolver       string       `json:"resolver"`
 	Families       []string     `json:"families"`
 	TimeoutSec     int          `json:"timeout_sec"`
+	TCPTimeoutSec  int          `json:"tcp_timeout_sec"`
 	QuicTimeoutSec int          `json:"quic_timeout_sec"`
 	DNS            DNSSection   `json:"dns"`
 	DNSSEC         DNSSECReport `json:"dnssec"`
@@ -118,10 +125,22 @@ func (f *findings) dnsFindings(rep *Report) {
 	for _, t := range wwwTypes {
 		f.lookupFindings("www", t, rep.DNS.WWW[t], bogus)
 	}
-	if !apex["NS"].HasRecords() && apex["NS"].Answered() {
+	switch {
+	case rep.NotAZone:
+		f.warningf("%s is not a zone apex%s: delegation and DNSSEC zone checks skipped", rep.Domain, enclosing(rep.EnclosingZone))
+	case rep.Delegation.Status == DelegationChildNoNS:
+		// the delegation finding already says the zone has no NS RRset
+	case !apex["NS"].HasRecords() && apex["NS"].Answered():
 		f.errorf("apex has no NS records")
 	}
 	f.presenceWarnings(rep)
+}
+
+func enclosing(zone string) string {
+	if zone == "" {
+		return ""
+	}
+	return " (inside zone " + zone + ")"
 }
 
 // lookupFindings reports lookups that did not complete. Failures are
@@ -143,7 +162,10 @@ func (f *findings) presenceWarnings(rep *Report) {
 	apex, www := rep.DNS.Apex, rep.DNS.WWW
 	f.addressWarnings("apex", apex["A"], apex["AAAA"])
 	f.addressWarnings("www", www["A"], www["AAAA"])
-	if apex["MX"].Answered() && !apex["MX"].HasRecords() {
+	switch {
+	case apex["MX"].IsNullMX():
+		f.warningf("apex publishes a null MX (RFC 7505): accepts no mail")
+	case apex["MX"].Answered() && !apex["MX"].HasRecords():
 		f.warningf("apex has no MX records")
 	}
 	if apex["TXT"].Answered() && !hasSPF(apex["TXT"].Records) {
@@ -195,6 +217,8 @@ func (f *findings) delegationFindings(d Delegation) {
 		f.errorf("domain is not delegated by its parent zone (%s)", d.ParentServer)
 	case DelegationNoChildAnswer:
 		f.errorf("delegated NS servers did not answer the NS query: %s", firstNonEmpty(d.Error, "no response"))
+	case DelegationChildNoNS:
+		f.errorf("lame delegation: %s", d.Error)
 	case DelegationError:
 		f.errorf("delegation trace failed: %s", d.Error)
 	}

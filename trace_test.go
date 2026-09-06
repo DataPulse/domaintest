@@ -59,6 +59,9 @@ func TestCompareDelegation_Fixtures(t *testing.T) {
 		{"trace/nxdomain.txt", "nonexistent-zzz-qq.org", DelegationNotDelegated, 0, 0, nil, nil},
 		{"trace/nic_cz_same_servers.txt", "nic.cz", DelegationSameServers, 3, 3, nil, nil},
 		{"trace/gov_uk_same_servers.txt", "gov.uk", DelegationSameServers, 8, 8, nil, nil},
+		{"trace/lame_child_no_ns.txt", "corporacionderecreacionservir.org", DelegationChildNoNS, 2, 0,
+			[]string{"nameserver01.mi.com.co.", "nameserver02.mi.com.co."}, nil},
+		{"trace/muenchen.txt", "xn--mnchen-3ya.de", DelegationMatch, 4, 4, nil, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.file, func(t *testing.T) {
@@ -73,11 +76,23 @@ func TestCompareDelegation_Fixtures(t *testing.T) {
 			if !reflect.DeepEqual(d.ParentOnly, c.parentOnly) || !reflect.DeepEqual(d.ChildOnly, c.childOnly) {
 				t.Errorf("parentOnly %v childOnly %v, want %v / %v", d.ParentOnly, d.ChildOnly, c.parentOnly, c.childOnly)
 			}
-			if c.status != DelegationNotDelegated && (d.ParentServer == "" || d.ChildServer == "") {
-				t.Errorf("servers missing: %+v", d)
-			}
+			assertDelegationServers(t, c.status, d)
 		})
 	}
+}
+
+// assertDelegationServers checks the server fields that each status must fill.
+func assertDelegationServers(t *testing.T, status string, d Delegation) {
+	t.Helper()
+	switch status {
+	case DelegationNotDelegated:
+		return
+	case DelegationChildNoNS:
+		check(t, "lame child names the server", d.ChildServer != "", true)
+		check(t, "lame child explains", strings.Contains(d.Error, "no NS records"), true)
+	}
+	check(t, "parent server set", d.ParentServer != "", true)
+	check(t, "child server set", d.ChildServer != "", true)
 }
 
 func TestCompareDelegation_CaseAndDomainForms(t *testing.T) {
@@ -207,4 +222,13 @@ func TestTraceDelegation_AuthoritativeParentServer(t *testing.T) {
 	d = traceDelegation(context.Background(), r, "dig", familyIPv4, 5, "nic.cz")
 	check(t, "status", d.Status, DelegationSameServers)
 	check(t, "dig calls", len(r.called("dig")), 1)
+}
+
+func TestTraceDelegation_LameChildSkipsAuthoritativeCheck(t *testing.T) {
+	r := newFakeRunner()
+	r.on("dig", traceArgs(familyIPv4, 5, "corporacionderecreacionservir.org"), fakeCall{stdout: fixture(t, "trace/lame_child_no_ns.txt")})
+	d := traceDelegation(context.Background(), r, "dig", familyIPv4, 5, "corporacionderecreacionservir.org")
+	check(t, "status", d.Status, DelegationChildNoNS)
+	check(t, "single dig call", len(r.called("dig")), 1)
+	check(t, "child server", strings.HasSuffix(d.ChildServer, ".mi.com.co"), true)
 }

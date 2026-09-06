@@ -28,10 +28,12 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	start := time.Now()
 	rep := &Report{
 		Domain:         cfg.Domain,
-		Resolver:       resolverName(cfg.Server),
+		Resolver:       cfg.Resolver.String(),
 		Families:       cfg.Families,
 		TimeoutSec:     cfg.TimeoutSec,
+		TCPTimeoutSec:  cfg.TCPTimeoutSec,
 		QuicTimeoutSec: cfg.QuicTimeoutSec,
+		UnicodeDomain:  cfg.UnicodeDomain,
 	}
 
 	var dns dnsResults
@@ -43,8 +45,13 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach}
 	probeCtx, cancel := context.WithTimeout(ctx, cfg.timeout()+time.Second)
 	defer cancel()
-	rep.DNSSEC = classifyDNSSEC(dns.ds, dns.dnskey, dns.apex,
-		newBogusProbe(probeCtx, r, cfg.DigPath, cfg.Server, cfg.TimeoutSec))
+	if rep.NotAZone, rep.EnclosingZone = detectNotAZone(cfg.Domain, dns); rep.NotAZone {
+		rep.DNSSEC = classifyByTrust(dns.apex)
+		rep.Delegation = Delegation{Status: DelegationNotAZone, Error: "name is a host inside " + firstNonEmpty(rep.EnclosingZone, "another zone")}
+	} else {
+		rep.DNSSEC = classifyDNSSEC(dns.ds, dns.dnskey, dns.apex,
+			newBogusProbe(probeCtx, r, cfg.DigPath, cfg.Resolver, cfg.TimeoutSec))
+	}
 	rep.Web = probeWeb(probeCtx, cfg, r, d, dns)
 
 	buildFindings(rep)
@@ -52,11 +59,25 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	return rep
 }
 
-func resolverName(server string) string {
-	if server == "" {
-		return "system"
+// detectNotAZone reports whether the name is a host rather than a zone apex:
+// the NS query answered with no records while the name has addresses. A
+// real apex always has an NS RRset. The enclosing zone is taken from a SOA
+// in any negative answer, when the servers included one.
+func detectNotAZone(domain string, dns dnsResults) (bool, string) {
+	ns := dns.apex["NS"]
+	if ns.Status != StatusNXRRSet {
+		return false, ""
 	}
-	return server
+	if !dns.apex["A"].HasRecords() && !dns.apex["AAAA"].HasRecords() {
+		return false, ""
+	}
+	fqdn := domain + "."
+	for _, t := range apexTypes {
+		if owner := dns.apex[t].SOAOwner(); owner != "" && owner != fqdn {
+			return true, strings.TrimSuffix(owner, ".")
+		}
+	}
+	return true, ""
 }
 
 // parallel runs fns concurrently and waits for all of them.
@@ -96,7 +117,7 @@ func gatherDNS(ctx context.Context, cfg config, r Runner) dnsResults {
 	}
 	var mu sync.Mutex
 	look := func(name, qtype string) Lookup {
-		return delvLookup(dctx, r, cfg.DelvPath, cfg.Server, "", name, qtype)
+		return delvLookup(dctx, r, cfg.DelvPath, cfg.Resolver, "", name, qtype)
 	}
 	var tasks []func()
 	for _, t := range apexTypes {
@@ -135,7 +156,7 @@ func checkReachability(ctx context.Context, cfg config, r Runner, family string)
 	if !resolverSupports(cfg, family) {
 		return ReachSkipped
 	}
-	l := delvLookup(ctx, r, cfg.DelvPath, cfg.Server, family, reachabilityQuery, "NS")
+	l := delvLookup(ctx, r, cfg.DelvPath, cfg.Resolver, family, reachabilityQuery, "NS")
 	if l.Answered() {
 		return ReachYes
 	}
@@ -149,7 +170,7 @@ func resolverSupports(cfg config, family string) bool {
 	if cfg.dnsFamily != "" {
 		return cfg.dnsFamily == family
 	}
-	if cfg.Server != "" {
+	if cfg.Resolver.Host != "" {
 		return true
 	}
 	fams := resolvConfFamilies(resolvConfPath)
@@ -190,7 +211,7 @@ func probeWeb(ctx context.Context, cfg config, r Runner, d dialer, dns dnsResult
 	var ports map[portKey]PortState
 	var apexQUIC, wwwQUIC map[string]*QUICResult
 	tasks := []func(){
-		func() { ports = probePorts(ctx, d, append(apexAddrs, wwwAddrs...), webPorts, cfg.timeout()) },
+		func() { ports = probePorts(ctx, d, append(apexAddrs, wwwAddrs...), webPorts, cfg.tcpTimeout()) },
 		func() { apexQUIC = quicPerFamily(ctx, cfg, r, cfg.Domain, apexAddrs) },
 	}
 	if !same {

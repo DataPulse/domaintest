@@ -139,16 +139,24 @@ func withResolvConf(t *testing.T, content string) {
 
 // baseConfig is a config with fake tool names for use with fakeRunner.
 func baseConfig(domain, server string) config {
+	res := resolver{}
+	if server != "" {
+		var err error
+		if res, err = parseResolver(server); err != nil {
+			panic("baseConfig: " + err.Error())
+		}
+	}
 	return config{
 		Domain:         domain,
-		Server:         server,
+		Resolver:       res,
 		Families:       []string{familyIPv4, familyIPv6},
 		TimeoutSec:     5,
+		TCPTimeoutSec:  defaultTCPTimeoutSec,
 		QuicTimeoutSec: defaultQuicTimeoutSec,
 		DelvPath:       "delv",
 		DigPath:        "dig",
 		QuicPath:       "quicprobe",
-		dnsFamily:      serverFamily(server),
+		dnsFamily:      serverFamily(res.Host),
 	}
 }
 

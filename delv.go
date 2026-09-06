@@ -75,7 +75,7 @@ func (l Lookup) HasRecords() bool {
 }
 
 // delvArgs builds the argv for one delv query.
-func delvArgs(server, family, name, qtype string) []string {
+func delvArgs(res resolver, family, name, qtype string) []string {
 	args := []string{"+yaml"}
 	switch family {
 	case familyIPv4:
@@ -83,9 +83,7 @@ func delvArgs(server, family, name, qtype string) []string {
 	case familyIPv6:
 		args = append(args, "-6")
 	}
-	if server != "" {
-		args = append(args, "@"+server)
-	}
+	args = append(args, res.args()...)
 	return append(args, name, qtype)
 }
 
@@ -98,12 +96,12 @@ const minAttempt = time.Second
 // A single dropped UDP query would otherwise cost the whole budget, so the
 // first attempt gets half the remaining time and is retried once with the
 // rest if it times out while ctx is still alive.
-func delvLookup(ctx context.Context, r Runner, delvPath, server, family, name, qtype string) Lookup {
+func delvLookup(ctx context.Context, r Runner, delvPath string, res resolver, family, name, qtype string) Lookup {
 	first, cancel := firstAttemptContext(ctx)
-	l := delvOnce(first, r, delvPath, server, family, name, qtype)
+	l := delvOnce(first, r, delvPath, res, family, name, qtype)
 	cancel()
 	if l.Status == StatusTimeout && ctx.Err() == nil {
-		l = delvOnce(ctx, r, delvPath, server, family, name, qtype)
+		l = delvOnce(ctx, r, delvPath, res, family, name, qtype)
 		l.Retries = 1
 	}
 	return l
@@ -123,8 +121,8 @@ func firstAttemptContext(ctx context.Context) (context.Context, context.CancelFu
 	return context.WithTimeout(ctx, half)
 }
 
-func delvOnce(ctx context.Context, r Runner, delvPath, server, family, name, qtype string) Lookup {
-	stdout, stderr, err := r.Run(ctx, delvPath, delvArgs(server, family, name, qtype)...)
+func delvOnce(ctx context.Context, r Runner, delvPath string, res resolver, family, name, qtype string) Lookup {
+	stdout, stderr, err := r.Run(ctx, delvPath, delvArgs(res, family, name, qtype)...)
 	if isTimeout(ctx, err) {
 		return Lookup{Name: name, Type: qtype, Status: StatusTimeout, Error: "delv timed out"}
 	}
@@ -161,6 +159,9 @@ func parseDelvYAML(out, qtype string) Lookup {
 			}
 		case strings.HasPrefix(line, "- ") && strings.HasSuffix(line, ":"):
 			trust = trustForKey(strings.TrimSuffix(line[2:], ":"))
+			if trust != "" && l.Trust == "" {
+				l.Trust = trust // a group may be empty (minimal NODATA answers)
+			}
 		}
 	}
 	if !sawStatus {
@@ -203,15 +204,43 @@ func mapDelvStatus(s string) (LookupStatus, string) {
 	}
 }
 
+// trustForKey maps delv's record-group key to a trust level. delv varies
+// the suffix ("_answer", "_additional_data"), so only the validated /
+// unsigned part of the key is significant.
 func trustForKey(key string) Trust {
-	switch key {
-	case "fully_validated", "negative_response_fully_validated":
+	switch {
+	case strings.Contains(key, "fully_validated"):
 		return TrustSecure
-	case "unsigned_answer", "negative_response_unsigned_answer":
+	case strings.Contains(key, "unsigned"):
 		return TrustInsecure
 	default:
 		return ""
 	}
+}
+
+// SOAOwner returns the owner of a SOA carried in the answer (the zone the
+// resolver consulted for a negative response), or "".
+func (l Lookup) SOAOwner() string {
+	for _, rr := range l.rrs {
+		if rr.Type == "SOA" {
+			return rr.Owner
+		}
+	}
+	return ""
+}
+
+// IsNullMX reports whether the MX RRset is the RFC 7505 null MX ("0 ."),
+// which declares that the domain accepts no mail.
+func (l Lookup) IsNullMX() bool {
+	if !l.HasRecords() {
+		return false
+	}
+	for _, rec := range l.Records {
+		if strings.Join(strings.Fields(rec), " ") != "0 ." {
+			return false
+		}
+	}
+	return true
 }
 
 // unquoteYAML strips a YAML single-quoted scalar; a doubled single quote

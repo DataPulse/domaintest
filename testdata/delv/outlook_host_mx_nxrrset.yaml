@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: aelcs-com.mail.protection.outlook.com
+status: ncache nxrrset
+records:
+  - negative_response_unsigned_answer:
+    - 'aelcs-com.mail.protection.outlook.com. 3109 IN \-MX ;-$NXRRSET'
+    - 'mail.protection.outlook.com. SOA ns1-proddns.glbdns.o365filtering.com. hostmaster.o365filtering.com. 2013010801 3600 600 86400 3600'

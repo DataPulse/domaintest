@@ -93,6 +93,56 @@ func TestIntegration_ParentServesChild(t *testing.T) {
 	check(t, "errors", rep.Errors, []string{})
 }
 
+func TestIntegration_IDNBothForms(t *testing.T) {
+	// münchen.de is a live IDN; both spellings must produce the same report.
+	ucfg := integrationConfig(t, "münchen.de")
+	acfg := integrationConfig(t, "xn--mnchen-3ya.de")
+	check(t, "same A-label", ucfg.Domain, acfg.Domain)
+	rep := run(context.Background(), ucfg, execRunner{}, &netDialer{})
+	check(t, "domain", rep.Domain, "xn--mnchen-3ya.de")
+	check(t, "unicode", rep.UnicodeDomain, "münchen.de")
+	check(t, "errors", rep.Errors, []string{})
+	check(t, "delegation", rep.Delegation.Status, DelegationMatch)
+	check(t, "has addresses", rep.DNS.Apex["A"].HasRecords(), true)
+	if rep.Web.Apex == nil || len(rep.Web.Apex.IPv4) == 0 {
+		t.Fatalf("expected web results, got %+v", rep.Web)
+	}
+	check(t, "http reachable", rep.Web.Apex.IPv4[0].HTTP, PortOpen)
+}
+
+func TestIntegration_HostInsideZone(t *testing.T) {
+	cfg := integrationConfig(t, "aelcs-com.mail.protection.outlook.com")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "not a zone", rep.NotAZone, true)
+	check(t, "delegation", rep.Delegation.Status, DelegationNotAZone)
+	check(t, "warned", contains(rep.Warnings, "not a zone apex"), true)
+}
+
+func TestIntegration_ResolverWithPort(t *testing.T) {
+	// Google Public DNS answers on 53 only, so a wrong port must fail fast
+	// and a right one must work, proving -p reaches delv.
+	cfg := integrationConfig(t, "jschmidt.org", "@8.8.8.8:53", "-t", "2")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "resolver", rep.Resolver, "8.8.8.8:53")
+	check(t, "MX answered via explicit port", rep.DNS.Apex["MX"].HasRecords(), true)
+}
+
+func TestIntegration_RealMainHealthy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("network test skipped in -short mode")
+	}
+	var out, errBuf bytes.Buffer
+	rc := realMain([]string{"-pretty", "jschmidt.org"}, &out, &errBuf)
+	check(t, "exit code", rc, 0)
+	check(t, "stderr empty", errBuf.String(), "")
+	var rep Report
+	if err := json.Unmarshal(out.Bytes(), &rep); err != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", err, out.String())
+	}
+	check(t, "ok", rep.OK, true)
+	check(t, "pretty output indented", strings.Contains(out.String(), "\n  \"domain\""), true)
+}
+
 func TestIntegration_NXDomain(t *testing.T) {
 	cfg := integrationConfig(t, "nosuch-domaintest-zzz-qq.org")
 	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})

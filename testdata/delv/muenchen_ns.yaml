@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: xn--mnchen-3ya.de
+status: success
+records:
+  - unsigned_answer:
+    - 'xn--mnchen-3ya.de. 86384 IN NS ns01e.muenchen.de.'
+    - 'xn--mnchen-3ya.de. 86384 IN NS ns02e.muenchen.de.'
+    - 'xn--mnchen-3ya.de. 86384 IN NS ns05e.muenchen.de.'
+    - 'xn--mnchen-3ya.de. 86384 IN NS ns06e.muenchen.de.'

@@ -18,28 +18,38 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/idna"
 )
 
+// Default timeouts assume a well-connected vantage point: a server that
+// does not complete a TCP or QUIC handshake within two seconds is dead or
+// misconfigured, and a DNS lookup that needs more than three is broken.
 const (
-	defaultTimeoutSec     = 5
+	defaultTimeoutSec     = 3
+	defaultTCPTimeoutSec  = 2
 	defaultQuicTimeoutSec = 2
-	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-quic-timeout seconds] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver]"
+	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver]"
 )
 
 // config is the parsed command line.
 type config struct {
-	Domain     string
-	Server     string // "" for the system resolver
-	Families   []string
-	TimeoutSec int
+	Domain        string   // A-label (punycode) form, lower case, no trailing dot
+	UnicodeDomain string   // U-label form when Domain is an IDN, else ""
+	Resolver      resolver // zero value means the system resolver
+	Families      []string
+	TimeoutSec    int
 	// QuicTimeoutSec bounds each QUIC handshake separately: a host without a
 	// UDP 443 listener never answers, so the general timeout would be paid
 	// in full by every non-QUIC site.
 	QuicTimeoutSec int
+	TCPTimeoutSec  int
 	Pretty         bool
 	DelvPath       string
 	DigPath        string
@@ -47,7 +57,8 @@ type config struct {
 	dnsFamily      string // family forced on delv by a literal @server address
 }
 
-func (c config) timeout() time.Duration { return time.Duration(c.TimeoutSec) * time.Second }
+func (c config) timeout() time.Duration    { return time.Duration(c.TimeoutSec) * time.Second }
+func (c config) tcpTimeout() time.Duration { return time.Duration(c.TCPTimeoutSec) * time.Second }
 
 func (c config) wantsFamily(f string) bool {
 	for _, x := range c.Families {
@@ -58,8 +69,57 @@ func (c config) wantsFamily(f string) bool {
 	return false
 }
 
+// resolver is the DNS server named with @ on the command line.
+type resolver struct {
+	Host string // IP literal or hostname; "" for the system resolver
+	Port int    // 0 for the default port 53
+}
+
+// parseResolver accepts host, host:port, v6addr and [v6addr]:port.
+func parseResolver(s string) (resolver, error) {
+	if s == "" {
+		return resolver{}, errors.New("empty @server")
+	}
+	if _, err := netip.ParseAddr(s); err == nil || !strings.Contains(s, ":") {
+		return resolver{Host: s}, nil
+	}
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		return resolver{}, fmt.Errorf("invalid @server %q: use host, host:port or [v6addr]:port", s)
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil || p < 1 || p > 65535 {
+		return resolver{}, fmt.Errorf("invalid port in @server %q", s)
+	}
+	return resolver{Host: host, Port: p}, nil
+}
+
+// args renders the resolver as delv/dig arguments.
+func (r resolver) args() []string {
+	if r.Host == "" {
+		return nil
+	}
+	out := []string{"@" + r.Host}
+	if r.Port > 0 {
+		out = append(out, "-p", strconv.Itoa(r.Port))
+	}
+	return out
+}
+
+// String is the form shown in the report.
+func (r resolver) String() string {
+	switch {
+	case r.Host == "":
+		return "system"
+	case r.Port > 0:
+		return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
+	default:
+		return r.Host
+	}
+}
+
 // valueFlags take an argument, so the token after them is not positional.
-var valueFlags = map[string]bool{"-t": true, "-quic-timeout": true, "-quicprobe": true, "-delv": true, "-dig": true}
+var valueFlags = map[string]bool{"-t": true, "-tcp-timeout": true, "-quic-timeout": true, "-quicprobe": true, "-delv": true, "-dig": true}
 
 // splitArgs separates argv into flag tokens, the @server and positionals so
 // that, like dig, the domain and @server may appear anywhere.
@@ -71,7 +131,9 @@ func splitArgs(args []string) (flagArgs, positional []string, server string, err
 			if server != "" {
 				return nil, nil, "", errors.New("only one @server may be given")
 			}
-			server = strings.TrimPrefix(a, "@")
+			if server = strings.TrimPrefix(a, "@"); server == "" {
+				return nil, nil, "", errors.New("empty @server")
+			}
 		case strings.HasPrefix(a, "-") && len(a) > 1:
 			flagArgs = append(flagArgs, a)
 			if valueFlags[a] && i+1 < len(args) {
@@ -95,9 +157,15 @@ func parseArgs(args []string) (config, error) {
 	fs.SetOutput(io.Discard)
 	only4 := fs.Bool("4", false, "IPv4 only")
 	only6 := fs.Bool("6", false, "IPv6 only")
-	cfg := config{Server: server}
+	cfg := config{}
+	if server != "" {
+		if cfg.Resolver, err = parseResolver(server); err != nil {
+			return config{}, err
+		}
+	}
 	fs.IntVar(&cfg.TimeoutSec, "t", defaultTimeoutSec, "per-probe timeout in seconds")
 	fs.IntVar(&cfg.QuicTimeoutSec, "quic-timeout", defaultQuicTimeoutSec, "QUIC handshake timeout in seconds")
+	fs.IntVar(&cfg.TCPTimeoutSec, "tcp-timeout", defaultTCPTimeoutSec, "TCP connect timeout in seconds")
 	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
 	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")
 	fs.StringVar(&cfg.DelvPath, "delv", "", "path to delv")
@@ -114,12 +182,15 @@ func parseArgs(args []string) (config, error) {
 	if cfg.QuicTimeoutSec <= 0 {
 		return config{}, errors.New("-quic-timeout must be a positive number of seconds")
 	}
-	cfg.Domain, err = normalizeDomain(positional[0])
+	if cfg.TCPTimeoutSec <= 0 {
+		return config{}, errors.New("-tcp-timeout must be a positive number of seconds")
+	}
+	cfg.Domain, cfg.UnicodeDomain, err = normalizeDomain(positional[0])
 	if err != nil {
 		return config{}, err
 	}
 	cfg.Families = chooseFamilies(*only4, *only6)
-	cfg.dnsFamily = serverFamily(server)
+	cfg.dnsFamily = serverFamily(cfg.Resolver.Host)
 	return cfg, nil
 }
 
@@ -147,19 +218,39 @@ func serverFamily(server string) string {
 	return familyIPv6
 }
 
-// normalizeDomain lower-cases, strips the trailing dot and applies basic
-// hostname label rules.
-func normalizeDomain(d string) (string, error) {
-	d = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(d), "."))
-	if d == "" || len(d) > 253 {
-		return "", fmt.Errorf("invalid domain %q", d)
+// idnaProfile applies IDNA 2008 lookup mapping and validation but, unlike
+// idna.Lookup, tolerates underscores so that names such as _dmarc.example
+// can be checked. Other non-hostname ASCII is still rejected by validLabel.
+var idnaProfile = idna.New(idna.MapForLookup(), idna.StrictDomainName(false), idna.BidiRule())
+
+// normalizeDomain accepts a domain in U-label (münchen.de) or A-label
+// (xn--mnchen-3ya.de) form, in any case and with or without a trailing dot,
+// and returns the canonical A-label form plus the U-label form when the two
+// differ. IDNA 2008 lookup rules are applied, so malformed punycode and
+// disallowed code points are rejected.
+func normalizeDomain(input string) (ascii, unicode string, err error) {
+	trimmed := strings.TrimSuffix(strings.TrimSpace(input), ".")
+	if trimmed == "" {
+		return "", "", fmt.Errorf("invalid domain %q", input)
 	}
-	for _, label := range strings.Split(d, ".") {
+	ascii, err = idnaProfile.ToASCII(trimmed)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid domain %q: %v", input, err)
+	}
+	ascii = strings.ToLower(ascii)
+	if len(ascii) > 253 {
+		return "", "", fmt.Errorf("invalid domain %q: longer than 253 octets", input)
+	}
+	for _, label := range strings.Split(ascii, ".") {
 		if !validLabel(label) {
-			return "", fmt.Errorf("invalid domain label %q in %q", label, d)
+			return "", "", fmt.Errorf("invalid domain label %q in %q", label, input)
 		}
 	}
-	return d, nil
+	unicode, err = idnaProfile.ToUnicode(ascii)
+	if err != nil || unicode == ascii {
+		unicode = ""
+	}
+	return ascii, unicode, nil
 }
 
 func validLabel(l string) bool {

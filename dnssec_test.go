@@ -131,21 +131,23 @@ func TestDigHasDataAndEDE(t *testing.T) {
 }
 
 func TestDigArgs(t *testing.T) {
-	got := strings.Join(digArgs("8.8.8.8", true, 3, "dnssec-failed.org", "A"), " ")
+	got := strings.Join(digArgs(resolver{Host: "8.8.8.8"}, true, 3, "dnssec-failed.org", "A"), " ")
 	if got != "+yaml +tries=1 +time=3 +cd @8.8.8.8 dnssec-failed.org A" {
 		t.Errorf("got %q", got)
 	}
-	got = strings.Join(digArgs("", false, 0, "x.org", "NS"), " ")
+	got = strings.Join(digArgs(resolver{}, false, 0, "x.org", "NS"), " ")
 	if got != "+yaml +tries=1 +time=1 x.org NS" {
 		t.Errorf("got %q", got)
 	}
+	got = strings.Join(digArgs(resolver{Host: "::1", Port: 5353}, true, 2, "x.org", "A"), " ")
+	check(t, "port form", got, "+yaml +tries=1 +time=2 +cd @::1 -p 5353 x.org A")
 }
 
 func TestNewBogusProbe(t *testing.T) {
 	r := newFakeRunner()
-	r.on("dig", digArgs("8.8.8.8", true, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_cd.yaml")})
-	r.on("dig", digArgs("8.8.8.8", false, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_nocd.yaml"), err: errFake})
-	probe := newBogusProbe(context.Background(), r, "dig", "8.8.8.8", 5)
+	r.on("dig", digArgs(resolver{Host: "8.8.8.8"}, true, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_cd.yaml")})
+	r.on("dig", digArgs(resolver{Host: "8.8.8.8"}, false, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_nocd.yaml"), err: errFake})
+	probe := newBogusProbe(context.Background(), r, "dig", resolver{Host: "8.8.8.8"}, 5)
 	has, ede := probe("dnssec-failed.org", "A")
 	if !has || !strings.Contains(ede, "DNSKEY Missing") {
 		t.Errorf("got %v %q", has, ede)
@@ -183,4 +185,17 @@ func TestClassifyDNSSEC_ExplicitValidationFailure(t *testing.T) {
 	if isValidationFailure(Lookup{Error: "delv: resolution failed"}) {
 		t.Error("generic failure is not a validation failure")
 	}
+}
+
+func TestClassifyByTrust(t *testing.T) {
+	apex := lookups(t, map[string]string{"A": "delv/outlook_host_a.yaml", "NS": "delv/outlook_host_ns_nxrrset.yaml", "TXT": "delv/outlook_host_txt_failure.yaml"})
+	rep := classifyByTrust(apex)
+	check(t, "insecure host", rep.State, DNSSECInsecure)
+	check(t, "no DS/DNSKEY claimed", rep.DS || rep.DNSKEY, false)
+	secure := lookups(t, map[string]string{"A": "delv/www_isc_a_validated.yaml"})
+	check(t, "validated host", classifyByTrust(secure).State, DNSSECSecure)
+	mixed := lookups(t, map[string]string{"A": "delv/www_isc_a_validated.yaml", "TXT": "delv/google_txt_unsigned.yaml"})
+	check(t, "any unsigned answer wins", classifyByTrust(mixed).State, DNSSECInsecure)
+	failed := lookups(t, map[string]string{"A": "delv/timeout.yaml"})
+	check(t, "nothing answered", classifyByTrust(failed).State, DNSSECUnknown)
 }

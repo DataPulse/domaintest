@@ -1,0 +1,5 @@
+type: DELV_RESULT
+query_name: aelcs-com.mail.protection.outlook.com
+status: ncache nxrrset
+records:
+  - negative_response_unsigned_additional_data:

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseArgs_Forms(t *testing.T) {
@@ -17,15 +18,20 @@ func TestParseArgs_Forms(t *testing.T) {
 		timeout  int
 		dnsFam   string
 	}{
-		{[]string{"jschmidt.org"}, "jschmidt.org", "", []string{familyIPv4, familyIPv6}, 5, ""},
-		{[]string{"jschmidt.org", "@8.8.8.8"}, "jschmidt.org", "8.8.8.8", []string{familyIPv4, familyIPv6}, 5, familyIPv4},
+		{[]string{"jschmidt.org"}, "jschmidt.org", "system", []string{familyIPv4, familyIPv6}, 3, ""},
+		{[]string{"jschmidt.org", "@8.8.8.8"}, "jschmidt.org", "8.8.8.8", []string{familyIPv4, familyIPv6}, 3, familyIPv4},
+		{[]string{"jschmidt.org", "@127.0.0.1:5353"}, "jschmidt.org", "127.0.0.1:5353", []string{familyIPv4, familyIPv6}, 3, familyIPv4},
+		{[]string{"jschmidt.org", "@[::1]:5353"}, "jschmidt.org", "[::1]:5353", []string{familyIPv4, familyIPv6}, 3, familyIPv6},
+		{[]string{"jschmidt.org", "@localhost:5353"}, "jschmidt.org", "localhost:5353", []string{familyIPv4, familyIPv6}, 3, ""},
+		{[]string{"münchen.de"}, "xn--mnchen-3ya.de", "system", []string{familyIPv4, familyIPv6}, 3, ""},
+		{[]string{"XN--MNCHEN-3YA.DE."}, "xn--mnchen-3ya.de", "system", []string{familyIPv4, familyIPv6}, 3, ""},
 		{[]string{"@8.8.8.8", "jschmidt.org", "-t", "10"}, "jschmidt.org", "8.8.8.8", []string{familyIPv4, familyIPv6}, 10, familyIPv4},
 		{[]string{"-t", "3", "jschmidt.org", "@8.8.8.8"}, "jschmidt.org", "8.8.8.8", []string{familyIPv4, familyIPv6}, 3, familyIPv4},
-		{[]string{"-6", "@2001:4860:4860::8888", "Example.COM."}, "example.com", "2001:4860:4860::8888", []string{familyIPv6}, 5, familyIPv6},
-		{[]string{"-4", "osu.edu"}, "osu.edu", "", []string{familyIPv4}, 5, ""},
-		{[]string{"-4", "-6", "osu.edu"}, "osu.edu", "", []string{familyIPv4, familyIPv6}, 5, ""},
-		{[]string{"osu.edu", "@dns.google"}, "osu.edu", "dns.google", []string{familyIPv4, familyIPv6}, 5, ""},
-		{[]string{"-t=7", "osu.edu"}, "osu.edu", "", []string{familyIPv4, familyIPv6}, 7, ""},
+		{[]string{"-6", "@2001:4860:4860::8888", "Example.COM."}, "example.com", "2001:4860:4860::8888", []string{familyIPv6}, 3, familyIPv6},
+		{[]string{"-4", "osu.edu"}, "osu.edu", "system", []string{familyIPv4}, 3, ""},
+		{[]string{"-4", "-6", "osu.edu"}, "osu.edu", "system", []string{familyIPv4, familyIPv6}, 3, ""},
+		{[]string{"osu.edu", "@dns.google"}, "osu.edu", "dns.google", []string{familyIPv4, familyIPv6}, 3, ""},
+		{[]string{"-t=7", "osu.edu"}, "osu.edu", "system", []string{familyIPv4, familyIPv6}, 7, ""},
 	}
 	for _, c := range cases {
 		cfg, err := parseArgs(c.args)
@@ -33,7 +39,7 @@ func TestParseArgs_Forms(t *testing.T) {
 			t.Errorf("%v: %v", c.args, err)
 			continue
 		}
-		if cfg.Domain != c.domain || cfg.Server != c.server || cfg.TimeoutSec != c.timeout || cfg.dnsFamily != c.dnsFam {
+		if cfg.Domain != c.domain || cfg.Resolver.String() != c.server || cfg.TimeoutSec != c.timeout || cfg.dnsFamily != c.dnsFam {
 			t.Errorf("%v: got %+v", c.args, cfg)
 		}
 		if !reflect.DeepEqual(cfg.Families, c.families) {
@@ -57,7 +63,14 @@ func TestParseArgs_FlagsAndPaths(t *testing.T) {
 	if !cfg.Pretty || cfg.QuicPath != "/opt/qp" || cfg.DelvPath != "/opt/delv" || cfg.DigPath != "/opt/dig" {
 		t.Errorf("got %+v", cfg)
 	}
-	if !cfg.wantsFamily(familyIPv4) || cfg.timeout().Seconds() != 5 {
+	check(t, "default tcp timeout", cfg.TCPTimeoutSec, defaultTCPTimeoutSec)
+	check(t, "tcp timeout duration", cfg.tcpTimeout(), 2*time.Second)
+	tcfg, err := parseArgs([]string{"-tcp-timeout", "4", "x.org"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "tcp timeout flag", tcfg.TCPTimeoutSec, 4)
+	if !cfg.wantsFamily(familyIPv4) || cfg.timeout().Seconds() != 3 {
 		t.Errorf("helpers wrong: %+v", cfg)
 	}
 }
@@ -73,6 +86,13 @@ func TestParseArgs_Errors(t *testing.T) {
 		{"-t", "-2", "a.org"},
 		{"-quic-timeout", "0", "a.org"},
 		{"-quic-timeout", "x", "a.org"},
+		{"-tcp-timeout", "0", "a.org"},
+		{"@127.0.0.1:0", "a.org"},
+		{"@127.0.0.1:99999", "a.org"},
+		{"@127.0.0.1:abc", "a.org"},
+		{"@", "a.org"},
+		{"xn--zzzz-invalid-punycode-9999999.com"},
+		{"ex@mple.com"},
 		{"-bogus", "a.org"},
 		{"-bad.com"},
 		{"a..b"},
@@ -90,16 +110,79 @@ func TestParseArgs_Errors(t *testing.T) {
 }
 
 func TestNormalizeDomain(t *testing.T) {
-	good := map[string]string{
-		"JSCHMIDT.ORG.": "jschmidt.org",
-		" osu.edu ":     "osu.edu",
-		"_dmarc.x.org":  "_dmarc.x.org",
-		"xn--bcher-kva": "xn--bcher-kva",
-		"a-b.c-d.org":   "a-b.c-d.org",
+	cases := []struct{ in, ascii, unicode string }{
+		{"JSCHMIDT.ORG.", "jschmidt.org", ""},
+		{" osu.edu ", "osu.edu", ""},
+		{"_dmarc.x.org", "_dmarc.x.org", ""},
+		{"a-b.c-d.org", "a-b.c-d.org", ""},
+		// IDN: U-label in, A-label out, U-label reported.
+		{"münchen.de", "xn--mnchen-3ya.de", "münchen.de"},
+		{"MÜNCHEN.DE.", "xn--mnchen-3ya.de", "münchen.de"},
+		{"bücher.ch", "xn--bcher-kva.ch", "bücher.ch"},
+		{"日本.jp", "xn--wgv71a.jp", "日本.jp"},
+		{"www.münchen.de", "www.xn--mnchen-3ya.de", "www.münchen.de"},
+		// IDN: A-label in, unchanged out, U-label reported.
+		{"xn--mnchen-3ya.de", "xn--mnchen-3ya.de", "münchen.de"},
+		{"XN--MCROSOFT-C2A.COM", "xn--mcrosoft-c2a.com", "mícrosoft.com"},
+		// Mixed labels.
+		{"shop.münchen.de", "shop.xn--mnchen-3ya.de", "shop.münchen.de"},
 	}
-	for in, want := range good {
-		if got, err := normalizeDomain(in); err != nil || got != want {
-			t.Errorf("normalizeDomain(%q) = %q, %v; want %q", in, got, err, want)
+	for _, c := range cases {
+		ascii, unicode, err := normalizeDomain(c.in)
+		if err != nil {
+			t.Errorf("normalizeDomain(%q): %v", c.in, err)
+			continue
+		}
+		check(t, "ascii for "+c.in, ascii, c.ascii)
+		check(t, "unicode for "+c.in, unicode, c.unicode)
+	}
+	// U+200B (zero-width space) is an ignored code point under UTS 46 mapping,
+	// so "exa\u200bmple.com" quietly becomes example.com rather than failing.
+	if got, _, err := normalizeDomain("exa\u200bmple.com"); err != nil || got != "example.com" {
+		t.Errorf("zero-width space should be dropped by mapping, got %q %v", got, err)
+	}
+	for _, bad := range []string{"", ".", "-bad.com", "a..b", "exa mple.com", "ex@mple.com", "xn--a.com", "xn--zzzz-invalid-punycode-9999999.com", strings.Repeat("ü", 60) + ".de"} {
+		if _, _, err := normalizeDomain(bad); err == nil {
+			t.Errorf("normalizeDomain(%q) should fail", bad)
+		}
+	}
+}
+
+func TestParseResolver(t *testing.T) {
+	cases := []struct {
+		in   string
+		host string
+		port int
+		args string
+		text string
+	}{
+		{"8.8.8.8", "8.8.8.8", 0, "@8.8.8.8", "8.8.8.8"},
+		{"127.0.0.1:5353", "127.0.0.1", 5353, "@127.0.0.1 -p 5353", "127.0.0.1:5353"},
+		{"2001:4860:4860::8888", "2001:4860:4860::8888", 0, "@2001:4860:4860::8888", "2001:4860:4860::8888"},
+		{"[2001:db8::1]:5353", "2001:db8::1", 5353, "@2001:db8::1 -p 5353", "[2001:db8::1]:5353"},
+		{"dns.google", "dns.google", 0, "@dns.google", "dns.google"},
+		{"localhost:5353", "localhost", 5353, "@localhost -p 5353", "localhost:5353"},
+	}
+	for _, c := range cases {
+		r, err := parseResolver(c.in)
+		if err != nil {
+			t.Errorf("parseResolver(%q): %v", c.in, err)
+			continue
+		}
+		check(t, "host "+c.in, r.Host, c.host)
+		check(t, "port "+c.in, r.Port, c.port)
+		check(t, "args "+c.in, strings.Join(r.args(), " "), c.args)
+		check(t, "string "+c.in, r.String(), c.text)
+	}
+	check(t, "system resolver args", resolver{}.args(), []string(nil))
+	check(t, "system resolver string", resolver{}.String(), "system")
+	// "::1:5353" is a valid IPv6 literal, so it is an address, not ::1 plus a port.
+	if r, err := parseResolver("::1:5353"); err != nil || r.Port != 0 || r.Host != "::1:5353" {
+		t.Errorf("::1:5353 should parse as a bare IPv6 address, got %+v %v", r, err)
+	}
+	for _, bad := range []string{"", "1.2.3.4:", "1.2.3.4:0", "1.2.3.4:65536", "1.2.3.4:x", "[::1]", "a:b:c"} {
+		if _, err := parseResolver(bad); err == nil {
+			t.Errorf("parseResolver(%q) should fail", bad)
 		}
 	}
 }

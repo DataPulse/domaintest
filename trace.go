@@ -15,6 +15,8 @@ const (
 	DelegationNotDelegated  = "not_delegated"
 	DelegationNoChildAnswer = "no_child_answer"
 	DelegationSameServers   = "same_servers" // parent zone's servers also host the child
+	DelegationChildNoNS     = "child_no_ns"  // child answers with SOA but no NS RRset
+	DelegationNotAZone      = "not_a_zone"   // the name is a host inside a zone, not an apex
 	DelegationError         = "error"
 )
 
@@ -61,6 +63,16 @@ func (b traceBlock) hasSOA() bool {
 	return false
 }
 
+// hasSOAFor reports whether the block carries a SOA owned by fqdn.
+func (b traceBlock) hasSOAFor(fqdn string) bool {
+	for _, rr := range b.RRs {
+		if rr.Type == "SOA" && rr.Owner == fqdn {
+			return true
+		}
+	}
+	return false
+}
+
 var receivedRe = regexp.MustCompile(`^;; Received \d+ bytes from (\S+?)#\d+\((\S+)\)`)
 
 // parseTrace splits dig +trace output into blocks and collects the
@@ -101,9 +113,11 @@ func parseTrace(out string) (blocks []traceBlock, diags []string) {
 func compareDelegation(blocks []traceBlock, diags []string, domain string) Delegation {
 	fqdn := strings.ToLower(strings.TrimSuffix(domain, ".")) + "."
 	var withNS []traceBlock
-	for _, b := range blocks {
+	lastNS := -1
+	for i, b := range blocks {
 		if len(b.nsFor(fqdn)) > 0 {
 			withNS = append(withNS, b)
+			lastNS = i
 		}
 	}
 	d := Delegation{}
@@ -114,6 +128,9 @@ func compareDelegation(blocks []traceBlock, diags []string, domain string) Deleg
 	case 0:
 		return classifyNoNS(d, blocks)
 	case 1:
+		if child := soaOnlyChild(blocks[lastNS+1:], fqdn); child != nil {
+			return classifyChildNoNS(d, withNS[0], *child, fqdn)
+		}
 		return classifySingleBlock(d, withNS[0], fqdn)
 	}
 	parent, child := withNS[0], withNS[len(withNS)-1]
@@ -124,6 +141,31 @@ func compareDelegation(blocks []traceBlock, diags []string, domain string) Deleg
 		d.Status = DelegationMatch
 	} else {
 		d.Status = DelegationMismatch
+	}
+	return d
+}
+
+// soaOnlyChild returns the first block after the parent referral in which a
+// delegated server answered with the domain's own SOA (but no NS, or it
+// would have counted as an NS block), or nil.
+func soaOnlyChild(after []traceBlock, fqdn string) *traceBlock {
+	for i := range after {
+		if after[i].hasSOAFor(fqdn) {
+			return &after[i]
+		}
+	}
+	return nil
+}
+
+// classifyChildNoNS reports a lame zone: the delegated server is
+// authoritative (it returns the apex SOA) but the zone has no NS RRset.
+func classifyChildNoNS(d Delegation, parent, child traceBlock, fqdn string) Delegation {
+	d.Status = DelegationChildNoNS
+	d.ParentNS, d.ParentServer = parent.nsFor(fqdn), parent.Server
+	d.ChildServer = child.Server
+	d.ParentOnly = d.ParentNS
+	if d.Error == "" {
+		d.Error = "zone at " + child.Server + " has a SOA but no NS records"
 	}
 	return d
 }

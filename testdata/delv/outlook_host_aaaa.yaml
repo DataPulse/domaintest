@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: aelcs-com.mail.protection.outlook.com
+status: success
+records:
+  - unsigned_answer:
+    - 'aelcs-com.mail.protection.outlook.com. 300 IN AAAA 2a01:111:f403:c927::7'
+    - 'aelcs-com.mail.protection.outlook.com. 300 IN AAAA 2a01:111:f403:f804::1'
+    - 'aelcs-com.mail.protection.outlook.com. 300 IN AAAA 2a01:111:f403:f901::1'
+    - 'aelcs-com.mail.protection.outlook.com. 300 IN AAAA 2a01:111:f403:f90b::0'

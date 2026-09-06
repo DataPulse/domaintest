@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: aelcs-com.mail.protection.outlook.com
+status: success
+records:
+  - unsigned_answer:
+    - 'aelcs-com.mail.protection.outlook.com. 300 IN A 52.101.9.26'
+    - 'aelcs-com.mail.protection.outlook.com. 300 IN A 52.101.60.68'
+    - 'aelcs-com.mail.protection.outlook.com. 300 IN A 52.101.194.12'
+    - 'aelcs-com.mail.protection.outlook.com. 300 IN A 52.101.194.17'

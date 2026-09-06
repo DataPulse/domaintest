@@ -18,11 +18,11 @@ type scenario struct {
 }
 
 func (s *scenario) delv(name, qtype, file string, t *testing.T) {
-	s.r.on("delv", delvArgs(s.cfg.Server, "", name, qtype), fakeCall{stdout: fixture(t, file)})
+	s.r.on("delv", delvArgs(s.cfg.Resolver, "", name, qtype), fakeCall{stdout: fixture(t, file)})
 }
 
 func (s *scenario) reach(family, file string, t *testing.T) {
-	s.r.on("delv", delvArgs(s.cfg.Server, family, reachabilityQuery, "NS"), fakeCall{stdout: fixture(t, file)})
+	s.r.on("delv", delvArgs(s.cfg.Resolver, family, reachabilityQuery, "NS"), fakeCall{stdout: fixture(t, file)})
 }
 
 func (s *scenario) trace(file string, t *testing.T) {
@@ -193,8 +193,8 @@ func TestRun_BogusZoneViaPublicResolver(t *testing.T) {
 	s.delv("dnssec-failed.org", "DS", "delv/dnssec_failed_ds.yaml", t)
 	s.reach(familyIPv4, "delv/root_ns_v4_8888.yaml", t)
 	s.trace("trace/dnssec_failed_mismatch.txt", t)
-	s.r.on("dig", digArgs("8.8.8.8", true, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_cd.yaml")})
-	s.r.on("dig", digArgs("8.8.8.8", false, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_nocd.yaml"), err: errFake})
+	s.r.on("dig", digArgs(resolver{Host: "8.8.8.8"}, true, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_cd.yaml")})
+	s.r.on("dig", digArgs(resolver{Host: "8.8.8.8"}, false, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_nocd.yaml"), err: errFake})
 
 	rep := s.run()
 	check(t, "ok", rep.OK, false)
@@ -216,7 +216,7 @@ func TestRun_ResolverUnreachableAndTimeouts(t *testing.T) {
 	s.reach(familyIPv6, "delv/root_ns_v6_refused.yaml", t)
 	s.cfg.TimeoutSec = 1
 	s.trace("trace/jschmidt.txt", t)
-	s.r.on("delv", delvArgs("", "", "jschmidt.org", "TXT"), fakeCall{delay: 3 * time.Second})
+	s.r.on("delv", delvArgs(resolver{}, "", "jschmidt.org", "TXT"), fakeCall{delay: 3 * time.Second})
 
 	start := time.Now()
 	rep := s.run()
@@ -259,7 +259,7 @@ func TestRun_ReportSerialises(t *testing.T) {
 	if err := json.Unmarshal(b, &generic); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"domain", "resolver", "families", "timeout_sec", "quic_timeout_sec", "dns", "dnssec", "delegation", "web", "errors", "warnings", "ok", "elapsed_ms"} {
+	for _, key := range []string{"domain", "resolver", "families", "timeout_sec", "tcp_timeout_sec", "quic_timeout_sec", "dns", "dnssec", "delegation", "web", "errors", "warnings", "ok", "elapsed_ms"} {
 		if _, ok := generic[key]; !ok {
 			t.Errorf("report missing %q", key)
 		}
@@ -297,4 +297,119 @@ func TestResolverSupports(t *testing.T) {
 	host := baseConfig("x.org", "dns.google")
 	check(t, "hostname v4", resolverSupports(host, familyIPv4), true)
 	check(t, "hostname v6", resolverSupports(host, familyIPv6), true)
+}
+
+func TestDetectNotAZone(t *testing.T) {
+	ns := parseDelvYAML(fixture(t, "delv/outlook_host_ns_nxrrset.yaml"), "NS")
+	a := parseDelvYAML(fixture(t, "delv/outlook_host_a.yaml"), "A")
+	none := parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "AAAA")
+	host := "aelcs-com.mail.protection.outlook.com"
+
+	is, zone := detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a, "AAAA": none}})
+	check(t, "host with addresses but no NS", is, true)
+	check(t, "zone from the AAAA negative answer's SOA", zone, "jschmidt.org")
+
+	is, zone = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a, "AAAA": ns}})
+	check(t, "still a host without any SOA", is, true)
+	check(t, "zone unknown", zone, "")
+
+	is, _ = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": none, "AAAA": none}})
+	check(t, "no addresses: not decided as a host", is, false)
+
+	real := parseDelvYAML(fixture(t, "delv/jschmidt_ns.yaml"), "NS")
+	is, _ = detectNotAZone("jschmidt.org", dnsResults{apex: map[string]Lookup{"NS": real, "A": a}})
+	check(t, "zone apex with NS", is, false)
+
+	// A SOA owned by the name itself does not count as an enclosing zone.
+	self := Lookup{Status: StatusNXRRSet, rrs: []RR{{Owner: host + ".", Type: "SOA"}}}
+	is, zone = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a, "AAAA": self}})
+	check(t, "own SOA ignored", is, true)
+	check(t, "own SOA gives no enclosing zone", zone, "")
+}
+
+func TestRun_ResolverWithPort(t *testing.T) {
+	s := newScenario(t, "jschmidt.org", "127.0.0.1:5353")
+	s.r.fallback = func(tool string, args []string) (fakeCall, bool) {
+		joined := strings.Join(args, " ")
+		if tool == "delv" && strings.Contains(joined, "@127.0.0.1 -p 5353") {
+			return fakeCall{stdout: fixture(t, "delv/jschmidt_ns.yaml")}, true
+		}
+		return fakeCall{}, false
+	}
+	s.trace("trace/jschmidt.txt", t)
+	rep := s.run()
+	check(t, "resolver shown with port", rep.Resolver, "127.0.0.1:5353")
+	check(t, "every delv call carried the port", len(s.r.called("delv")) > 0, true)
+	for _, c := range s.r.called("delv") {
+		check(t, "delv call "+c, strings.Contains(c, "@127.0.0.1 -p 5353"), true)
+	}
+	check(t, "trace still goes to the root, no -p", strings.Contains(s.r.called("dig")[0], "-p"), false)
+}
+
+func TestRun_IDNDomainUsesALabel(t *testing.T) {
+	cfg, err := parseArgs([]string{"MÜNCHEN.de."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := newScenario(t, cfg.Domain, "")
+	s.cfg.UnicodeDomain = cfg.UnicodeDomain
+	s.delv("xn--mnchen-3ya.de", "A", "delv/muenchen_a.yaml", t)
+	s.delv("xn--mnchen-3ya.de", "AAAA", "delv/muenchen_aaaa.yaml", t)
+	s.delv("xn--mnchen-3ya.de", "NS", "delv/muenchen_ns.yaml", t)
+	s.delv("xn--mnchen-3ya.de", "MX", "delv/jschmidt_aaaa_nxrrset.yaml", t)
+	s.delv("xn--mnchen-3ya.de", "TXT", "delv/jschmidt_aaaa_nxrrset.yaml", t)
+	s.delv("xn--mnchen-3ya.de", "DS", "delv/google_ds_nxrrset.yaml", t)
+	s.delv("xn--mnchen-3ya.de", "DNSKEY", "delv/google_dnskey_nxrrset.yaml", t)
+	s.delv("www.xn--mnchen-3ya.de", "A", "delv/www_muenchen_a.yaml", t)
+	s.delv("www.xn--mnchen-3ya.de", "AAAA", "delv/muenchen_aaaa.yaml", t)
+	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.trace("trace/muenchen.txt", t)
+	s.r.fallback = func(tool string, args []string) (fakeCall, bool) {
+		if tool == "quicprobe" {
+			return fakeCall{stdout: fixture(t, "quicprobe/example_unsupported.json")}, true
+		}
+		return fakeCall{}, false
+	}
+	rep := s.run()
+	check(t, "domain is the A-label", rep.Domain, "xn--mnchen-3ya.de")
+	check(t, "unicode form reported", rep.UnicodeDomain, "münchen.de")
+	check(t, "errors", rep.Errors, []string{})
+	check(t, "delegation", rep.Delegation.Status, DelegationMatch)
+	check(t, "www collapsed onto apex address", rep.Web.WWW, &HostWeb{SameAsApex: true})
+	for _, c := range s.r.called("") {
+		check(t, "no U-label reaches a tool: "+c, strings.Contains(c, "ü"), false)
+	}
+	for _, c := range s.r.called("quicprobe") {
+		check(t, "quicprobe SNI is the A-label: "+c, strings.HasSuffix(c, " xn--mnchen-3ya.de"), true)
+	}
+}
+
+func TestRun_HostInsideZoneIsNotAZone(t *testing.T) {
+	host := "aelcs-com.mail.protection.outlook.com"
+	s := newScenario(t, host, "")
+	s.delv(host, "A", "delv/outlook_host_a.yaml", t)
+	s.delv(host, "AAAA", "delv/outlook_host_aaaa.yaml", t)
+	s.delv(host, "NS", "delv/outlook_host_ns_nxrrset.yaml", t)
+	s.delv(host, "MX", "delv/outlook_host_mx_nxrrset.yaml", t)
+	s.delv(host, "TXT", "delv/outlook_host_txt_failure.yaml", t)
+	s.delv(host, "DS", "delv/outlook_host_ns_nxrrset.yaml", t)
+	s.delv(host, "DNSKEY", "delv/outlook_host_ns_nxrrset.yaml", t)
+	s.delv("www."+host, "A", "delv/nxdomain_unsigned.yaml", t)
+	s.delv("www."+host, "AAAA", "delv/nxdomain_unsigned.yaml", t)
+	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.r.on("dig", traceArgs(familyIPv4, 5, host), fakeCall{stdout: fixture(t, "trace/nxdomain.txt")})
+	s.r.fallback = func(tool string, args []string) (fakeCall, bool) {
+		if tool == "quicprobe" {
+			return fakeCall{stdout: fixture(t, "quicprobe/example_unsupported.json")}, true
+		}
+		return fakeCall{}, false
+	}
+	rep := s.run()
+	check(t, "not_a_zone", rep.NotAZone, true)
+	check(t, "delegation", rep.Delegation.Status, DelegationNotAZone)
+	check(t, "dnssec from answer trust", rep.DNSSEC.State, DNSSECInsecure)
+	check(t, "no bogus probe for a non-zone", len(s.r.called("dig +yaml")), 0)
+	check(t, "only the TXT failure remains an error", rep.Errors, []string{"apex TXT lookup failed: delv: resolution failed"})
+	check(t, "not-a-zone warning", contains(rep.Warnings, "is not a zone apex"), true)
+	check(t, "no 'no NS' error", contains(rep.Errors, "no NS records"), false)
 }

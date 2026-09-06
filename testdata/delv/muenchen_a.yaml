@@ -1,0 +1,6 @@
+type: DELV_RESULT
+query_name: xn--mnchen-3ya.de
+status: success
+records:
+  - unsigned_answer:
+    - 'xn--mnchen-3ya.de. 86385 IN A 194.246.166.100'

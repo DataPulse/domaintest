@@ -42,6 +42,13 @@ func TestParseDelvYAML_Fixtures(t *testing.T) {
 		{"delv/invalid_broken_trust_chain.yaml", "A", StatusFailure, "", 0, nil},
 		{"delv/root_ns_v4.yaml", "NS", StatusOK, TrustSecure, 13, nil},
 		{"delv/root_ns_v6_refused.yaml", "NS", StatusFailure, "", 0, nil},
+		{"delv/outlook_host_ns_nxrrset.yaml", "NS", StatusNXRRSet, TrustInsecure, 0, nil},
+		{"delv/outlook_host_a.yaml", "A", StatusOK, TrustInsecure, 4, nil},
+		{"delv/outlook_host_txt_failure.yaml", "TXT", StatusFailure, "", 0, nil},
+		{"delv/microsoft_jp_net_null_mx.yaml", "MX", StatusOK, TrustInsecure, 1, nil},
+		{"delv/muenchen_a.yaml", "A", StatusOK, TrustInsecure, 1, nil},
+		{"delv/muenchen_ns.yaml", "NS", StatusOK, TrustInsecure, 4, nil},
+		{"delv/www_muenchen_a.yaml", "A", StatusOK, TrustInsecure, 1, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.file, func(t *testing.T) {
@@ -169,9 +176,18 @@ func TestDelvArgs(t *testing.T) {
 		{"8.8.8.8", "", "jschmidt.org", "A", "+yaml @8.8.8.8 jschmidt.org A"},
 		{"", familyIPv4, ".", "NS", "+yaml -4 . NS"},
 		{"2001:4860:4860::8888", familyIPv6, "x.org", "NS", "+yaml -6 @2001:4860:4860::8888 x.org NS"},
+		{"127.0.0.1:5353", "", "x.org", "A", "+yaml @127.0.0.1 -p 5353 x.org A"},
+		{"[::1]:5353", familyIPv6, "x.org", "A", "+yaml -6 @::1 -p 5353 x.org A"},
 	}
 	for _, c := range cases {
-		if got := strings.Join(delvArgs(c.server, c.family, c.name, c.qtype), " "); got != c.want {
+		res := resolver{}
+		if c.server != "" {
+			var err error
+			if res, err = parseResolver(c.server); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := strings.Join(delvArgs(res, c.family, c.name, c.qtype), " "); got != c.want {
 			t.Errorf("delvArgs = %q, want %q", got, c.want)
 		}
 	}
@@ -179,16 +195,16 @@ func TestDelvArgs(t *testing.T) {
 
 func TestDelvLookup_FakeRunner(t *testing.T) {
 	r := newFakeRunner()
-	r.on("delv", delvArgs("", "", "jschmidt.org", "MX"), fakeCall{stdout: fixture(t, "delv/jschmidt_mx.yaml")})
-	r.on("delv", delvArgs("", "", "jschmidt.org", "A"), fakeCall{stderr: "delv: exploded", err: errFake})
-	r.on("delv", delvArgs("", "", "slow.org", "A"), fakeCall{delay: 2 * time.Second, stdout: fixture(t, "delv/google_a_unsigned.yaml")})
+	r.on("delv", delvArgs(resolver{}, "", "jschmidt.org", "MX"), fakeCall{stdout: fixture(t, "delv/jschmidt_mx.yaml")})
+	r.on("delv", delvArgs(resolver{}, "", "jschmidt.org", "A"), fakeCall{stderr: "delv: exploded", err: errFake})
+	r.on("delv", delvArgs(resolver{}, "", "slow.org", "A"), fakeCall{delay: 2 * time.Second, stdout: fixture(t, "delv/google_a_unsigned.yaml")})
 
-	l := delvLookup(context.Background(), r, "delv", "", "", "jschmidt.org", "MX")
+	l := delvLookup(context.Background(), r, "delv", resolver{}, "", "jschmidt.org", "MX")
 	if l.Name != "jschmidt.org" || l.Type != "MX" || !l.HasRecords() {
 		t.Errorf("unexpected lookup %+v", l)
 	}
 
-	l = delvLookup(context.Background(), r, "delv", "", "", "jschmidt.org", "A")
+	l = delvLookup(context.Background(), r, "delv", resolver{}, "", "jschmidt.org", "A")
 	if l.Status != StatusFailure || !strings.Contains(l.Error, "exploded") {
 		t.Errorf("expected failure with stderr, got %+v", l)
 	}
@@ -196,7 +212,7 @@ func TestDelvLookup_FakeRunner(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	l = delvLookup(ctx, r, "delv", "", "", "slow.org", "A")
+	l = delvLookup(ctx, r, "delv", resolver{}, "", "slow.org", "A")
 	if l.Status != StatusTimeout {
 		t.Errorf("expected timeout, got %+v", l)
 	}
@@ -223,7 +239,7 @@ func TestLookupPredicates(t *testing.T) {
 
 func TestDelvLookup_RetriesOnceAfterTimeout(t *testing.T) {
 	r := newFakeRunner()
-	args := delvArgs("", "", "flaky.org", "A")
+	args := delvArgs(resolver{}, "", "flaky.org", "A")
 	r.onSeq("delv", args,
 		fakeCall{delay: 10 * time.Second}, // dropped query
 		fakeCall{stdout: fixture(t, "delv/google_a_unsigned.yaml")},
@@ -231,7 +247,7 @@ func TestDelvLookup_RetriesOnceAfterTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	start := time.Now()
-	l := delvLookup(ctx, r, "delv", "", "", "flaky.org", "A")
+	l := delvLookup(ctx, r, "delv", resolver{}, "", "flaky.org", "A")
 	elapsed := time.Since(start)
 	check(t, "status", l.Status, StatusOK)
 	check(t, "retries", l.Retries, 1)
@@ -245,7 +261,7 @@ func TestDelvLookup_RetriesOnceAfterTimeout(t *testing.T) {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 2500*time.Millisecond)
 	defer cancel2()
 	start = time.Now()
-	l = delvLookup(ctx2, r, "delv", "", "", "flaky.org", "A")
+	l = delvLookup(ctx2, r, "delv", resolver{}, "", "flaky.org", "A")
 	check(t, "status", l.Status, StatusTimeout)
 	check(t, "retries", l.Retries, 1)
 	if time.Since(start) > 3500*time.Millisecond {
@@ -275,4 +291,30 @@ func TestFirstAttemptContext(t *testing.T) {
 	if left := time.Until(d); left > 600*time.Millisecond {
 		t.Errorf("attempt deadline must not exceed the parent's, got %v", left)
 	}
+}
+
+func TestLookup_SOAOwnerAndNullMX(t *testing.T) {
+	neg := parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "AAAA")
+	check(t, "SOA owner from negative answer", neg.SOAOwner(), "jschmidt.org.")
+	nx := parseDelvYAML(fixture(t, "delv/nxdomain_signed.yaml"), "A")
+	check(t, "SOA owner is the enclosing zone", nx.SOAOwner(), "org.")
+	pos := parseDelvYAML(fixture(t, "delv/jschmidt_mx.yaml"), "MX")
+	check(t, "no SOA in positive answer", pos.SOAOwner(), "")
+	none := parseDelvYAML(fixture(t, "delv/outlook_host_ns_nxrrset.yaml"), "NS")
+	check(t, "minimal NODATA carries no SOA", none.SOAOwner(), "")
+
+	null := parseDelvYAML(fixture(t, "delv/microsoft_jp_net_null_mx.yaml"), "MX")
+	check(t, "null MX record kept", null.Records, []string{"0 ."})
+	check(t, "null MX detected", null.IsNullMX(), true)
+	check(t, "real MX is not null", pos.IsNullMX(), false)
+	check(t, "no MX is not null", neg.IsNullMX(), false)
+	check(t, "mixed set is not null", (Lookup{Status: StatusOK, Records: []string{"0 .", "10 mx.example."}}).IsNullMX(), false)
+}
+
+func TestTrustForKey_Variants(t *testing.T) {
+	check(t, "validated", trustForKey("fully_validated"), TrustSecure)
+	check(t, "negative validated", trustForKey("negative_response_fully_validated"), TrustSecure)
+	check(t, "unsigned", trustForKey("unsigned_answer"), TrustInsecure)
+	check(t, "unsigned additional data", trustForKey("negative_response_unsigned_additional_data"), TrustInsecure)
+	check(t, "unknown", trustForKey("something_else"), Trust(""))
 }

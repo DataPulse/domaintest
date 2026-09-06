@@ -1,0 +1,39 @@
+
+; <<>> DiG 9.18.49-1~deb12u2-Debian <<>> -4 +trace +nodnssec +tries=1 +time=2 @a.root-servers.net xn--mnchen-3ya.de NS
+; (1 server found)
+;; global options: +cmd
+.			518400	IN	NS	l.root-servers.net.
+.			518400	IN	NS	j.root-servers.net.
+.			518400	IN	NS	f.root-servers.net.
+.			518400	IN	NS	h.root-servers.net.
+.			518400	IN	NS	d.root-servers.net.
+.			518400	IN	NS	b.root-servers.net.
+.			518400	IN	NS	k.root-servers.net.
+.			518400	IN	NS	i.root-servers.net.
+.			518400	IN	NS	m.root-servers.net.
+.			518400	IN	NS	e.root-servers.net.
+.			518400	IN	NS	g.root-servers.net.
+.			518400	IN	NS	c.root-servers.net.
+.			518400	IN	NS	a.root-servers.net.
+;; Received 811 bytes from 198.41.0.4#53(a.root-servers.net) in 32 ms
+
+de.			172800	IN	NS	a.nic.de.
+de.			172800	IN	NS	f.nic.de.
+de.			172800	IN	NS	l.de.net.
+de.			172800	IN	NS	n.de.net.
+de.			172800	IN	NS	s.de.net.
+de.			172800	IN	NS	z.nic.de.
+;; Received 422 bytes from 170.247.170.2#53(b.root-servers.net) in 32 ms
+
+xn--mnchen-3ya.de.	86400	IN	NS	ns01e.muenchen.de.
+xn--mnchen-3ya.de.	86400	IN	NS	ns02e.muenchen.de.
+xn--mnchen-3ya.de.	86400	IN	NS	ns05e.muenchen.de.
+xn--mnchen-3ya.de.	86400	IN	NS	ns06e.muenchen.de.
+;; Received 255 bytes from 81.91.164.5#53(f.nic.de) in 112 ms
+
+xn--mnchen-3ya.de.	86400	IN	NS	ns05e.muenchen.de.
+xn--mnchen-3ya.de.	86400	IN	NS	ns06e.muenchen.de.
+xn--mnchen-3ya.de.	86400	IN	NS	ns01e.muenchen.de.
+xn--mnchen-3ya.de.	86400	IN	NS	ns02e.muenchen.de.
+;; Received 165 bytes from 194.246.140.196#53(ns01e.muenchen.de) in 120 ms
+

@@ -61,6 +61,32 @@ func classifyDNSSEC(ds, dnskey Lookup, apex map[string]Lookup, probe bogusProbe)
 	return rep
 }
 
+// classifyByTrust derives a state from the validation status of the
+// answers alone, for names that are not zone apexes and so have no DS or
+// DNSKEY of their own.
+func classifyByTrust(apex map[string]Lookup) DNSSECReport {
+	rep := DNSSECReport{Detail: "not a zone apex; state taken from answer validation"}
+	secure, insecure := 0, 0
+	for _, l := range apex {
+		switch {
+		case !l.Answered():
+		case l.Trust == TrustSecure:
+			secure++
+		case l.Trust == TrustInsecure:
+			insecure++
+		}
+	}
+	switch {
+	case insecure > 0:
+		rep.State = DNSSECInsecure
+	case secure > 0:
+		rep.State = DNSSECSecure
+	default:
+		rep.State = DNSSECUnknown
+	}
+	return rep
+}
+
 func firstFailed(ds, dnskey Lookup, apex map[string]Lookup) *Lookup {
 	for _, qtype := range apexTypes {
 		if l, ok := apex[qtype]; ok && l.Status == StatusFailure {
@@ -157,23 +183,21 @@ func digEDE(out string) string {
 }
 
 // digArgs builds argv for a dig +yaml query with optional +cd.
-func digArgs(server string, cd bool, timeoutSec int, name, qtype string) []string {
+func digArgs(res resolver, cd bool, timeoutSec int, name, qtype string) []string {
 	args := []string{"+yaml", "+tries=1", "+time=" + strconv.Itoa(maxInt(1, timeoutSec))}
 	if cd {
 		args = append(args, "+cd")
 	}
-	if server != "" {
-		args = append(args, "@"+server)
-	}
+	args = append(args, res.args()...)
 	return append(args, name, qtype)
 }
 
 // newBogusProbe returns a bogusProbe that runs dig twice: with +cd to see
 // whether data exists, and without to harvest the EDE explanation.
-func newBogusProbe(ctx context.Context, r Runner, digPath, server string, timeoutSec int) bogusProbe {
+func newBogusProbe(ctx context.Context, r Runner, digPath string, res resolver, timeoutSec int) bogusProbe {
 	return func(name, qtype string) (bool, string) {
-		cdOut, _, _ := r.Run(ctx, digPath, digArgs(server, true, timeoutSec, name, qtype)...)
-		plainOut, _, _ := r.Run(ctx, digPath, digArgs(server, false, timeoutSec, name, qtype)...)
+		cdOut, _, _ := r.Run(ctx, digPath, digArgs(res, true, timeoutSec, name, qtype)...)
+		plainOut, _, _ := r.Run(ctx, digPath, digArgs(res, false, timeoutSec, name, qtype)...)
 		return digHasData(string(cdOut)), strings.TrimSpace(digEDE(string(plainOut)))
 	}
 }
