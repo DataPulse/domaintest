@@ -1,0 +1,10 @@
+type: DELV_RESULT
+query_name: jschmidt.org
+status: success
+records:
+  - fully_validated:
+    - 'jschmidt.org. 1880 IN NS ns-507.awsdns-63.com.'
+    - 'jschmidt.org. 1880 IN NS ns-1013.awsdns-62.net.'
+    - 'jschmidt.org. 1880 IN NS ns-1034.awsdns-01.org.'
+    - 'jschmidt.org. 1880 IN NS ns-2001.awsdns-58.co.uk.'
+    - 'jschmidt.org. 1880 IN RRSIG NS 13 2 172800 20260908195725 20260906175725 59958 jschmidt.org. TwJeJNWfqkbdYxM6UeQ4snEoWQFmBCaaP0b927C745VQz3ObJNbn84J+ 0vZIoySZ6K9bp5ProowwFW944Fai2Q=='

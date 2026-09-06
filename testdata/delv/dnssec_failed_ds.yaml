@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: dnssec-failed.org
+status: success
+records:
+  - fully_validated:
+    - 'dnssec-failed.org. 2464 IN DS 42069 13 2 62726F6B656E20636861696E206F662074727573742073656E642068 656C7021'
+    - 'dnssec-failed.org. 2464 IN RRSIG DS 8 2 3600 20260922153553 20260901143553 25488 org. lzyUaufGfM3T3T1Tsin+2EexGx8eOtnC7WGNNp7yW4+7dyQVfZY55K/c f6zIiLZyPUeQ4+TBGdjhQqYNt0IBra6iAWKjanOfekwR5kZ6y2G+O6yL YCrfBk98K9Bqdn27YbEuW1zGF/JZFr0Smhj2sHuIkCsq1YF0XRyhZxNx obE='

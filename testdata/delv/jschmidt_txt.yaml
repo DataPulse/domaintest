@@ -1,0 +1,8 @@
+type: DELV_RESULT
+query_name: jschmidt.org
+status: success
+records:
+  - fully_validated:
+    - 'jschmidt.org. 2466 IN TXT "MS=ms54628650"'
+    - 'jschmidt.org. 2466 IN TXT "v=spf1 include:outlook.com include:amazonses.com ~all"'
+    - 'jschmidt.org. 2466 IN RRSIG TXT 13 2 3600 20260906203831 20260906173831 59958 jschmidt.org. HBqZt2DDHQmJi784cXx0KMg9+CiHRYwKVRSznHT4/Qn3bGnJmuYlG25w /GeeSiFlvOFvpWihOJUSDiMhNJNBdw=='

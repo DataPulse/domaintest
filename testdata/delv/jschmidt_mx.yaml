@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: jschmidt.org
+status: success
+records:
+  - fully_validated:
+    - 'jschmidt.org. 1938 IN MX 0 jschmidt-org.mail.protection.outlook.com.'
+    - 'jschmidt.org. 1938 IN RRSIG MX 13 2 3600 20260906202943 20260906172943 59958 jschmidt.org. Z/V0kYvLannwEp+8vLVeD4XZ7Ce1caHy6YuFSP0Z7MbPlH3h1boUsvbK GJi7oyF/3CO753FwmmLBAXkWhe7j/A=='

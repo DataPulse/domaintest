@@ -1,0 +1,4 @@
+type: DELV_RESULT
+query_name: nosuch-domaintest-zzz.invalid
+status: broken trust chain
+records:

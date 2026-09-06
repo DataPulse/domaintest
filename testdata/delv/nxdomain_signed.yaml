@@ -1,0 +1,14 @@
+type: DELV_RESULT
+query_name: nonexistent-zzz-qq.org
+status: ncache nxdomain
+records:
+  - negative_response_fully_validated:
+    - 'nonexistent-zzz-qq.org. 2519 IN \-ANY ;-$NXDOMAIN'
+    - 'org. SOA a0.org.afilias-nst.info. hostmaster.donuts.email. 1788719471 7200 900 1209600 3600'
+    - 'org. RRSIG SOA ...'
+    - 'c0lu6at60fudlfvfiq94np1d2uocqkjd.org. RRSIG NSEC3 ...'
+    - 'c0lu6at60fudlfvfiq94np1d2uocqkjd.org. NSEC3 1 1 0 332539EE7F95C32A C0M4L39D5CCKJVN6K3RPHI4K7SFFHCLD NS DS RRSIG'
+    - 'gdtpongmpok61u9lvnipqor8lra9l4t0.org. RRSIG NSEC3 ...'
+    - 'gdtpongmpok61u9lvnipqor8lra9l4t0.org. NSEC3 1 1 0 332539EE7F95C32A GDTREA8KMJ2RNEQEN4M2OGJ26KFSUKJ7 NS SOA RRSIG DNSKEY NSEC3PARAM'
+    - 'mmmnstq953u1pm0t4ftuvlsms9duv2hj.org. RRSIG NSEC3 ...'
+    - 'mmmnstq953u1pm0t4ftuvlsms9duv2hj.org. NSEC3 1 1 0 332539EE7F95C32A MMMQE52HGRNEM99RB1OS086P3NBFDA5S NS DS RRSIG'

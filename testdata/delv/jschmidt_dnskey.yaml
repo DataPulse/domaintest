@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: jschmidt.org
+status: success
+records:
+  - fully_validated:
+    - 'jschmidt.org. 1880 IN DNSKEY 256 3 13 RBuBHof7qJuX2aMo+eofMABmCUqXA6sZjxvCDcBhHjq4C8tj384qI5Et cz/bY/tXkDjd8CkOlCU6/kXvlZB2Qw=='
+    - 'jschmidt.org. 1880 IN DNSKEY 256 3 13 9/3TjTbIorzRZ2mnjSe+5+7EpymeJDtD5GVaFSf3ih/RMlH7LEuAtFLh fblBxCqGvbePXiCZ6R6DigNwjMbugg=='
+    - 'jschmidt.org. 1880 IN DNSKEY 257 3 13 MpRxIiGkBUUXoFdS0Nm8vLPTKeh9UvJEWPz9d5Q15dlhfjoCbGe+7jqR NDujCDqu65uFlRfhOg5PsHz3l79wXw=='
+    - 'jschmidt.org. 1880 IN RRSIG DNSKEY 13 2 3600 20260907020000 20260906150000 37967 jschmidt.org. G+zu7gOjPv7BxdfD3hdjCBO0WhVOeb8V3vmD8sk14dTLgkGEWkb2zieu r29w5U/s/QwcG/6ZHjfjm9e1kaM1+A=='

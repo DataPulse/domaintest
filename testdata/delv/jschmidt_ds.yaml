@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: jschmidt.org
+status: success
+records:
+  - fully_validated:
+    - 'jschmidt.org. 1880 IN DS 37967 13 2 000ABFCFBEF4758A9B5FAA93B81A5D4ABA2A452F6552605452CF061B D0A32046'
+    - 'jschmidt.org. 1880 IN RRSIG DS 8 2 3600 20260922153553 20260901143553 25488 org. BWBaXlrnZKMgMOpW/xBiXj0VzU1JY0FNZ/XTuSDHHYBWgv1SV2vzDcAn GJxPoXqypijpt/P0Mvuq2NJJY4wer6nydpU9dooikZ2feWG00G6wwwjz kudsmha9wes1z24xicKtgVLMMnUbkJnGEznSE0fAAAiVcaqx7BfmUEbr ZP8='

@@ -1,0 +1,31 @@
+- type: MESSAGE
+  message:
+    type: RECURSIVE_RESPONSE
+    query_time: !!timestamp 2026-09-06T18:57:37.207Z
+    response_time: !!timestamp 2026-09-06T18:57:37.355Z
+    message_size: 97b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "8.8.8.8"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: SERVFAIL
+      id: 21752
+      flags: qr rd ra
+      QUESTION: 1
+      ANSWER: 0
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 512
+          EDE:
+            INFO-CODE: 9 (DNSKEY Missing)
+            EXTRA-TEXT: "No DNSKEY matches DS RRs of dnssec-failed.org"
+      QUESTION_SECTION:
+        - 'dnssec-failed.org. IN A'

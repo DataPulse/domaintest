@@ -1,0 +1,19 @@
+type: DELV_RESULT
+query_name: .
+status: success
+records:
+  - fully_validated:
+    - '. 69796 IN NS a.root-servers.net.'
+    - '. 69796 IN NS b.root-servers.net.'
+    - '. 69796 IN NS c.root-servers.net.'
+    - '. 69796 IN NS d.root-servers.net.'
+    - '. 69796 IN NS e.root-servers.net.'
+    - '. 69796 IN NS f.root-servers.net.'
+    - '. 69796 IN NS g.root-servers.net.'
+    - '. 69796 IN NS h.root-servers.net.'
+    - '. 69796 IN NS i.root-servers.net.'
+    - '. 69796 IN NS j.root-servers.net.'
+    - '. 69796 IN NS k.root-servers.net.'
+    - '. 69796 IN NS l.root-servers.net.'
+    - '. 69796 IN NS m.root-servers.net.'
+    - '. 69796 IN RRSIG NS 8 0 518400 20260919050000 20260906040000 57780 . d2c05uaCwAH9J+xTsIihTCaummwyluPIolBPS/BBvMGXkb2V0/juqiZJ QCcae3O6VQUCXoVhN7QQ+2o5OfWhYDI08aGhNNnOkAnbE8BsliLNgT0J nxeQWE3ijOY68gMpeS9MnGvmF5qqAnK0M3DejU4nd2tC9PqlctI2ZPKg QUOZZ2YDs5exyjwLHUep5B5I8qyaN+WsUc5SnBoIfTZbkMfURTlL8Yyk MlMc0Ito97RtqexrGetTEMLQh/cCGKGRrRbyJfXBDdELrgLXA/oKoGC/ HFZ4mv0Lb5YMrFySZA35m9YQXdhPSssvg6DeFi2agVnruLtbjikBaLFT ZodNDQ=='

@@ -1,0 +1,49 @@
+
+; <<>> DiG 9.18.49-1~deb12u2-Debian <<>> -4 +trace +nodnssec +time=3 +tries=1 @a.root-servers.net bbc.co.uk NS
+; (1 server found)
+;; global options: +cmd
+.			518400	IN	NS	l.root-servers.net.
+.			518400	IN	NS	j.root-servers.net.
+.			518400	IN	NS	f.root-servers.net.
+.			518400	IN	NS	h.root-servers.net.
+.			518400	IN	NS	d.root-servers.net.
+.			518400	IN	NS	b.root-servers.net.
+.			518400	IN	NS	k.root-servers.net.
+.			518400	IN	NS	i.root-servers.net.
+.			518400	IN	NS	m.root-servers.net.
+.			518400	IN	NS	e.root-servers.net.
+.			518400	IN	NS	g.root-servers.net.
+.			518400	IN	NS	c.root-servers.net.
+.			518400	IN	NS	a.root-servers.net.
+;; Received 811 bytes from 198.41.0.4#53(a.root-servers.net) in 28 ms
+
+uk.			172800	IN	NS	nsa.nic.uk.
+uk.			172800	IN	NS	nsb.nic.uk.
+uk.			172800	IN	NS	nsc.nic.uk.
+uk.			172800	IN	NS	nsd.nic.uk.
+uk.			172800	IN	NS	dns1.nic.uk.
+uk.			172800	IN	NS	dns2.nic.uk.
+uk.			172800	IN	NS	dns3.nic.uk.
+uk.			172800	IN	NS	dns4.nic.uk.
+;; Received 542 bytes from 193.0.14.129#53(k.root-servers.net) in 280 ms
+
+bbc.co.uk.		172800	IN	NS	dns0.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	dns0.bbc.com.
+bbc.co.uk.		172800	IN	NS	dns1.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	dns1.bbc.com.
+bbc.co.uk.		172800	IN	NS	ddns0.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	ddns0.bbc.com.
+bbc.co.uk.		172800	IN	NS	ddns1.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	ddns1.bbc.com.
+;; Received 377 bytes from 213.248.220.1#53(dns3.nic.uk) in 56 ms
+
+bbc.co.uk.		900	IN	NS	dns0.bbc.co.uk.
+bbc.co.uk.		900	IN	NS	dns0.bbc.com.
+bbc.co.uk.		900	IN	NS	dns1.bbc.co.uk.
+bbc.co.uk.		900	IN	NS	dns1.bbc.com.
+bbc.co.uk.		900	IN	NS	ddns0.bbc.co.uk.
+bbc.co.uk.		900	IN	NS	ddns0.bbc.com.
+bbc.co.uk.		900	IN	NS	ddns1.bbc.co.uk.
+bbc.co.uk.		900	IN	NS	ddns1.bbc.com.
+;; Received 201 bytes from 148.163.199.193#53(ddns1.bbc.com) in 108 ms
+

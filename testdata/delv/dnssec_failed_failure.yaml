@@ -1,0 +1,4 @@
+type: DELV_RESULT
+query_name: dnssec-failed.org
+status: failure
+records:

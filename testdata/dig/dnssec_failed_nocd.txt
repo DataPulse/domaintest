@@ -1,0 +1,19 @@
+
+; <<>> DiG 9.18.49-1~deb12u2-Debian <<>> @8.8.8.8 dnssec-failed.org A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 14616
+;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 512
+; EDE: 9 (DNSKEY Missing): (No DNSKEY matches DS RRs of dnssec-failed.org)
+;; QUESTION SECTION:
+;dnssec-failed.org.		IN	A
+
+;; Query time: 136 msec
+;; SERVER: 8.8.8.8#53(8.8.8.8) (UDP)
+;; WHEN: Sun Sep 06 13:57:37 CDT 2026
+;; MSG SIZE  rcvd: 97
+

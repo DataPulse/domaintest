@@ -1,0 +1,30 @@
+- type: MESSAGE
+  message:
+    type: RECURSIVE_RESPONSE
+    query_time: !!timestamp 2026-09-06T18:57:37.147Z
+    response_time: !!timestamp 2026-09-06T18:57:37.187Z
+    message_size: 62b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "8.8.8.8"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 46876
+      flags: qr rd ra cd
+      QUESTION: 1
+      ANSWER: 1
+      AUTHORITY: 0
+      ADDITIONAL: 1
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 512
+      QUESTION_SECTION:
+        - 'dnssec-failed.org. IN A'
+      ANSWER_SECTION:
+        - 'dnssec-failed.org. 300 IN A 96.99.227.255'

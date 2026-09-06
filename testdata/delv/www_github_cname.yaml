@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: www.github.com
+status: success
+records:
+  - unsigned_answer:
+    - 'www.github.com. 2465 IN CNAME github.com.'
+    - 'github.com. 300 IN A 140.82.113.3'

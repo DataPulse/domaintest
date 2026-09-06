@@ -1,0 +1,50 @@
+
+; <<>> DiG 9.18.49-1~deb12u2-Debian <<>> -4 +trace +nodnssec +time=3 +tries=1 @a.root-servers.net osu.edu NS
+; (1 server found)
+;; global options: +cmd
+.			518400	IN	NS	l.root-servers.net.
+.			518400	IN	NS	j.root-servers.net.
+.			518400	IN	NS	f.root-servers.net.
+.			518400	IN	NS	h.root-servers.net.
+.			518400	IN	NS	d.root-servers.net.
+.			518400	IN	NS	b.root-servers.net.
+.			518400	IN	NS	k.root-servers.net.
+.			518400	IN	NS	i.root-servers.net.
+.			518400	IN	NS	m.root-servers.net.
+.			518400	IN	NS	e.root-servers.net.
+.			518400	IN	NS	g.root-servers.net.
+.			518400	IN	NS	c.root-servers.net.
+.			518400	IN	NS	a.root-servers.net.
+;; Received 811 bytes from 198.41.0.4#53(a.root-servers.net) in 28 ms
+
+edu.			172800	IN	NS	d.edu-servers.net.
+edu.			172800	IN	NS	b.edu-servers.net.
+edu.			172800	IN	NS	f.edu-servers.net.
+edu.			172800	IN	NS	h.edu-servers.net.
+edu.			172800	IN	NS	l.edu-servers.net.
+edu.			172800	IN	NS	j.edu-servers.net.
+edu.			172800	IN	NS	e.edu-servers.net.
+edu.			172800	IN	NS	c.edu-servers.net.
+edu.			172800	IN	NS	a.edu-servers.net.
+edu.			172800	IN	NS	g.edu-servers.net.
+edu.			172800	IN	NS	i.edu-servers.net.
+edu.			172800	IN	NS	m.edu-servers.net.
+edu.			172800	IN	NS	k.edu-servers.net.
+;; Received 831 bytes from 198.41.0.4#53(a.root-servers.net) in 28 ms
+
+osu.edu.		172800	IN	NS	ns4.net.ohio-state.edu.
+osu.edu.		172800	IN	NS	ns5.net.ohio-state.edu.
+osu.edu.		172800	IN	NS	ns4.oar.net.
+osu.edu.		172800	IN	NS	ns5.oar.net.
+osu.edu.		172800	IN	NS	ns6.oar.net.
+osu.edu.		172800	IN	NS	ns7.oar.net.
+;; Received 254 bytes from 192.41.162.30#53(l.edu-servers.net) in 28 ms
+
+osu.edu.		3600	IN	NS	ns4.net.ohio-state.edu.
+osu.edu.		3600	IN	NS	ns5.net.ohio-state.edu.
+osu.edu.		3600	IN	NS	ns4.oar.net.
+osu.edu.		3600	IN	NS	ns5.oar.net.
+osu.edu.		3600	IN	NS	ns6.oar.net.
+osu.edu.		3600	IN	NS	ns7.oar.net.
+;; Received 166 bytes from 199.18.199.2#53(ns4.oar.net) in 28 ms
+

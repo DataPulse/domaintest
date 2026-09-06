@@ -1,0 +1,10 @@
+type: DELV_RESULT
+query_name: www.isc.org
+status: success
+records:
+  - fully_validated:
+    - 'www.isc.org. 300 IN A 151.101.3.42'
+    - 'www.isc.org. 300 IN A 151.101.67.42'
+    - 'www.isc.org. 300 IN A 151.101.131.42'
+    - 'www.isc.org. 300 IN A 151.101.195.42'
+    - 'www.isc.org. 300 IN RRSIG A 13 3 300 20260919101643 20260905092512 27566 isc.org. hvCyyPVOd5ZcDRhO38xtifTS2W7i9F1hSuMxu9h0r40S0mJL80/JKKb+ OnxhWzjCNgSXH4wlQGVq4bfQIjx/kQ=='
