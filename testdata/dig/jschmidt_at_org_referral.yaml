@@ -1,0 +1,36 @@
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T19:36:50.058Z
+    response_time: !!timestamp 2026-09-06T19:36:50.086Z
+    message_size: 223b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "199.19.56.1"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 65287
+      flags: qr
+      QUESTION: 1
+      ANSWER: 0
+      AUTHORITY: 4
+      ADDITIONAL: 3
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 1232
+      QUESTION_SECTION:
+        - 'jschmidt.org. IN NS'
+      AUTHORITY_SECTION:
+        - 'jschmidt.org. 3600 IN NS ns-507.awsdns-63.com.'
+        - 'jschmidt.org. 3600 IN NS ns-1034.awsdns-01.org.'
+        - 'jschmidt.org. 3600 IN NS ns-1013.awsdns-62.net.'
+        - 'jschmidt.org. 3600 IN NS ns-2001.awsdns-58.co.uk.'
+      ADDITIONAL_SECTION:
+        - 'ns-1034.awsdns-01.org. 3600 IN A 205.251.196.10'
+        - 'ns-1034.awsdns-01.org. 3600 IN AAAA 2600:9000:5304:a00::1'

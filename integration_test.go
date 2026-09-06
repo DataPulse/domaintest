@@ -85,6 +85,14 @@ func TestIntegration_BogusZone(t *testing.T) {
 	}
 }
 
+func TestIntegration_ParentServesChild(t *testing.T) {
+	// The .cz servers also host nic.cz and answer authoritatively.
+	cfg := integrationConfig(t, "nic.cz")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "delegation", rep.Delegation.Status, DelegationSameServers)
+	check(t, "errors", rep.Errors, []string{})
+}
+
 func TestIntegration_NXDomain(t *testing.T) {
 	cfg := integrationConfig(t, "nosuch-domaintest-zzz-qq.org")
 	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})

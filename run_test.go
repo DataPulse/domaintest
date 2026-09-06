@@ -63,6 +63,7 @@ func TestRun_SignedDomainWithoutWeb(t *testing.T) {
 	check(t, "errors", rep.Errors, []string{})
 	check(t, "resolver", rep.Resolver, "system")
 	check(t, "timeout", rep.TimeoutSec, 5)
+	check(t, "quic timeout", rep.QuicTimeoutSec, 2)
 	check(t, "families", rep.Families, []string{familyIPv4, familyIPv6})
 	check(t, "dnssec state", rep.DNSSEC.State, DNSSECSecure)
 	check(t, "delegation", rep.Delegation.Status, DelegationMatch)
@@ -128,8 +129,8 @@ func TestRun_WebDomainCollapsesWWW(t *testing.T) {
 	check(t, "dial count", len(s.dialer.seen), 4)
 	calls := s.r.called("quicprobe")
 	check(t, "quic call count", len(calls), 2)
-	check(t, "quic v4 call", contains(calls, "-ip "+v4.String()+" -t 5 google.com"), true)
-	check(t, "quic v6 call", contains(calls, "-ip "+v6.String()+" -t 5 google.com"), true)
+	check(t, "quic v4 call", contains(calls, "-ip "+v4.String()+" -t 2 google.com"), true)
+	check(t, "quic v6 call", contains(calls, "-ip "+v6.String()+" -t 2 google.com"), true)
 }
 
 // assertAddrWeb checks a one-entry family list: address, ports and that the
@@ -258,7 +259,7 @@ func TestRun_ReportSerialises(t *testing.T) {
 	if err := json.Unmarshal(b, &generic); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"domain", "resolver", "families", "timeout_sec", "dns", "dnssec", "delegation", "web", "errors", "warnings", "ok", "elapsed_ms"} {
+	for _, key := range []string{"domain", "resolver", "families", "timeout_sec", "quic_timeout_sec", "dns", "dnssec", "delegation", "web", "errors", "warnings", "ok", "elapsed_ms"} {
 		if _, ok := generic[key]; !ok {
 			t.Errorf("report missing %q", key)
 		}

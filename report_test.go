@@ -131,6 +131,10 @@ func TestBuildFindings_Delegation(t *testing.T) {
 	if rep.OK || !contains(rep.Errors, "NS delegation mismatch") || !contains(rep.Errors, "dns102.comcast.net.") {
 		t.Errorf("expected mismatch error naming the extra servers, got %v", rep.Errors)
 	}
+	rep = healthyReport(t)
+	rep.Delegation = Delegation{Status: DelegationSameServers}
+	buildFindings(rep)
+	check(t, "same_servers is not an error", rep.Errors, []string{})
 	for _, st := range []string{DelegationNotDelegated, DelegationNoChildAnswer, DelegationError} {
 		rep := healthyReport(t)
 		rep.Delegation = Delegation{Status: st, Error: "detail"}
@@ -158,9 +162,16 @@ func TestBuildFindings_ReachabilityAndWeb(t *testing.T) {
 	if !rep.OK {
 		t.Errorf("web problems are warnings: %v", rep.Errors)
 	}
-	if !contains(rep.Warnings, "no listener on 80 or 443 (refused/timeout)") || !contains(rep.Warnings, "no QUIC/h3") {
+	if !contains(rep.Warnings, "no listener on 80 or 443 (refused/timeout)") || !contains(rep.Warnings, "QUIC/h3 works on another address") {
 		t.Errorf("got %v", rep.Warnings)
 	}
+
+	// No address supports QUIC: that is the common case and not a warning.
+	rep = healthyReport(t)
+	rep.Web.Apex.IPv4[0].QUIC = &QUICResult{Error: "context deadline exceeded"}
+	rep.Web.Apex.IPv6[0].QUIC = &QUICResult{Error: "context deadline exceeded"}
+	buildFindings(rep)
+	check(t, "no QUIC warnings without asymmetry", rep.Warnings, []string{})
 
 	// www with its own addresses is reported under its own label.
 	rep = healthyReport(t)

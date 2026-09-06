@@ -38,12 +38,18 @@ type fakeCall struct {
 type fakeRunner struct {
 	mu        sync.Mutex
 	responses map[string]fakeCall
+	seq       map[string][]fakeCall // consumed in order, before responses
 	fallback  func(tool string, args []string) (fakeCall, bool)
 	calls     []string
 }
 
 func newFakeRunner() *fakeRunner {
-	return &fakeRunner{responses: map[string]fakeCall{}}
+	return &fakeRunner{responses: map[string]fakeCall{}, seq: map[string][]fakeCall{}}
+}
+
+// onSeq registers responses served one per call, in order.
+func (f *fakeRunner) onSeq(tool string, args []string, calls ...fakeCall) {
+	f.seq[callKey(tool, args)] = calls
 }
 
 func callKey(tool string, args []string) string {
@@ -59,6 +65,10 @@ func (f *fakeRunner) Run(ctx context.Context, name string, args ...string) ([]by
 	f.mu.Lock()
 	f.calls = append(f.calls, key)
 	resp, ok := f.responses[key]
+	if q := f.seq[key]; len(q) > 0 {
+		resp, ok = q[0], true
+		f.seq[key] = q[1:]
+	}
 	f.mu.Unlock()
 	if !ok && f.fallback != nil {
 		resp, ok = f.fallback(filepath.Base(name), args)
@@ -130,14 +140,15 @@ func withResolvConf(t *testing.T, content string) {
 // baseConfig is a config with fake tool names for use with fakeRunner.
 func baseConfig(domain, server string) config {
 	return config{
-		Domain:     domain,
-		Server:     server,
-		Families:   []string{familyIPv4, familyIPv6},
-		TimeoutSec: 5,
-		DelvPath:   "delv",
-		DigPath:    "dig",
-		QuicPath:   "quicprobe",
-		dnsFamily:  serverFamily(server),
+		Domain:         domain,
+		Server:         server,
+		Families:       []string{familyIPv4, familyIPv6},
+		TimeoutSec:     5,
+		QuicTimeoutSec: defaultQuicTimeoutSec,
+		DelvPath:       "delv",
+		DigPath:        "dig",
+		QuicPath:       "quicprobe",
+		dnsFamily:      serverFamily(server),
 	}
 }
 

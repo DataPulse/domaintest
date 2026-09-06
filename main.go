@@ -25,8 +25,9 @@ import (
 )
 
 const (
-	defaultTimeoutSec = 5
-	usage             = "usage: domaintest [-4|-6] [-t seconds] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver]"
+	defaultTimeoutSec     = 5
+	defaultQuicTimeoutSec = 2
+	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-quic-timeout seconds] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver]"
 )
 
 // config is the parsed command line.
@@ -35,11 +36,15 @@ type config struct {
 	Server     string // "" for the system resolver
 	Families   []string
 	TimeoutSec int
-	Pretty     bool
-	DelvPath   string
-	DigPath    string
-	QuicPath   string
-	dnsFamily  string // family forced on delv by a literal @server address
+	// QuicTimeoutSec bounds each QUIC handshake separately: a host without a
+	// UDP 443 listener never answers, so the general timeout would be paid
+	// in full by every non-QUIC site.
+	QuicTimeoutSec int
+	Pretty         bool
+	DelvPath       string
+	DigPath        string
+	QuicPath       string
+	dnsFamily      string // family forced on delv by a literal @server address
 }
 
 func (c config) timeout() time.Duration { return time.Duration(c.TimeoutSec) * time.Second }
@@ -54,7 +59,7 @@ func (c config) wantsFamily(f string) bool {
 }
 
 // valueFlags take an argument, so the token after them is not positional.
-var valueFlags = map[string]bool{"-t": true, "-quicprobe": true, "-delv": true, "-dig": true}
+var valueFlags = map[string]bool{"-t": true, "-quic-timeout": true, "-quicprobe": true, "-delv": true, "-dig": true}
 
 // splitArgs separates argv into flag tokens, the @server and positionals so
 // that, like dig, the domain and @server may appear anywhere.
@@ -92,6 +97,7 @@ func parseArgs(args []string) (config, error) {
 	only6 := fs.Bool("6", false, "IPv6 only")
 	cfg := config{Server: server}
 	fs.IntVar(&cfg.TimeoutSec, "t", defaultTimeoutSec, "per-probe timeout in seconds")
+	fs.IntVar(&cfg.QuicTimeoutSec, "quic-timeout", defaultQuicTimeoutSec, "QUIC handshake timeout in seconds")
 	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
 	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")
 	fs.StringVar(&cfg.DelvPath, "delv", "", "path to delv")
@@ -104,6 +110,9 @@ func parseArgs(args []string) (config, error) {
 	}
 	if cfg.TimeoutSec <= 0 {
 		return config{}, errors.New("-t must be a positive number of seconds")
+	}
+	if cfg.QuicTimeoutSec <= 0 {
+		return config{}, errors.New("-quic-timeout must be a positive number of seconds")
 	}
 	cfg.Domain, err = normalizeDomain(positional[0])
 	if err != nil {

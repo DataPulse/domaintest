@@ -28,18 +28,19 @@ const (
 
 // Report is the JSON document domaintest prints.
 type Report struct {
-	Domain     string       `json:"domain"`
-	Resolver   string       `json:"resolver"`
-	Families   []string     `json:"families"`
-	TimeoutSec int          `json:"timeout_sec"`
-	DNS        DNSSection   `json:"dns"`
-	DNSSEC     DNSSECReport `json:"dnssec"`
-	Delegation Delegation   `json:"delegation"`
-	Web        WebSection   `json:"web"`
-	Errors     []string     `json:"errors"`
-	Warnings   []string     `json:"warnings"`
-	OK         bool         `json:"ok"`
-	ElapsedMs  int64        `json:"elapsed_ms"`
+	Domain         string       `json:"domain"`
+	Resolver       string       `json:"resolver"`
+	Families       []string     `json:"families"`
+	TimeoutSec     int          `json:"timeout_sec"`
+	QuicTimeoutSec int          `json:"quic_timeout_sec"`
+	DNS            DNSSection   `json:"dns"`
+	DNSSEC         DNSSECReport `json:"dnssec"`
+	Delegation     Delegation   `json:"delegation"`
+	Web            WebSection   `json:"web"`
+	Errors         []string     `json:"errors"`
+	Warnings       []string     `json:"warnings"`
+	OK             bool         `json:"ok"`
+	ElapsedMs      int64        `json:"elapsed_ms"`
 }
 
 // DNSSection holds the record lookups.
@@ -207,16 +208,34 @@ func (f *findings) reachabilityFindings(reach map[string]string) {
 	}
 }
 
+// webFindings warns about addresses with nothing listening, and about QUIC
+// being available on some addresses of a host but not others. A host with
+// no QUIC at all is not flagged: most sites do not serve h3, and the
+// per-address result is already in the report.
 func (f *findings) webFindings(label string, h *HostWeb) {
-	for _, a := range h.addrs() {
+	addrs := h.addrs()
+	for _, a := range addrs {
 		if a.HTTP != PortOpen && a.HTTPS != PortOpen {
 			f.warningf("%s %s: no listener on 80 or 443 (%s/%s)", label, a.IP, a.HTTP, a.HTTPS)
-			continue
-		}
-		if a.QUIC != nil && a.HTTPS == PortOpen && !a.QUIC.Supported {
-			f.warningf("%s %s: HTTPS on 443 but no QUIC/h3", label, a.IP)
 		}
 	}
+	if !anyQUIC(addrs) {
+		return
+	}
+	for _, a := range addrs {
+		if a.QUIC != nil && !a.QUIC.Supported {
+			f.warningf("%s %s: QUIC/h3 works on another address of this host but not here", label, a.IP)
+		}
+	}
+}
+
+func anyQUIC(addrs []AddrWeb) bool {
+	for _, a := range addrs {
+		if a.QUIC != nil && a.QUIC.Supported {
+			return true
+		}
+	}
+	return false
 }
 
 // sameAddressSet reports whether two address lists contain the same IPs.

@@ -27,10 +27,11 @@ type dnsResults struct {
 func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	start := time.Now()
 	rep := &Report{
-		Domain:     cfg.Domain,
-		Resolver:   resolverName(cfg.Server),
-		Families:   cfg.Families,
-		TimeoutSec: cfg.TimeoutSec,
+		Domain:         cfg.Domain,
+		Resolver:       resolverName(cfg.Server),
+		Families:       cfg.Families,
+		TimeoutSec:     cfg.TimeoutSec,
+		QuicTimeoutSec: cfg.QuicTimeoutSec,
 	}
 
 	var dns dnsResults
@@ -241,7 +242,7 @@ func quicPerFamily(ctx context.Context, cfg config, r Runner, host string, addrs
 	var tasks []func()
 	for _, ip := range first {
 		tasks = append(tasks, func() {
-			q := probeQUIC(ctx, r, cfg.QuicPath, host, ip, cfg.TimeoutSec)
+			q := probeQUIC(ctx, r, cfg.QuicPath, host, ip, cfg.QuicTimeoutSec)
 			mu.Lock()
 			out[ip.String()] = &q
 			mu.Unlock()

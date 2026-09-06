@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Trust is the DNSSEC trust level delv assigned to an answer.
@@ -46,6 +47,7 @@ type Lookup struct {
 	Records []string     `json:"records,omitempty"` // rdata of RRs of the queried type
 	CNAME   []string     `json:"cname,omitempty"`   // CNAME chain targets, in order
 	Error   string       `json:"error,omitempty"`
+	Retries int          `json:"retries,omitempty"` // attempts that timed out before this result
 	rrs     []RR
 }
 
@@ -87,9 +89,41 @@ func delvArgs(server, family, name, qtype string) []string {
 	return append(args, name, qtype)
 }
 
+// minAttempt is the shortest first-attempt deadline delvLookup will use.
+const minAttempt = time.Second
+
 // delvLookup runs delv for name/qtype and parses the result. family may be
 // empty (let delv choose) or familyIPv4/familyIPv6 to force the transport.
+//
+// A single dropped UDP query would otherwise cost the whole budget, so the
+// first attempt gets half the remaining time and is retried once with the
+// rest if it times out while ctx is still alive.
 func delvLookup(ctx context.Context, r Runner, delvPath, server, family, name, qtype string) Lookup {
+	first, cancel := firstAttemptContext(ctx)
+	l := delvOnce(first, r, delvPath, server, family, name, qtype)
+	cancel()
+	if l.Status == StatusTimeout && ctx.Err() == nil {
+		l = delvOnce(ctx, r, delvPath, server, family, name, qtype)
+		l.Retries = 1
+	}
+	return l
+}
+
+// firstAttemptContext derives a deadline of half the time left in ctx (but
+// at least minAttempt) so that a retry fits inside the overall budget.
+func firstAttemptContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return context.WithCancel(ctx)
+	}
+	half := time.Until(deadline) / 2
+	if half < minAttempt {
+		half = minAttempt
+	}
+	return context.WithTimeout(ctx, half)
+}
+
+func delvOnce(ctx context.Context, r Runner, delvPath, server, family, name, qtype string) Lookup {
 	stdout, stderr, err := r.Run(ctx, delvPath, delvArgs(server, family, name, qtype)...)
 	if isTimeout(ctx, err) {
 		return Lookup{Name: name, Type: qtype, Status: StatusTimeout, Error: "delv timed out"}

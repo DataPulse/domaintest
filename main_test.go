@@ -47,6 +47,13 @@ func TestParseArgs_FlagsAndPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	check(t, "default quic timeout", cfg.QuicTimeoutSec, defaultQuicTimeoutSec)
+	qcfg, err := parseArgs([]string{"x.org", "-quic-timeout", "7", "@1.1.1.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "quic timeout flag", qcfg.QuicTimeoutSec, 7)
+	check(t, "domain after value flag", qcfg.Domain, "x.org")
 	if !cfg.Pretty || cfg.QuicPath != "/opt/qp" || cfg.DelvPath != "/opt/delv" || cfg.DigPath != "/opt/dig" {
 		t.Errorf("got %+v", cfg)
 	}
@@ -64,6 +71,8 @@ func TestParseArgs_Errors(t *testing.T) {
 		{"-t", "x", "a.org"},
 		{"-t", "0", "a.org"},
 		{"-t", "-2", "a.org"},
+		{"-quic-timeout", "0", "a.org"},
+		{"-quic-timeout", "x", "a.org"},
 		{"-bogus", "a.org"},
 		{"-bad.com"},
 		{"a..b"},

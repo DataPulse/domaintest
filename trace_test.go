@@ -57,6 +57,8 @@ func TestCompareDelegation_Fixtures(t *testing.T) {
 		{"trace/dnssec_failed_mismatch.txt", "dnssec-failed.org", DelegationMismatch, 3, 5, nil,
 			[]string{"dns102.comcast.net.", "dns103.comcast.net."}},
 		{"trace/nxdomain.txt", "nonexistent-zzz-qq.org", DelegationNotDelegated, 0, 0, nil, nil},
+		{"trace/nic_cz_same_servers.txt", "nic.cz", DelegationSameServers, 3, 3, nil, nil},
+		{"trace/gov_uk_same_servers.txt", "gov.uk", DelegationSameServers, 8, 8, nil, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.file, func(t *testing.T) {
@@ -149,4 +151,60 @@ func TestTraceDelegation_FakeRunner(t *testing.T) {
 	if d.Status != DelegationError || !strings.Contains(d.Error, "timed out") {
 		t.Errorf("unexpected %+v", d)
 	}
+}
+
+func TestClassifySingleBlock(t *testing.T) {
+	blocks, _ := parseTrace(fixture(t, "trace/nic_cz_same_servers.txt"))
+	last := blocks[len(blocks)-1]
+	d := classifySingleBlock(Delegation{}, last, "nic.cz.")
+	check(t, "status", d.Status, DelegationSameServers)
+	check(t, "server", d.ParentServer, "a.ns.nic.cz")
+	check(t, "child == parent", d.ChildNS, d.ParentNS)
+	// Same block but answered by a server outside the NS set: no child answer.
+	last.Server = "c0.org.afilias-nst.info"
+	d = classifySingleBlock(Delegation{}, last, "nic.cz.")
+	check(t, "status", d.Status, DelegationNoChildAnswer)
+	check(t, "child NS empty", len(d.ChildNS), 0)
+}
+
+func TestDigAuthoritative(t *testing.T) {
+	check(t, "aa answer", digAuthoritative(fixture(t, "dig/nic_cz_at_c_ns_aa.yaml")), true)
+	check(t, "referral", digAuthoritative(fixture(t, "dig/jschmidt_at_org_referral.yaml")), false)
+	check(t, "empty", digAuthoritative(""), false)
+	check(t, "EDNS flags line only", digAuthoritative("          flags: do\n"), false)
+}
+
+func TestAuthArgs(t *testing.T) {
+	got := strings.Join(authArgs("c.ns.nic.cz", familyIPv4, 5, "nic.cz"), " ")
+	check(t, "args", got, "+norecurse +yaml +tries=1 +time=2 -4 @c.ns.nic.cz nic.cz NS")
+	check(t, "ipv6", strings.Contains(strings.Join(authArgs("x", familyIPv6, 5, "d"), " "), " -6 "), true)
+}
+
+// TestTraceDelegation_AuthoritativeParentServer covers the case seen live
+// for nic.cz: dig +trace lands on c.ns.nic.cz, which serves .cz and answers
+// for nic.cz authoritatively although it is not in nic.cz's NS set.
+func TestTraceDelegation_AuthoritativeParentServer(t *testing.T) {
+	trace := strings.ReplaceAll(fixture(t, "trace/nic_cz_same_servers.txt"), "(a.ns.nic.cz)", "(c.ns.nic.cz)")
+	r := newFakeRunner()
+	r.on("dig", traceArgs(familyIPv4, 5, "nic.cz"), fakeCall{stdout: trace})
+	r.on("dig", authArgs("c.ns.nic.cz", familyIPv4, 5, "nic.cz"), fakeCall{stdout: fixture(t, "dig/nic_cz_at_c_ns_aa.yaml")})
+	d := traceDelegation(context.Background(), r, "dig", familyIPv4, 5, "nic.cz")
+	check(t, "status", d.Status, DelegationSameServers)
+	check(t, "child server", d.ChildServer, "c.ns.nic.cz")
+	check(t, "child NS", d.ChildNS, d.ParentNS)
+	check(t, "dig calls", len(r.called("dig")), 2)
+
+	// A referral-only server (no aa) leaves the verdict at no_child_answer.
+	r = newFakeRunner()
+	r.on("dig", traceArgs(familyIPv4, 5, "nic.cz"), fakeCall{stdout: trace})
+	r.on("dig", authArgs("c.ns.nic.cz", familyIPv4, 5, "nic.cz"), fakeCall{stdout: fixture(t, "dig/jschmidt_at_org_referral.yaml")})
+	d = traceDelegation(context.Background(), r, "dig", familyIPv4, 5, "nic.cz")
+	check(t, "status", d.Status, DelegationNoChildAnswer)
+
+	// When the answering server is in the NS set no extra query is needed.
+	r = newFakeRunner()
+	r.on("dig", traceArgs(familyIPv4, 5, "nic.cz"), fakeCall{stdout: fixture(t, "trace/nic_cz_same_servers.txt")})
+	d = traceDelegation(context.Background(), r, "dig", familyIPv4, 5, "nic.cz")
+	check(t, "status", d.Status, DelegationSameServers)
+	check(t, "dig calls", len(r.called("dig")), 1)
 }

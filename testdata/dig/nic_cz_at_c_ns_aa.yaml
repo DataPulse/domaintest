@@ -1,0 +1,39 @@
+- type: MESSAGE
+  message:
+    type: AUTH_RESPONSE
+    query_time: !!timestamp 2026-09-06T19:36:50.002Z
+    response_time: !!timestamp 2026-09-06T19:36:50.034Z
+    message_size: 218b
+    socket_family: INET
+    socket_protocol: UDP
+    response_address: "194.0.14.1"
+    response_port: 53
+    query_address: "0.0.0.0"
+    query_port: 0
+    response_message_data:
+      opcode: QUERY
+      status: NOERROR
+      id: 58173
+      flags: qr aa
+      QUESTION: 1
+      ANSWER: 3
+      AUTHORITY: 0
+      ADDITIONAL: 7
+      OPT_PSEUDOSECTION:
+        EDNS:
+          version: 0
+          flags:
+          udp: 1232
+      QUESTION_SECTION:
+        - 'nic.cz. IN NS'
+      ANSWER_SECTION:
+        - 'nic.cz. 1800 IN NS a.ns.nic.cz.'
+        - 'nic.cz. 1800 IN NS b.ns.nic.cz.'
+        - 'nic.cz. 1800 IN NS d.ns.nic.cz.'
+      ADDITIONAL_SECTION:
+        - 'a.ns.nic.cz. 1800 IN A 194.0.12.1'
+        - 'b.ns.nic.cz. 1800 IN A 194.0.13.1'
+        - 'd.ns.nic.cz. 1800 IN A 193.29.206.1'
+        - 'a.ns.nic.cz. 1800 IN AAAA 2001:678:f::1'
+        - 'b.ns.nic.cz. 1800 IN AAAA 2001:678:10::1'
+        - 'd.ns.nic.cz. 1800 IN AAAA 2001:678:1::1'

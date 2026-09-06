@@ -220,3 +220,59 @@ func TestLookupPredicates(t *testing.T) {
 		t.Error("Addrs should skip non-IP rdata and unmap v4-mapped")
 	}
 }
+
+func TestDelvLookup_RetriesOnceAfterTimeout(t *testing.T) {
+	r := newFakeRunner()
+	args := delvArgs("", "", "flaky.org", "A")
+	r.onSeq("delv", args,
+		fakeCall{delay: 10 * time.Second}, // dropped query
+		fakeCall{stdout: fixture(t, "delv/google_a_unsigned.yaml")},
+	)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	start := time.Now()
+	l := delvLookup(ctx, r, "delv", "", "", "flaky.org", "A")
+	elapsed := time.Since(start)
+	check(t, "status", l.Status, StatusOK)
+	check(t, "retries", l.Retries, 1)
+	check(t, "calls", len(r.called("delv")), 2)
+	if elapsed < 1200*time.Millisecond || elapsed > 2500*time.Millisecond {
+		t.Errorf("first attempt should be cut at half the budget (~1.5s), took %v", elapsed)
+	}
+
+	// Both attempts time out: still a timeout, bounded by the overall budget.
+	r.onSeq("delv", args, fakeCall{delay: 10 * time.Second}, fakeCall{delay: 10 * time.Second})
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 2500*time.Millisecond)
+	defer cancel2()
+	start = time.Now()
+	l = delvLookup(ctx2, r, "delv", "", "", "flaky.org", "A")
+	check(t, "status", l.Status, StatusTimeout)
+	check(t, "retries", l.Retries, 1)
+	if time.Since(start) > 3500*time.Millisecond {
+		t.Errorf("overall budget not honoured: %v", time.Since(start))
+	}
+}
+
+func TestFirstAttemptContext(t *testing.T) {
+	ctx, cancel := firstAttemptContext(context.Background())
+	defer cancel()
+	if _, ok := ctx.Deadline(); ok {
+		t.Error("no parent deadline should mean no attempt deadline")
+	}
+	parent, pc := context.WithTimeout(context.Background(), 4*time.Second)
+	defer pc()
+	first, fc := firstAttemptContext(parent)
+	defer fc()
+	d, _ := first.Deadline()
+	if left := time.Until(d); left < 1500*time.Millisecond || left > 2100*time.Millisecond {
+		t.Errorf("first attempt should get about half of 4s, got %v", left)
+	}
+	short, sc := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer sc()
+	first, fc2 := firstAttemptContext(short)
+	defer fc2()
+	d, _ = first.Deadline()
+	if left := time.Until(d); left > 600*time.Millisecond {
+		t.Errorf("attempt deadline must not exceed the parent's, got %v", left)
+	}
+}

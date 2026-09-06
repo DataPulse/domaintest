@@ -4,7 +4,7 @@ Checks the technical configuration of a domain name and prints one compact
 JSON report.
 
 ```
-domaintest [-4|-6] [-t seconds] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver]
+domaintest [-4|-6] [-t seconds] [-quic-timeout seconds] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver]
 ```
 
 Like `dig`, the optional `@dnsserver` may appear anywhere on the command
@@ -20,6 +20,9 @@ line. Without it the system resolver is used.
    Extended DNS Error), `servfail`, or `unknown`.
 3. **Delegation**: `dig +trace` from `a.root-servers.net` compares the NS
    set the parent zone delegates to with the NS set the zone itself serves.
+   Status `same_servers` means the parent zone's servers also host the
+   child (common for a registry's own domain such as nic.cz) and answered
+   authoritatively, so the delegation cannot be observed separately.
 4. **Web reachability**: TCP connect to ports 80 and 443 on every A and
    AAAA address of the apex and `www.`, deduplicated when both names share
    addresses. Port 25 is deliberately not probed.
@@ -51,15 +54,25 @@ SERVFAIL, delegation mismatch / not delegated / no child answer, lookups
 that failed or timed out, resolver unreachable over an enabled family.
 
 Warnings: no A/AAAA at apex or www, no MX, no SPF in TXT, DNSSEC island,
-addresses with nothing listening on 80 or 443, HTTPS without QUIC.
+addresses with nothing listening on 80 or 443, and QUIC working on some
+addresses of a host but not others. A host with no QUIC at all is not
+flagged; the per-address result is in the `web` section.
 
 ## Timeouts
 
 `-t` (default 5 s) bounds every phase: all `delv` lookups together, each TCP
-connect, each `quicprobe` run, and the delegation trace (which gets twice
-the budget with half of it per query, so one slow root or TLD server does
-not sink the whole trace). A run against a healthy domain takes well under a
-second; the worst case is about twice the timeout.
+connect, and the delegation trace (which gets twice the budget with half of
+it per query, so one slow root or TLD server does not sink the whole trace).
+
+`-quic-timeout` (default 2 s) bounds each QUIC handshake separately. A host
+without a UDP 443 listener never answers, so every non-QUIC site would
+otherwise pay the full `-t`; servers that do speak QUIC, or actively refuse
+it, answer within tens of milliseconds.
+
+A `delv` lookup that times out in the first half of its budget is retried
+once (`"retries": 1` in the record), so one dropped UDP query does not cost
+the whole run. A run against a healthy domain takes well under a second
+when QUIC answers and about `-quic-timeout` when it does not.
 
 ## Requirements
 

@@ -14,6 +14,7 @@ const (
 	DelegationMismatch      = "mismatch"
 	DelegationNotDelegated  = "not_delegated"
 	DelegationNoChildAnswer = "no_child_answer"
+	DelegationSameServers   = "same_servers" // parent zone's servers also host the child
 	DelegationError         = "error"
 )
 
@@ -113,9 +114,7 @@ func compareDelegation(blocks []traceBlock, diags []string, domain string) Deleg
 	case 0:
 		return classifyNoNS(d, blocks)
 	case 1:
-		d.Status = DelegationNoChildAnswer
-		d.ParentNS, d.ParentServer = withNS[0].nsFor(fqdn), withNS[0].Server
-		return d
+		return classifySingleBlock(d, withNS[0], fqdn)
 	}
 	parent, child := withNS[0], withNS[len(withNS)-1]
 	d.ParentNS, d.ParentServer = parent.nsFor(fqdn), parent.Server
@@ -126,6 +125,27 @@ func compareDelegation(blocks []traceBlock, diags []string, domain string) Deleg
 	} else {
 		d.Status = DelegationMismatch
 	}
+	return d
+}
+
+// classifySingleBlock handles a trace with exactly one NS answer for the
+// domain. When the answering server is itself one of those NS names, the
+// parent zone's server also hosts the child and answered authoritatively
+// instead of referring, so the delegation cannot be observed separately.
+// Otherwise the referral was received but no child server answered.
+func classifySingleBlock(d Delegation, b traceBlock, fqdn string) Delegation {
+	ns := b.nsFor(fqdn)
+	server := strings.ToLower(strings.TrimSuffix(b.Server, ".")) + "."
+	for _, n := range ns {
+		if n == server {
+			d.Status = DelegationSameServers
+			d.ParentNS, d.ParentServer = ns, b.Server
+			d.ChildNS, d.ChildServer = ns, b.Server
+			return d
+		}
+	}
+	d.Status = DelegationNoChildAnswer
+	d.ParentNS, d.ParentServer = ns, b.Server
 	return d
 }
 
@@ -182,6 +202,9 @@ func traceArgs(family string, timeoutSec int, domain string) []string {
 }
 
 // traceDelegation runs dig +trace and compares parent and child NS sets.
+// When the trace ends with a single NS answer, the answering server is
+// asked directly: an authoritative (aa) answer means the parent zone's
+// server also hosts the child, not that the child failed to answer.
 func traceDelegation(ctx context.Context, r Runner, digPath, family string, timeoutSec int, domain string) Delegation {
 	stdout, stderr, err := r.Run(ctx, digPath, traceArgs(family, timeoutSec, domain)...)
 	blocks, diags := parseTrace(string(stdout))
@@ -190,5 +213,41 @@ func traceDelegation(ctx context.Context, r Runner, digPath, family string, time
 	} else if err != nil && len(blocks) == 0 {
 		diags = append(diags, "dig: "+err.Error()+" "+strings.TrimSpace(string(stderr)))
 	}
-	return compareDelegation(blocks, diags, domain)
+	d := compareDelegation(blocks, diags, domain)
+	if d.Status == DelegationNoChildAnswer && d.ParentServer != "" && ctx.Err() == nil {
+		out, _, _ := r.Run(ctx, digPath, authArgs(d.ParentServer, family, timeoutSec, domain)...)
+		if digAuthoritative(string(out)) {
+			d.Status = DelegationSameServers
+			d.ChildNS, d.ChildServer = d.ParentNS, d.ParentServer
+		}
+	}
+	return d
+}
+
+// authArgs builds argv for a non-recursive NS query at one server, used to
+// learn whether that server answers authoritatively for the domain.
+func authArgs(server, family string, timeoutSec int, domain string) []string {
+	args := []string{"+norecurse", "+yaml", "+tries=1", "+time=" + strconv.Itoa(maxInt(1, timeoutSec/2))}
+	if family == familyIPv6 {
+		args = append(args, "-6")
+	} else {
+		args = append(args, "-4")
+	}
+	return append(args, "@"+server, domain, "NS")
+}
+
+var digFlagsRe = regexp.MustCompile(`(?m)^\s*flags:\s*(.*)$`)
+
+// digAuthoritative reports whether a `dig +yaml` response carries the aa
+// flag. The EDNS pseudo-section has its own flags line, which never holds
+// aa, so every flags line is inspected.
+func digAuthoritative(out string) bool {
+	for _, m := range digFlagsRe.FindAllStringSubmatch(out, -1) {
+		for _, f := range strings.Fields(m[1]) {
+			if f == "aa" {
+				return true
+			}
+		}
+	}
+	return false
 }

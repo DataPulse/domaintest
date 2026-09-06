@@ -1,0 +1,30 @@
+
+; <<>> DiG 9.18.49-1~deb12u2-Debian <<>> -4 +trace +nodnssec +tries=1 +time=2 @a.root-servers.net nic.cz NS
+; (1 server found)
+;; global options: +cmd
+.			518400	IN	NS	l.root-servers.net.
+.			518400	IN	NS	j.root-servers.net.
+.			518400	IN	NS	f.root-servers.net.
+.			518400	IN	NS	h.root-servers.net.
+.			518400	IN	NS	d.root-servers.net.
+.			518400	IN	NS	b.root-servers.net.
+.			518400	IN	NS	k.root-servers.net.
+.			518400	IN	NS	i.root-servers.net.
+.			518400	IN	NS	m.root-servers.net.
+.			518400	IN	NS	e.root-servers.net.
+.			518400	IN	NS	g.root-servers.net.
+.			518400	IN	NS	c.root-servers.net.
+.			518400	IN	NS	a.root-servers.net.
+;; Received 811 bytes from 198.41.0.4#53(a.root-servers.net) in 28 ms
+
+cz.			172800	IN	NS	a.ns.nic.cz.
+cz.			172800	IN	NS	b.ns.nic.cz.
+cz.			172800	IN	NS	c.ns.nic.cz.
+cz.			172800	IN	NS	d.ns.nic.cz.
+;; Received 278 bytes from 170.247.170.2#53(b.root-servers.net) in 32 ms
+
+nic.cz.			1800	IN	NS	a.ns.nic.cz.
+nic.cz.			1800	IN	NS	b.ns.nic.cz.
+nic.cz.			1800	IN	NS	d.ns.nic.cz.
+;; Received 218 bytes from 194.0.12.1#53(a.ns.nic.cz) in 112 ms
+
