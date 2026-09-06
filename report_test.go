@@ -162,7 +162,7 @@ func TestBuildFindings_ReachabilityAndWeb(t *testing.T) {
 	if !rep.OK {
 		t.Errorf("web problems are warnings: %v", rep.Errors)
 	}
-	if !contains(rep.Warnings, "no listener on 80 or 443 (refused/timeout)") || !contains(rep.Warnings, "QUIC/h3 works on another address") {
+	if !contains(rep.Warnings, "no listener on 80 or 443 (refused/timeout)") || !contains(rep.Warnings, "QUIC/h3 works on another probed address") {
 		t.Errorf("got %v", rep.Warnings)
 	}
 
@@ -225,6 +225,20 @@ func TestHelpers(t *testing.T) {
 	if !hasSPF([]string{"x", "  V=SPF1 -all"}) || hasSPF([]string{"spf1"}) || hasSPF(nil) {
 		t.Error("hasSPF")
 	}
+}
+
+func TestBuildFindings_HTTPSDownWhileHTTPUp(t *testing.T) {
+	rep := healthyReport(t)
+	for i := range rep.Web.Apex.IPv4 {
+		rep.Web.Apex.IPv4[i].HTTPS = PortTimeout
+		rep.Web.Apex.IPv4[i].QUIC = nil
+	}
+	rep.Web.Apex.IPv6[0].QUIC = nil
+	buildFindings(rep)
+	check(t, "still ok (warning only)", rep.OK, true)
+	check(t, "https warning", contains(rep.Warnings, "HTTP on 80 answers but HTTPS on 443 does not (timeout)"), true)
+	check(t, "no both-closed warning", contains(rep.Warnings, "no listener"), false)
+	check(t, "single warning", len(rep.Warnings), 1)
 }
 
 func TestBuildFindings_LameZoneReportedOnce(t *testing.T) {

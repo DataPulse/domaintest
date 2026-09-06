@@ -45,7 +45,7 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach}
 	probeCtx, cancel := context.WithTimeout(ctx, cfg.timeout()+time.Second)
 	defer cancel()
-	if rep.NotAZone, rep.EnclosingZone = detectNotAZone(cfg.Domain, dns); rep.NotAZone {
+	if rep.NotAZone, rep.EnclosingZone = detectNotAZone(cfg.Domain, dns, rep.Delegation); rep.NotAZone {
 		rep.DNSSEC = classifyByTrust(dns.apex)
 		rep.Delegation = Delegation{Status: DelegationNotAZone, Error: "name is a host inside " + firstNonEmpty(rep.EnclosingZone, "another zone")}
 	} else {
@@ -59,25 +59,46 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	return rep
 }
 
-// detectNotAZone reports whether the name is a host rather than a zone apex:
-// the NS query answered with no records while the name has addresses. A
-// real apex always has an NS RRset. The enclosing zone is taken from a SOA
-// in any negative answer, when the servers included one.
-func detectNotAZone(domain string, dns dnsResults) (bool, string) {
-	ns := dns.apex["NS"]
-	if ns.Status != StatusNXRRSet {
+// detectNotAZone reports whether the name is a host inside a zone rather
+// than a zone apex. A real apex always has an NS RRset, so the NS query
+// answering NXRRSET is the primary signal; it is confirmed by either a
+// positive answer of another type (A, AAAA, MX or TXT: the name exists) or
+// a negative answer whose SOA is owned by a name above this one (the
+// resolver consulted an enclosing zone). A name the parent zone actually
+// delegates is a zone whatever its apex looks like, so any delegation
+// found by the trace overrides the heuristic. The enclosing zone is
+// reported when a SOA revealed it.
+func detectNotAZone(domain string, dns dnsResults, deleg Delegation) (bool, string) {
+	if dns.apex["NS"].Status != StatusNXRRSet || len(deleg.ParentNS) > 0 {
 		return false, ""
 	}
-	if !dns.apex["A"].HasRecords() && !dns.apex["AAAA"].HasRecords() {
+	zone := enclosingZone(domain, dns)
+	if zone == "" && !anyPositive(dns.apex) {
 		return false, ""
 	}
+	return true, zone
+}
+
+// enclosingZone returns the owner of a SOA seen in a negative answer when
+// that owner lies above the name, or "".
+func enclosingZone(domain string, dns dnsResults) string {
 	fqdn := domain + "."
 	for _, t := range apexTypes {
-		if owner := dns.apex[t].SOAOwner(); owner != "" && owner != fqdn {
-			return true, strings.TrimSuffix(owner, ".")
+		owner := dns.apex[t].SOAOwner()
+		if owner != "" && owner != fqdn && strings.HasSuffix(fqdn, "."+owner) {
+			return strings.TrimSuffix(owner, ".")
 		}
 	}
-	return true, ""
+	return ""
+}
+
+func anyPositive(apex map[string]Lookup) bool {
+	for _, t := range apexTypes {
+		if t != "NS" && apex[t].HasRecords() {
+			return true
+		}
+	}
+	return false
 }
 
 // parallel runs fns concurrently and waits for all of them.

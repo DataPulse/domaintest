@@ -304,27 +304,68 @@ func TestDetectNotAZone(t *testing.T) {
 	a := parseDelvYAML(fixture(t, "delv/outlook_host_a.yaml"), "A")
 	none := parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "AAAA")
 	host := "aelcs-com.mail.protection.outlook.com"
+	noDeleg := Delegation{Status: DelegationNotDelegated}
 
-	is, zone := detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a, "AAAA": none}})
-	check(t, "host with addresses but no NS", is, true)
-	check(t, "zone from the AAAA negative answer's SOA", zone, "jschmidt.org")
+	is, zone := detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a}}, noDeleg)
+	check(t, "addresses but no NS", is, true)
+	check(t, "zone unknown without SOA", zone, "")
 
-	is, zone = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a, "AAAA": ns}})
-	check(t, "still a host without any SOA", is, true)
-	check(t, "zone unknown", zone, "")
+	is, zone = detectNotAZone("host.jschmidt.org", dnsResults{apex: map[string]Lookup{"NS": ns, "A": a, "AAAA": none}}, noDeleg)
+	check(t, "zone from the negative answer's SOA", zone, "jschmidt.org")
+	check(t, "is host", is, true)
 
-	is, _ = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": none, "AAAA": none}})
-	check(t, "no addresses: not decided as a host", is, false)
+	// TXT-only name (e.g. _dmarc): a positive TXT answer is enough.
+	txt := parseDelvYAML(fixture(t, "delv/dmarc_jschmidt_txt.yaml"), "TXT")
+	dns := dnsResults{apex: map[string]Lookup{"NS": ns, "TXT": txt}}
+	is, _ = detectNotAZone("_dmarc.jschmidt.org", dns, noDeleg)
+	check(t, "TXT-only host", is, true)
+
+	// No positive answer at all, but a SOA above the name: still a host.
+	dns = dnsResults{apex: map[string]Lookup{"NS": parseDelvYAML(fixture(t, "delv/dmarc_jschmidt_ns.yaml"), "NS")}}
+	is, zone = detectNotAZone("_dmarc.jschmidt.org", dns, noDeleg)
+	check(t, "SOA above the name", is, true)
+	check(t, "zone", zone, "jschmidt.org")
+
+	// A SOA owned by the name itself, and nothing positive: not decided.
+	self := Lookup{Status: StatusNXRRSet, rrs: []RR{{Owner: host + ".", Type: "SOA"}}}
+	is, _ = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "AAAA": self}}, noDeleg)
+	check(t, "own SOA and no data", is, false)
+
+	// A SOA for an unrelated name is not an enclosing zone.
+	other := Lookup{Status: StatusNXRRSet, rrs: []RR{{Owner: "example.net.", Type: "SOA"}}}
+	is, _ = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "AAAA": other}}, noDeleg)
+	check(t, "unrelated SOA", is, false)
+
+	// The parent delegates the name: it is a (lame) zone, never a host.
+	lame := Delegation{Status: DelegationChildNoNS, ParentNS: []string{"ns1.example."}}
+	is, _ = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a}}, lame)
+	check(t, "delegated name is a zone", is, false)
 
 	real := parseDelvYAML(fixture(t, "delv/jschmidt_ns.yaml"), "NS")
-	is, _ = detectNotAZone("jschmidt.org", dnsResults{apex: map[string]Lookup{"NS": real, "A": a}})
+	is, _ = detectNotAZone("jschmidt.org", dnsResults{apex: map[string]Lookup{"NS": real, "A": a}}, Delegation{})
 	check(t, "zone apex with NS", is, false)
+}
 
-	// A SOA owned by the name itself does not count as an enclosing zone.
-	self := Lookup{Status: StatusNXRRSet, rrs: []RR{{Owner: host + ".", Type: "SOA"}}}
-	is, zone = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a, "AAAA": self}})
-	check(t, "own SOA ignored", is, true)
-	check(t, "own SOA gives no enclosing zone", zone, "")
+func TestRun_TXTOnlyNameInSignedZone(t *testing.T) {
+	name := "_dmarc.jschmidt.org"
+	s := newScenario(t, name, "")
+	for _, tt := range []string{"A", "AAAA", "MX", "TXT", "NS", "DS", "DNSKEY"} {
+		s.delv(name, tt, "delv/dmarc_jschmidt_"+strings.ToLower(tt)+".yaml", t)
+	}
+	s.delv("www."+name, "A", "delv/www_dmarc_jschmidt_a.yaml", t)
+	s.delv("www."+name, "AAAA", "delv/www_dmarc_jschmidt_a.yaml", t)
+	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.trace("trace/dmarc_jschmidt_not_delegated.txt", t)
+	rep := s.run()
+	check(t, "not a zone", rep.NotAZone, true)
+	check(t, "enclosing zone", rep.EnclosingZone, "jschmidt.org")
+	check(t, "delegation", rep.Delegation.Status, DelegationNotAZone)
+	check(t, "dnssec follows the validated TXT answer", rep.DNSSEC.State, DNSSECSecure)
+	check(t, "detail explains", strings.Contains(rep.DNSSEC.Detail, "not a zone apex"), true)
+	check(t, "healthy", rep.Errors, []string{})
+	check(t, "ok", rep.OK, true)
+	check(t, "warned once about the zone", contains(rep.Warnings, "not a zone apex (inside zone jschmidt.org)"), true)
+	check(t, "no bogus probe", len(s.r.called("dig +yaml")), 0)
 }
 
 func TestRun_ResolverWithPort(t *testing.T) {

@@ -110,6 +110,16 @@ func TestIntegration_IDNBothForms(t *testing.T) {
 	check(t, "http reachable", rep.Web.Apex.IPv4[0].HTTP, PortOpen)
 }
 
+func TestIntegration_TXTOnlyNameIsHealthy(t *testing.T) {
+	cfg := integrationConfig(t, "_dmarc.jschmidt.org")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "ok", rep.OK, true)
+	check(t, "errors", rep.Errors, []string{})
+	check(t, "not a zone", rep.NotAZone, true)
+	check(t, "enclosing zone", rep.EnclosingZone, "jschmidt.org")
+	check(t, "dnssec", rep.DNSSEC.State, DNSSECSecure)
+}
+
 func TestIntegration_HostInsideZone(t *testing.T) {
 	cfg := integrationConfig(t, "aelcs-com.mail.protection.outlook.com")
 	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})

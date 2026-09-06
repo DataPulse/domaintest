@@ -1,0 +1,37 @@
+
+; <<>> DiG 9.18.49-1~deb12u2-Debian <<>> -4 +trace +nodnssec +tries=1 +time=2 @a.root-servers.net _dmarc.jschmidt.org NS
+; (1 server found)
+;; global options: +cmd
+.			518400	IN	NS	l.root-servers.net.
+.			518400	IN	NS	j.root-servers.net.
+.			518400	IN	NS	f.root-servers.net.
+.			518400	IN	NS	h.root-servers.net.
+.			518400	IN	NS	d.root-servers.net.
+.			518400	IN	NS	b.root-servers.net.
+.			518400	IN	NS	k.root-servers.net.
+.			518400	IN	NS	i.root-servers.net.
+.			518400	IN	NS	m.root-servers.net.
+.			518400	IN	NS	e.root-servers.net.
+.			518400	IN	NS	g.root-servers.net.
+.			518400	IN	NS	c.root-servers.net.
+.			518400	IN	NS	a.root-servers.net.
+;; Received 811 bytes from 198.41.0.4#53(a.root-servers.net) in 28 ms
+
+;; communications error to 192.36.148.17#53: timed out
+org.			172800	IN	NS	a0.org.afilias-nst.info.
+org.			172800	IN	NS	a2.org.afilias-nst.info.
+org.			172800	IN	NS	b0.org.afilias-nst.org.
+org.			172800	IN	NS	b2.org.afilias-nst.org.
+org.			172800	IN	NS	c0.org.afilias-nst.info.
+org.			172800	IN	NS	d0.org.afilias-nst.org.
+;; Received 450 bytes from 192.203.230.10#53(e.root-servers.net) in 8 ms
+
+jschmidt.org.		3600	IN	NS	ns-507.awsdns-63.com.
+jschmidt.org.		3600	IN	NS	ns-1034.awsdns-01.org.
+jschmidt.org.		3600	IN	NS	ns-1013.awsdns-62.net.
+jschmidt.org.		3600	IN	NS	ns-2001.awsdns-58.co.uk.
+;; Received 230 bytes from 199.19.54.1#53(b0.org.afilias-nst.org) in 8 ms
+
+jschmidt.org.		3600	IN	SOA	ns-2001.awsdns-58.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400
+;; Received 135 bytes from 205.251.193.251#53(ns-507.awsdns-63.com) in 16 ms
+

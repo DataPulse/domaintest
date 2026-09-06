@@ -239,8 +239,11 @@ func (f *findings) reachabilityFindings(reach map[string]string) {
 func (f *findings) webFindings(label string, h *HostWeb) {
 	addrs := h.addrs()
 	for _, a := range addrs {
-		if a.HTTP != PortOpen && a.HTTPS != PortOpen {
+		switch {
+		case a.HTTP != PortOpen && a.HTTPS != PortOpen:
 			f.warningf("%s %s: no listener on 80 or 443 (%s/%s)", label, a.IP, a.HTTP, a.HTTPS)
+		case a.HTTPS != PortOpen:
+			f.warningf("%s %s: HTTP on 80 answers but HTTPS on 443 does not (%s)", label, a.IP, a.HTTPS)
 		}
 	}
 	if !anyQUIC(addrs) {
@@ -248,7 +251,7 @@ func (f *findings) webFindings(label string, h *HostWeb) {
 	}
 	for _, a := range addrs {
 		if a.QUIC != nil && !a.QUIC.Supported {
-			f.warningf("%s %s: QUIC/h3 works on another address of this host but not here", label, a.IP)
+			f.warningf("%s %s: QUIC/h3 works on another probed address of this host but not here", label, a.IP)
 		}
 	}
 }

@@ -31,16 +31,25 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    authoritatively, so the delegation cannot be observed separately.
    `child_no_ns` is a lame zone: the delegated servers answer with the
    apex SOA but publish no NS RRset. `not_a_zone` means the name is a host
-   inside a zone (it has addresses but no NS), so the delegation and
-   DNSSEC zone checks are skipped and `not_a_zone` / `enclosing_zone`
-   appear in the report.
+   inside a zone: its NS query answers with no records while it has some
+   other record (A, AAAA, MX or TXT, so `_dmarc.example.com` counts) or a
+   negative answer carried the SOA of a zone above it, and the parent does
+   not delegate it. The delegation trace and the DS/DNSKEY zone checks are
+   then skipped, `dnssec.state` is taken from the validation status of the
+   answers, and `not_a_zone` / `enclosing_zone` appear in the report.
 4. **Web reachability**: TCP connect to ports 80 and 443 on every A and
    AAAA address of the apex and `www.`, deduplicated when both names share
    addresses. Port 25 is deliberately not probed.
-5. **QUIC / HTTP3** via the sibling `quicprobe` tool, once per address
-   family and name, on the first address of that family.
+5. **QUIC / HTTP3** via the sibling `quicprobe` tool. This is sampled:
+   one probe per name and address family, on the first address of that
+   family, so only that address carries a `quic` object and the
+   "QUIC/h3 works on another probed address" warning can only compare
+   IPv4 with IPv6, or apex with www.
 6. **Resolver reachability** over IPv4 and IPv6 (a root NS query per
-   family). Skipped for a family the resolver has no address for.
+   family). A family is `skipped` when the resolver has no address in it:
+   with `@127.0.0.1:8053` or any IPv4 literal, `ipv6` is always `skipped`
+   even though `families` still lists it for the TCP and QUIC probes. That
+   is expected, not a defect.
 
 Steps 4 and 5 run over both IPv4 and IPv6 unless `-4` or `-6` is given.
 DNS record data is fetched once; a literal `@server` address fixes the DNS
@@ -57,18 +66,28 @@ transport family.
 ## Report
 
 Single-line JSON on stdout (`-pretty` indents). Top-level keys: `domain`,
-`resolver`, `families`, `timeout_sec`, `dns`, `dnssec`, `delegation`,
-`web`, `errors`, `warnings`, `ok`, `elapsed_ms`.
+`unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
+`tcp_timeout_sec`, `quic_timeout_sec`, `not_a_zone` and `enclosing_zone`
+(hosts only), `dns`, `dnssec`, `delegation`, `web`, `errors`, `warnings`,
+`ok`, `elapsed_ms`.
+
+`web` is an empty object when the name has no usable addresses (no
+A/AAAA, NXDOMAIN, bogus zone): callers must not assume `web.apex` exists.
+Per-lookup objects carry `retries: 1` when the first delv attempt timed
+out and the retry answered.
 
 Errors (set `ok` to false): apex NXDOMAIN, missing NS, DNSSEC bogus or
-SERVFAIL, delegation mismatch / not delegated / no child answer, lookups
-that failed or timed out, resolver unreachable over an enabled family.
+SERVFAIL, delegation mismatch / not delegated / no child answer / lame
+zone, lookups that failed or timed out, resolver unreachable over an
+enabled family. A bogus zone yields one DNSSEC error; the per-lookup
+failures it causes are folded into it rather than listed one by one.
 
-Warnings: no A/AAAA at apex or www, no MX, a null MX (RFC 7505, accepts
-no mail), no SPF in TXT, name is not a zone apex, DNSSEC island,
-addresses with nothing listening on 80 or 443, and QUIC working on some
-addresses of a host but not others. A host with no QUIC at all is not
-flagged; the per-address result is in the `web` section.
+Warnings: no A/AAAA at apex or www, `www` name does not exist, no MX, a
+null MX (RFC 7505, accepts no mail), no SPF in TXT, name is not a zone
+apex, DNSSEC island or unknown, addresses with nothing listening on 80 or
+443, addresses where HTTP answers but HTTPS does not, and QUIC working on
+one probed address of a host but not another. A host with no QUIC at all
+is not flagged; the per-address result is in the `web` section.
 
 ## Timeouts
 
