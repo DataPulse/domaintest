@@ -62,7 +62,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "b2.org.afilias-nst.org",
+    "parent_server": "a0.org.afilias-nst.info",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -70,7 +70,8 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns104.comcast.net"
+    "child_server": "dns101.comcast.net",
+    "error": "communications error to 192.36.148.17#53: timed out"
   },
   "web": {},
   "mail": {
@@ -229,10 +230,10 @@
   },
   "wildcard": {
     "status": "unknown",
-    "determined_by": "the lookup for the random name khgythngcstq did not complete",
+    "determined_by": "the lookup for the random name ztfrpauvblve did not complete",
     "probes": [
       {
-        "label": "khgythngcstq",
+        "label": "ztfrpauvblve",
         "status": "unresolved",
         "addresses": []
       }
@@ -249,5 +250,5 @@
     "no DMARC record"
   ],
   "ok": false,
-  "elapsed_ms": 1020
+  "elapsed_ms": 1627
 }

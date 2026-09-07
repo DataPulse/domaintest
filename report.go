@@ -722,35 +722,63 @@ func (f *findings) nsFindings(n *NSReport) {
 	f.glueFindings(n.Glue)
 }
 
-// serverFindings reports one error per nameserver name whose addresses
-// failed (anycast names have many), naming the failure and the count, and
-// per-address warnings for TCP and EDNS gaps.
+// nsTally counts the addresses of one nameserver name, keeping the two
+// kinds of failure apart: a server that answered and disclaimed authority
+// is a different fact from one that said nothing at all.
+type nsTally struct {
+	total  int
+	lame   int    // answered, and not authoritative
+	silent int    // never answered
+	reason string // why the lame ones are lame
+}
+
+// serverFindings reports each nameserver name once (anycast names have many
+// addresses) and adds per-address warnings for TCP and EDNS gaps.
 func (f *findings) serverFindings(servers []NSServer) {
-	type tally struct {
-		bad, total int
-		reason     string
+	byName, order := tallyServers(f, servers)
+	for _, name := range order {
+		f.nameFindings(name, byName[name])
 	}
-	byName := map[string]*tally{}
+}
+
+func tallyServers(f *findings, servers []NSServer) (map[string]*nsTally, []string) {
+	byName := map[string]*nsTally{}
 	var order []string
 	for _, s := range servers {
 		t, ok := byName[s.Name]
 		if !ok {
-			t = &tally{}
+			t = &nsTally{}
 			byName[s.Name] = t
 			order = append(order, s.Name)
 		}
 		t.total++
-		if s.Error != "" && !s.AA {
-			t.bad++
+		switch {
+		case s.Error == "" || s.AA:
+			f.serverWarnings(s)
+		case unanswered(s.Error):
+			t.silent++
+		default:
+			t.lame++
 			t.reason = firstNonEmpty(t.reason, s.Error)
-			continue
 		}
-		f.serverWarnings(s)
 	}
-	for _, name := range order {
-		if t := byName[name]; t.bad > 0 {
-			f.errorf("nameserver %s: %s on %d of %d addresses", name, t.reason, t.bad, t.total)
-		}
+	return byName, order
+}
+
+// nameFindings judges one nameserver name. A server that answered and said
+// it is not authoritative is proof of lameness at any count. A server that
+// never answered proves nothing on its own, so it is a fault only when
+// every address of the name failed: one silent address behind a quorum
+// that is still authoritative is a flaky node, not a broken delegation.
+func (f *findings) nameFindings(name string, t *nsTally) {
+	if t.lame > 0 {
+		f.errorf("nameserver %s: %s on %d of %d addresses", name, t.reason, t.lame, t.total)
+	}
+	switch {
+	case t.silent > 0 && t.silent == t.total:
+		f.errorf("nameserver %s: no answer on %d of %d addresses", name, t.silent, t.total)
+	case t.silent > 0:
+		f.warningf("nameserver %s: no answer on %d of %d addresses, the others are authoritative", name, t.silent, t.total)
 	}
 }
 

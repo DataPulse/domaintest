@@ -47,12 +47,18 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    warned about, since an unanswered query is not a denial) and every
    address is asked
    for the zone SOA non-recursively over UDP, over TCP and with EDNS/DNSSEC
-   in one `dig` run: not authoritative or unreachable is an error, no TCP
-   or no EDNS a warning, SOA serial drift between servers a warning. An
-   address that answers nothing is asked once more before it counts as
-   unreachable (`retries: 1` on the server entry), since one dropped UDP
-   query is not a broken nameserver; an address that answered, even to
-   refuse, is taken at its word. Fewer
+   in one `dig` run: no TCP or no EDNS is a warning, SOA serial drift
+   between servers a warning. An address that answers nothing is asked once
+   more before it counts as unreachable (`retries: 1` on the server entry),
+   since one dropped UDP query is not a broken nameserver.
+
+   The two ways a server can fail are weighed differently. One that answers
+   and disclaims authority is proof of lameness, so it is an error however
+   many of the name's addresses do it. One that never answers proves
+   nothing by itself, so it is an error only when every address of that
+   name is silent, and a warning while the rest of the name still answers
+   authoritatively: a single unresponsive anycast node behind a healthy
+   quorum is a flaky node, not a broken delegation. Fewer
    than two nameservers is an error; all IPv4 addresses in one /24 or all
    IPv6 in one /48 is a warning. For in-bailiwick nameservers the parent's
    glue is compared with the zone's own addresses (missing glue is an
@@ -281,8 +287,8 @@ every address 5xx on a port, redirect loops or over-long chains, DMARC
 records that are multiple or unparsable, SPF permerrors (over the lookup
 limit, multiple records), `+all`, unknown SPF mechanisms, MX targets that
 are CNAMEs, IP literals, non-existent or without an address, MTA-STS problems in enforce mode,
-nameservers that are CNAMEs, unresolvable, unreachable across two
-attempts or not authoritative, fewer than two nameservers, missing glue, a certificate
+nameservers that are CNAMEs, unresolvable, unreachable on every one of
+their addresses, or not authoritative, fewer than two nameservers, missing glue, a certificate
 issuer the CAA records forbid, and TLSA records matching no served
 certificate. A bogus zone yields one DNSSEC error; the per-lookup failures
 it causes are folded into it rather than listed one by one.
@@ -298,7 +304,9 @@ addresses 5xx or all 4xx, clear-text HTTP without redirect, HSTS max-age
 under 180 days, broken redirect chains, missing DMARC or `p=none` or
 `pct<100`, SPF `?all` / `ptr` / missing `all` / void lookups / includes
 without SPF, revoked DKIM keys, MTA-STS problems in testing mode,
-nameservers without TCP or EDNS, SOA serial drift, low prefix diversity,
+nameservers without TCP or EDNS, a nameserver address that never answered
+while the name's other addresses are authoritative, SOA serial drift, low
+prefix diversity,
 MX targets and nameserver names whose address lookup did not complete (a
 gap in the check, not a fault in the domain, and marked `unresolved` in
 the report), an audit that reached no nameserver at all,

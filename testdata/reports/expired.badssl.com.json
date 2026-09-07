@@ -109,7 +109,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2001,
+            "handshake_ms": 2000,
             "error": "context deadline exceeded"
           }
         }
@@ -229,21 +229,21 @@
     "determined_by": "3 random names all answer",
     "probes": [
       {
-        "label": "ygsxmlzfcgow",
+        "label": "vlqjoekauybe",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
         ]
       },
       {
-        "label": "eazdmxumtaib",
+        "label": "bnspaaidykkj",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
         ]
       },
       {
-        "label": "qpjvnqaxasml",
+        "label": "beiepvdjboqg",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
@@ -276,5 +276,5 @@
     "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/"
   ],
   "ok": false,
-  "elapsed_ms": 2513
+  "elapsed_ms": 2688
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/netip"
 	"regexp"
 	"sort"
@@ -340,6 +341,49 @@ func TestServerFindings_AggregatePerName(t *testing.T) {
 	})
 	check(t, "one error for a.ns.", f.errors, []string{"nameserver a.ns.: not authoritative (REFUSED) on 2 of 3 addresses"})
 	check(t, "warnings for b.ns.", f.warnings, []string{"nameserver b.ns. (192.0.2.3): no answer over TCP", "nameserver b.ns. (192.0.2.3): no EDNS support"})
+}
+
+// A server that answered and disclaimed authority is proof of lameness at
+// any count. A server that never answered proves nothing on its own: one
+// silent address behind an authoritative quorum is a flaky node, and only a
+// name that is silent on every address is a broken delegation.
+func TestServerFindings_SilentIsNotLame(t *testing.T) {
+	// One address of two never answers; the other is authoritative.
+	var flaky findings
+	flaky.serverFindings([]NSServer{
+		{Name: "ns01.example.", IP: "192.0.2.1", AA: true, TCP: true, EDNS: true},
+		{Name: "ns01.example.", IP: "2001:db8::1", Error: "dig timed out"},
+	})
+	check(t, "no error for a flaky node", flaky.errors, []string(nil))
+	check(t, "warned instead", flaky.warnings, []string{"nameserver ns01.example.: no answer on 1 of 2 addresses, the others are authoritative"})
+
+	// Every address of the name is silent: the name is unreachable.
+	var dead findings
+	dead.serverFindings([]NSServer{
+		{Name: "gone.example.", IP: "192.0.2.1", Error: "dig timed out"},
+		{Name: "gone.example.", IP: "192.0.2.2", Error: "no servers could be reached"},
+	})
+	check(t, "whole name unreachable is an error", dead.errors, []string{"nameserver gone.example.: no answer on 2 of 2 addresses"})
+	check(t, "and not also a warning", dead.warnings, []string(nil))
+
+	// Answering REFUSED on one address of nine is still proof.
+	var lame findings
+	servers := []NSServer{{Name: "ns1.example.", IP: "192.0.2.1", Error: "not authoritative (REFUSED)"}}
+	for i := 2; i <= 9; i++ {
+		servers = append(servers, NSServer{Name: "ns1.example.", IP: fmt.Sprintf("192.0.2.%d", i), AA: true, TCP: true, EDNS: true})
+	}
+	lame.serverFindings(servers)
+	check(t, "lameness is never demoted", lame.errors, []string{"nameserver ns1.example.: not authoritative (REFUSED) on 1 of 9 addresses"})
+
+	// Both kinds on one name are two distinct facts, reported separately.
+	var both findings
+	both.serverFindings([]NSServer{
+		{Name: "mix.example.", IP: "192.0.2.1", Error: "not authoritative (REFUSED)"},
+		{Name: "mix.example.", IP: "192.0.2.2", Error: "dig timed out"},
+		{Name: "mix.example.", IP: "192.0.2.3", AA: true, TCP: true, EDNS: true},
+	})
+	check(t, "lame reported", both.errors, []string{"nameserver mix.example.: not authoritative (REFUSED) on 1 of 3 addresses"})
+	check(t, "silent reported too", both.warnings, []string{"nameserver mix.example.: no answer on 1 of 3 addresses, the others are authoritative"})
 }
 
 func TestBuildFindings_ServfailFoldsLookupFailures(t *testing.T) {

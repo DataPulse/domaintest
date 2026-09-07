@@ -16,7 +16,8 @@
         "trust": "insecure",
         "records": [
           "150.95.255.38"
-        ]
+        ],
+        "retries": 1
       },
       "AAAA": {
         "status": "nxrrset",
@@ -27,8 +28,7 @@
         "trust": "insecure",
         "records": [
           "0 ."
-        ],
-        "retries": 1
+        ]
       },
       "NS": {
         "status": "ok",
@@ -36,7 +36,8 @@
         "records": [
           "dns1.onamae.com.",
           "dns2.onamae.com."
-        ]
+        ],
+        "retries": 1
       },
       "TXT": {
         "status": "ok",
@@ -75,12 +76,13 @@
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "parent_server": "ns4.centralnic.net",
+    "parent_server": "ns3.centralnic.net",
     "child_ns": [
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "child_server": "dns2.onamae.com"
+    "child_server": "dns1.onamae.com",
+    "error": "communications error to 163.44.76.150#53: timed out"
   },
   "web": {
     "apex": {
@@ -192,11 +194,11 @@
       {
         "name": "dns1.onamae.com.",
         "ip": "163.44.76.136",
-        "aa": true,
-        "rcode": "NOERROR",
-        "serial": 16777216,
+        "aa": false,
         "tcp": false,
-        "edns": true
+        "edns": false,
+        "retries": 1,
+        "error": "dig timed out"
       },
       {
         "name": "dns2.onamae.com.",
@@ -205,18 +207,12 @@
         "rcode": "NOERROR",
         "serial": 16777216,
         "tcp": true,
-        "edns": true,
-        "retries": 1
+        "edns": true
       }
     ],
     "serials_consistent": true,
     "ipv4_prefixes_24": 1,
     "ipv6_prefixes_48": 0,
-    "glue": {
-      "required": [],
-      "missing": [],
-      "mismatch": []
-    },
     "ns_cname": [],
     "unresolvable": [],
     "unresolved": []
@@ -246,21 +242,21 @@
     "determined_by": "3 random names all answer",
     "probes": [
       {
-        "label": "hkchkookfqie",
+        "label": "ycnuojuqoirm",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "eqblfbadvidp",
+        "label": "nefgmscxtnlv",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "fhnjdwwluyzb",
+        "label": "ecdlippssdaf",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
@@ -274,7 +270,9 @@
     "www_via_wildcard": true
   },
   "hsts_preload": "absent",
-  "errors": [],
+  "errors": [
+    "nameserver dns1.onamae.com.: no answer on 1 of 1 addresses"
+  ],
   "warnings": [
     "apex has no AAAA record",
     "www has no AAAA record",
@@ -284,9 +282,8 @@
     "www is answered by a wildcard record, not a real host",
     "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
     "www: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
-    "nameserver dns1.onamae.com. (163.44.76.136): no answer over TCP",
     "all IPv4 nameserver addresses share one /24"
   ],
-  "ok": true,
-  "elapsed_ms": 9604
+  "ok": false,
+  "elapsed_ms": 11884
 }
