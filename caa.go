@@ -35,7 +35,16 @@ var caaIssuers = []struct {
 }{
 	{"let's encrypt", []string{"letsencrypt.org"}},
 	{"internet security research group", []string{"letsencrypt.org"}},
-	{"digicert", []string{"digicert.com"}},
+	// DigiCert issues under several brands it acquired and honours each
+	// brand's CAA identifier, so a GeoTrust-branded certificate satisfies
+	// issue "geotrust.com". posteo.de permits geotrust.com and is served a
+	// certificate whose organisation reads DigiCert Inc and whose common
+	// name reads GeoTrust EV RSA CA G2: a legitimate issuance that was
+	// reported as a CAA violation.
+	{"digicert", []string{"digicert.com", "digicert.ne.jp", "geotrust.com", "rapidssl.com", "symantec.com", "thawte.com"}},
+	{"geotrust", []string{"geotrust.com", "digicert.com"}},
+	{"thawte", []string{"thawte.com", "digicert.com"}},
+	{"rapidssl", []string{"rapidssl.com", "digicert.com"}},
 	{"sectigo", []string{"sectigo.com", "comodoca.com"}},
 	{"comodo", []string{"sectigo.com", "comodoca.com"}},
 	{"zerossl", []string{"sectigo.com", "comodoca.com"}},

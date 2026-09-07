@@ -28,7 +28,10 @@ func TestCAAIDsFor(t *testing.T) {
 	check(t, "Let's Encrypt", caaIDsFor("Let's Encrypt"), []string{"letsencrypt.org"})
 	check(t, "Google", caaIDsFor("Google Trust Services LLC"), []string{"pki.goog"})
 	check(t, "Sectigo", caaIDsFor("Sectigo Limited"), []string{"sectigo.com", "comodoca.com"})
-	check(t, "DigiCert", caaIDsFor("DigiCert Inc"), []string{"digicert.com"})
+	// DigiCert issues under the brands it acquired and honours each one's
+	// CAA identifier, so all of them permit a DigiCert certificate.
+	check(t, "DigiCert", caaIDsFor("DigiCert Inc"),
+		[]string{"digicert.com", "digicert.ne.jp", "geotrust.com", "rapidssl.com", "symantec.com", "thawte.com"})
 	check(t, "unknown", caaIDsFor("Example Private CA"), []string(nil))
 	// cisco.com is issued by IdenTrust's HydrantID service: "entrust" must
 	// not match inside "IdenTrust".
@@ -144,4 +147,35 @@ func TestAssessCAA_UnansweredIsNotUnrestricted(t *testing.T) {
 	check(t, "no climb from a failed lookup", mixed.Hosts["www"].Effective, []string{})
 	check(t, "www unknown", mixed.Hosts["www"].Permitted == nil, true)
 	check(t, "apex still judged", *mixed.Hosts["apex"].Permitted, false)
+}
+
+// A CA that issues under several brands honours each brand's CAA
+// identifier. posteo.de permits geotrust.com and is served a certificate
+// whose organisation reads DigiCert Inc, which is a legitimate GeoTrust
+// issuance and was reported as a CAA violation.
+func TestCAAIssuers_BrandIdentifiers(t *testing.T) {
+	permitted := func(org string, records []string) *bool {
+		v := caaVerdict(Lookup{Status: StatusOK, Records: records}, records, servedCert{issuer: org})
+		return v.Permitted
+	}
+	for _, c := range []struct {
+		org, id string
+	}{
+		{"DigiCert Inc", "geotrust.com"},
+		{"DigiCert Inc", "thawte.com"},
+		{"DigiCert Inc", "rapidssl.com"},
+		{"DigiCert Inc", "digicert.com"},
+		{"GeoTrust Inc.", "geotrust.com"},
+		{"GeoTrust Inc.", "digicert.com"},
+		{"Thawte", "thawte.com"},
+	} {
+		p := permitted(c.org, []string{`0 issue "` + c.id + `"`})
+		if p == nil || !*p {
+			t.Errorf("%s issuing under %q reported as forbidden", c.org, c.id)
+		}
+	}
+
+	// A brand the CA does not operate is still forbidden.
+	p := permitted("DigiCert Inc", []string{`0 issue "letsencrypt.org"`})
+	check(t, "an unrelated CA is still refused", p != nil && !*p, true)
 }
