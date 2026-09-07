@@ -442,13 +442,13 @@ func resolvConfFamilies(path string) map[string]bool {
 // and follows one redirect chain per family per name.
 func probeWeb(ctx context.Context, cfg config, r Runner, d dialer, dns dnsResults, rep *Report) WebSection {
 	apexAll := wantedAddrs(cfg, dns.apex["A"], dns.apex["AAAA"])
-	// www is only a convention at a zone apex. Prefixing it to a name that
-	// is already a host invents a name nobody configured: www.old.reddit.com
-	// answers from a catch-all and is served a *.reddit.com certificate that
-	// cannot cover it, which read as a hostname mismatch on a healthy site.
-	// Mail, nameservers and delegation already skip on this same condition.
+	// www is a convention at a registrable domain. Prefixing it to a name
+	// that is already a host invents a name nobody configured:
+	// www.old.reddit.com answers from a catch-all and is served a
+	// *.reddit.com certificate that cannot cover it, which read as a
+	// hostname mismatch on a healthy site.
 	var wwwAll []netip.Addr
-	if !rep.NotAZone {
+	if registrableDomain(cfg.Domain) {
 		wwwAll = wantedAddrs(cfg, dns.www["A"], dns.www["AAAA"])
 	}
 	apexAddrs, reservedApex := splitReserved(apexAll)
@@ -465,7 +465,7 @@ func probeWeb(ctx context.Context, cfg config, r Runner, d dialer, dns dnsResult
 	parallel(
 		func() { web.Apex = probeHost(ctx, cfg, r, d, apex, apexAddrs, reservedApex, hosts) },
 		func() {
-			if rep.NotAZone {
+			if !registrableDomain(cfg.Domain) {
 				return
 			}
 			web.WWW = probeHost(ctx, cfg, r, d, www, wwwAddrs, reservedWWW, hosts)

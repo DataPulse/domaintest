@@ -74,12 +74,12 @@
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "parent_server": "ns3.centralnic.net",
+    "parent_server": "ns4.centralnic.net",
     "child_ns": [
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "child_server": "dns2.onamae.com"
+    "child_server": "dns1.onamae.com"
   },
   "web": {
     "apex": {
@@ -248,21 +248,21 @@
     "determined_by": "3 random names all answer",
     "probes": [
       {
-        "label": "jdfgzckrhaqo",
+        "label": "dsteecwvsoet",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "egneauaqzvtw",
+        "label": "vudxnwjqqzhe",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "ohcdeudhtfsa",
+        "label": "lylvaxeuqapc",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
@@ -289,5 +289,5 @@
     "all IPv4 nameserver addresses share one /24"
   ],
   "ok": true,
-  "elapsed_ms": 4073
+  "elapsed_ms": 3273
 }

@@ -228,7 +228,7 @@ func (f *findings) lookupFindings(label, qtype string, l Lookup, folded bool) {
 func (f *findings) presenceWarnings(rep *Report) {
 	apex, www := rep.DNS.Apex, rep.DNS.WWW
 	f.addressWarnings("apex", apex["A"], apex["AAAA"])
-	if !rep.NotAZone {
+	if registrableDomain(rep.Domain) {
 		f.addressWarnings("www", www["A"], www["AAAA"])
 	}
 	switch {

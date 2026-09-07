@@ -77,7 +77,7 @@
       "ns2.dnsowl.com.",
       "ns3.dnsowl.com."
     ],
-    "parent_server": "c.gtld-servers.net",
+    "parent_server": "m.gtld-servers.net",
     "child_ns": [
       "ns1.dnsowl.com.",
       "ns2.dnsowl.com.",
@@ -596,10 +596,10 @@
   },
   "wildcard": {
     "status": "absent",
-    "determined_by": "the random name qxoxwxrltjdm is denied",
+    "determined_by": "the random name djpciohlcxtf is denied",
     "probes": [
       {
-        "label": "qxoxwxrltjdm",
+        "label": "djpciohlcxtf",
         "status": "denied",
         "addresses": []
       }
@@ -618,5 +618,5 @@
     "all IPv6 nameserver addresses share one /48"
   ],
   "ok": true,
-  "elapsed_ms": 3194
+  "elapsed_ms": 2992
 }

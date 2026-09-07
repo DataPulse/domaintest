@@ -866,7 +866,7 @@ func TestDetectNotAZone_CNAMEIsNeverAnApex(t *testing.T) {
 	check(t, "host inside a zone", got, true)
 }
 
-// www is a convention at a zone apex. Prefixing it to a name that is
+// www belongs to a registrable domain. Prefixing it to a name that is
 // already a host invents a name nobody configured, and a catch-all answers
 // it with a certificate that cannot cover the extra label, which read as a
 // hostname mismatch on a healthy site.
