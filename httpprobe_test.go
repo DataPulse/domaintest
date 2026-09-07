@@ -117,3 +117,16 @@ func TestIsRedirect(t *testing.T) {
 		check(t, "not redirect", isRedirect(s), false)
 	}
 }
+
+// A chain that leaves the zone is finished, not truncated. Both cases end
+// with no final_url, so without a reason a caller cannot tell a domain that
+// correctly hands off to an external host from one whose chain broke.
+func TestRedirectChain_EndedReason(t *testing.T) {
+	hosts := hostAddrs{}
+	// No known host at all: the very first URL is external.
+	c := followRedirects(context.Background(), newMappedDialer(), "http", "example.com", hosts, time.Second)
+	check(t, "external is a finished chain", c.Ended, RedirectExternal)
+	check(t, "and names where it went", c.External, "http://example.com/")
+	check(t, "with no final url", c.FinalURL, "")
+	check(t, "and is not an error", c.Error, "")
+}

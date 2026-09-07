@@ -59,7 +59,12 @@ type CertInfo struct {
 
 // TLSResult is the outcome of one TLS handshake on port 443.
 type TLSResult struct {
-	Chain       string    `json:"chain"`
+	Chain string `json:"chain"`
+	// Problems lists every defect found, headline first. Chain names only
+	// the most urgent one, so an operator who fixed it could still be left
+	// with a broken site: badssl's fallback is both expired and served for
+	// a name it does not cover.
+	Problems    []string  `json:"chain_problems"`
 	Version     string    `json:"version,omitempty"`
 	ALPN        string    `json:"alpn,omitempty"`
 	Cipher      string    `json:"cipher,omitempty"`
@@ -103,9 +108,11 @@ func probeTLS(conn net.Conn, host, apex, www string, deadline time.Time) (*tls.C
 	}
 	if len(state.PeerCertificates) == 0 {
 		res.Chain, res.Error = ChainInvalid, "server sent no certificate"
+		res.Problems = []string{ChainInvalid}
 		return tc, res
 	}
 	res.Chain, res.Error = classifyChain(state.PeerCertificates, host)
+	res.Problems = chainProblems(res.Chain, state.PeerCertificates[0], host)
 	res.pkixValid = res.Chain == ChainValid
 	info := certInfo(state.PeerCertificates[0], apex, www)
 	res.Cert = &info
@@ -144,6 +151,35 @@ func classifyChain(chain []*x509.Certificate, host string) (string, string) {
 		return ChainValid, ""
 	}
 	return classifyVerifyError(err, chain, host)
+}
+
+// chainProblems collects every defect of the leaf, not just the one that
+// classifyChain reports as the headline. The headline stays first so that
+// anything keying on Chain and reading Problems[0] agrees.
+func chainProblems(headline string, leaf *x509.Certificate, host string) []string {
+	out := []string{}
+	if headline != ChainValid {
+		out = append(out, headline)
+	}
+	now := time.Now()
+	add := func(p string) {
+		if p != headline {
+			out = append(out, p)
+		}
+	}
+	if now.After(leaf.NotAfter) {
+		add(ChainExpired)
+	}
+	if now.Before(leaf.NotBefore) {
+		add(ChainNotYetValid)
+	}
+	if leaf.VerifyHostname(host) != nil {
+		add(ChainHostnameMismatch)
+	}
+	if isSelfSigned(leaf) {
+		add(ChainSelfSigned)
+	}
+	return out
 }
 
 func verifyChain(leaf *x509.Certificate, intermediates []*x509.Certificate, host string) error {

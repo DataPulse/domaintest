@@ -167,3 +167,30 @@ func TestFormatTLSVersionAndKeys(t *testing.T) {
 		t.Errorf("DER should parse: %v", err)
 	}
 }
+
+// chain names only the most urgent defect, so a certificate with two
+// problems under-reports: an operator who renewed badssl's SNI fallback
+// would still be serving a certificate that does not cover the name.
+func TestChainProblems_MultipleDefects(t *testing.T) {
+	ca := newTestCA(t, "multi-defect test CA")
+	past := time.Now().Add(-48 * time.Hour)
+
+	// Expired and issued for a different name.
+	both, _ := ca.issue(t, certSpec{sans: []string{"other.example"}, issuer: ca, notBefore: past.Add(-time.Hour), notAfter: past})
+	check(t, "both defects, headline first", chainProblems(ChainExpired, both, "example.com"),
+		[]string{ChainExpired, ChainHostnameMismatch})
+
+	// Expired but otherwise correct: one problem.
+	expired, _ := ca.issue(t, certSpec{sans: []string{"example.com"}, issuer: ca, notBefore: past.Add(-time.Hour), notAfter: past})
+	check(t, "one defect", chainProblems(ChainExpired, expired, "example.com"), []string{ChainExpired})
+
+	// Self-signed and for the wrong name.
+	self, _ := ca.issue(t, certSpec{sans: []string{"other.example"}, notBefore: past, notAfter: time.Now().Add(24 * time.Hour)})
+	got := chainProblems(ChainSelfSigned, self, "example.com")
+	check(t, "self-signed headline", got[0], ChainSelfSigned)
+	check(t, "mismatch also reported", contains(got, ChainHostnameMismatch), true)
+
+	// A valid certificate has nothing to report and never null.
+	good, _ := ca.issue(t, certSpec{sans: []string{"example.com"}, issuer: ca, notBefore: past, notAfter: time.Now().Add(24 * time.Hour)})
+	check(t, "clean", chainProblems(ChainValid, good, "example.com"), []string{})
+}

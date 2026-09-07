@@ -240,10 +240,10 @@ Single-line JSON on stdout (`-pretty` indents). Top-level keys: `domain`,
 Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has
 `ip`, `80`, `443` (open / refused / timeout / unreachable / error /
 skipped), `http` and `https` (status, location, server, hsts, error),
-`tls` (chain, version, alpn, cipher, tls10, tls11, cert, chain_length,
-error), `tlsa` (match / mismatch / none, only when TLSA records exist) and
+`tls` (chain, chain_problems, version, alpn, cipher, tls10, tls11, cert,
+chain_length, error), `tlsa` (match / mismatch / none, only when TLSA records exist) and
 `quic` (every address). Each host has `same_as_apex`, `via_wildcard`,
-`redirects` (per family: hops, final_url, external, loop, error) and
+`redirects` (per family: hops, ended, final_url, external, loop, error) and
 `cert_consistent`.
 
 `web` is an empty object when the name has no usable addresses (no
@@ -423,3 +423,34 @@ Unit tests never touch the network: DNS answers come from captured
 `httptest` servers with certificates minted in-test, and the badssl.com,
 DANE, wildcard and reserved-address cases run live only in the integration
 suite.
+
+## Names outside the global DNS
+
+A name reserved by RFC is not served by the public DNS, and a validating
+resolver answers it locally. The denial it synthesises is unsigned, so
+`delv` reports a broken trust chain and the report would otherwise turn the
+resolver's own behaviour into a security verdict about the domain:
+`foo.invalid` came back as DNSSEC bogus.
+
+Such a name now carries `reserved_name` (the RFC that reserves it), its
+DNSSEC state is `unknown` rather than `bogus`, the delegation and zone
+checks are skipped, and one warning explains why. The suffixes are
+`invalid`, `test`, `localhost`, `example` (RFC 6761), `local` (RFC 6762),
+`onion` (RFC 7686) and `home.arpa` (RFC 8375). `example.com` and its
+siblings are reserved for documentation but are real delegated names, so
+they are checked like any other domain.
+
+`chain_problems` lists every defect of a certificate, headline first, while
+`chain` keeps naming the single most urgent one. A certificate can be both
+expired and served for a name it does not cover, and an operator who
+renewed it on the strength of `chain` alone would still have a broken site.
+
+`ended` says why a redirect chain stopped: `final` (a terminal response),
+`external` (the next hop left the zone and was deliberately not followed),
+`loop`, `hop_limit` or `error`. A chain that hands off to an external host
+is finished rather than truncated, and both cases have no `final_url`, so
+the reason is the only thing that separates them.
+
+A nameserver that answers authoritatively but sends no SOA carries
+`no_soa`, so an absent `serial` is a recorded fact rather than a missing
+key.

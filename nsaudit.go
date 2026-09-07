@@ -18,6 +18,7 @@ type NSServer struct {
 	Serial  int64  `json:"serial,omitempty"`
 	TCP     bool   `json:"tcp"`
 	EDNS    bool   `json:"edns"`
+	NoSOA   bool   `json:"no_soa,omitempty"`  // answered, but returned no SOA: serial is absent, not omitted
 	Retries int    `json:"retries,omitempty"` // attempts that got no answer before this one
 	Error   string `json:"error,omitempty"`
 }
@@ -196,6 +197,10 @@ func interpretAudit(s *NSServer, msgs []digMessage) {
 	s.EDNS = udp.OPT
 	if soa := udp.records("SOA"); len(soa) > 0 {
 		s.Serial = soaSerial(soa[0].RData)
+	} else if s.AA {
+		// The server answered authoritatively and still sent no SOA, so
+		// there is no serial to report rather than one we failed to read.
+		s.NoSOA = true
 	}
 	s.TCP = len(msgs) > 1 && msgs[1].Error == "" && msgs[1].Status == "NOERROR"
 	if len(msgs) > 2 && msgs[2].OPT {

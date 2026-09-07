@@ -230,10 +230,10 @@
   },
   "wildcard": {
     "status": "unknown",
-    "determined_by": "the lookup for the random name piwzlfanllgj did not complete",
+    "determined_by": "the lookup for the random name ajvgqzlgnopl did not complete",
     "probes": [
       {
-        "label": "piwzlfanllgj",
+        "label": "ajvgqzlgnopl",
         "status": "unresolved",
         "addresses": []
       }
@@ -250,5 +250,5 @@
     "no DMARC record"
   ],
   "ok": false,
-  "elapsed_ms": 1017
+  "elapsed_ms": 968
 }

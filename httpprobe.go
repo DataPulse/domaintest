@@ -81,9 +81,22 @@ type RedirectHop struct {
 	Status int    `json:"status"`
 }
 
+// Why a redirect chain stopped. A chain that leaves the zone is finished,
+// not truncated: without saying so, a caller cannot tell a domain that
+// correctly hands off to an external host from one whose chain broke,
+// since both end with no final_url.
+const (
+	RedirectFinal    = "final"     // a terminal, non-redirect response
+	RedirectExternal = "external"  // the next hop left the zone; deliberately not followed
+	RedirectLoop     = "loop"      // the chain returned to a URL it had already visited
+	RedirectHopLimit = "hop_limit" // more hops than the follower allows
+	RedirectFailed   = "error"     // a hop could not be fetched
+)
+
 // RedirectChain records where a name's HTTP entry point leads.
 type RedirectChain struct {
 	Hops     []RedirectHop `json:"hops"`
+	Ended    string        `json:"ended"` // why the chain stopped
 	FinalURL string        `json:"final_url,omitempty"`
 	External string        `json:"external,omitempty"` // first target outside apex/www, not followed
 	Loop     bool          `json:"loop"`
@@ -105,38 +118,38 @@ func followRedirects(ctx context.Context, d dialer, scheme, host string, hosts h
 	seen := map[string]bool{}
 	for hop := 0; hop <= maxRedirectHops; hop++ {
 		if seen[current] {
-			chain.Loop = true
+			chain.Loop, chain.Ended = true, RedirectLoop
 			return chain
 		}
 		seen[current] = true
 		u, err := url.Parse(current)
 		if err != nil {
-			chain.Error = "bad URL " + current
+			chain.Error, chain.Ended = "bad URL "+current, RedirectFailed
 			return chain
 		}
 		ip, ok := hosts[strings.ToLower(u.Hostname())]
 		if !ok {
-			chain.External = current
+			chain.External, chain.Ended = current, RedirectExternal
 			return chain
 		}
 		res := fetchHead(ctx, d, u, ip, timeout)
 		if res.Error != "" {
-			chain.Error = current + ": " + res.Error
+			chain.Error, chain.Ended = current+": "+res.Error, RedirectFailed
 			return chain
 		}
 		chain.Hops = append(chain.Hops, RedirectHop{URL: current, Status: res.Status})
 		if !isRedirect(res.Status) || res.Location == "" {
-			chain.FinalURL = current
+			chain.FinalURL, chain.Ended = current, RedirectFinal
 			return chain
 		}
 		next, err := u.Parse(res.Location)
 		if err != nil {
-			chain.Error = "bad Location " + res.Location
+			chain.Error, chain.Ended = "bad Location "+res.Location, RedirectFailed
 			return chain
 		}
 		current = next.String()
 	}
-	chain.Error = fmt.Sprintf("more than %d redirects", maxRedirectHops)
+	chain.Error, chain.Ended = fmt.Sprintf("more than %d redirects", maxRedirectHops), RedirectHopLimit
 	return chain
 }
 

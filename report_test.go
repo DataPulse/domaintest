@@ -486,3 +486,28 @@ func TestChainFindings_OnePerCondition(t *testing.T) {
 	g.chainFindings("www", []AddrWeb{{IP: "1.2.3.4", TLS: &TLSResult{Chain: ChainValid}}})
 	check(t, "silent when valid", g.errors, []string(nil))
 }
+
+// NOERROR with an empty answer is an answer. Reporting it as "did not
+// respond" sends an operator after a reachability problem that does not
+// exist, and the missing apex NS RRset must be counted once, not twice.
+func TestDelegationFindings_NoDataIsAnAnswer(t *testing.T) {
+	rep := &Report{
+		Domain:     "revoked.example",
+		Delegation: Delegation{Status: DelegationNoChildAnswer, ParentServer: "a.gtld-servers.net"},
+		DNS: DNSSection{
+			Apex: map[string]Lookup{"NS": {Status: StatusNXRRSet}},
+			WWW:  map[string]Lookup{},
+		},
+	}
+	buildFindings(rep)
+	check(t, "says the servers answered", contains(rep.Errors, "answered with no NS records (NODATA)"), true)
+	check(t, "not called unresponsive", contains(rep.Errors, "did not answer"), false)
+	check(t, "counted once", len(rep.Errors), 1)
+	check(t, "not also an apex-NS error", contains(rep.Errors, "apex has no NS records"), false)
+
+	// A genuinely silent server still reads as silent.
+	rep.DNS.Apex["NS"] = Lookup{Status: StatusTimeout}
+	rep.Delegation.Error = "communications error to 192.0.2.1#53: timed out"
+	buildFindings(rep)
+	check(t, "silence still reported as silence", contains(rep.Errors, "did not answer the NS query"), true)
+}

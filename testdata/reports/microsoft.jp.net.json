@@ -12,22 +12,19 @@
   "dns": {
     "apex": {
       "A": {
-        "status": "ok",
-        "trust": "insecure",
-        "records": [
-          "150.95.255.38"
-        ]
+        "status": "timeout",
+        "error": "delv timed out",
+        "retries": 1
       },
       "AAAA": {
         "status": "nxrrset",
-        "trust": "insecure"
+        "trust": "insecure",
+        "retries": 1
       },
       "MX": {
-        "status": "ok",
-        "trust": "insecure",
-        "records": [
-          "0 ."
-        ]
+        "status": "timeout",
+        "error": "delv timed out",
+        "retries": 1
       },
       "NS": {
         "status": "ok",
@@ -42,7 +39,8 @@
         "trust": "insecure",
         "records": [
           "v=spf1 -all"
-        ]
+        ],
+        "retries": 1
       }
     },
     "www": {
@@ -56,7 +54,8 @@
       },
       "AAAA": {
         "status": "nxrrset",
-        "trust": "insecure"
+        "trust": "insecure",
+        "retries": 1
       }
     },
     "resolver_reachable": {
@@ -65,9 +64,10 @@
     }
   },
   "dnssec": {
-    "state": "insecure",
+    "state": "unknown",
     "ds": false,
-    "dnskey": false
+    "dnskey": false,
+    "detail": "DS or DNSKEY lookup did not complete"
   },
   "delegation": {
     "status": "match",
@@ -75,7 +75,7 @@
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "parent_server": "ns4.centralnic.net",
+    "parent_server": "ns2.centralnic.net",
     "child_ns": [
       "dns1.onamae.com.",
       "dns2.onamae.com."
@@ -83,39 +83,7 @@
     "child_server": "dns1.onamae.com"
   },
   "web": {
-    "apex": {
-      "ipv4": [
-        {
-          "ip": "150.95.255.38",
-          "80": "open",
-          "443": "timeout",
-          "http": {
-            "status": 200,
-            "server": "Apache"
-          },
-          "quic": {
-            "supported": false,
-            "handshake_ms": 2000,
-            "error": "context deadline exceeded"
-          }
-        }
-      ],
-      "redirects": {
-        "ipv4": {
-          "hops": [
-            {
-              "url": "http://microsoft.jp.net/",
-              "status": 200
-            }
-          ],
-          "final_url": "http://microsoft.jp.net/",
-          "loop": false
-        }
-      }
-    },
     "www": {
-      "same_as_apex": true,
-      "via_wildcard": true,
       "ipv4": [
         {
           "ip": "150.95.255.38",
@@ -140,6 +108,7 @@
               "status": 200
             }
           ],
+          "ended": "final",
           "final_url": "http://www.microsoft.jp.net/",
           "loop": false
         }
@@ -163,17 +132,7 @@
       "includes": [],
       "problems": []
     },
-    "mx": [
-      {
-        "host": ".",
-        "preference": 0,
-        "addresses": 0,
-        "cname": false,
-        "ip_literal": false,
-        "unresolved": false,
-        "problems": []
-      }
-    ],
+    "mx": [],
     "dkim": {
       "wildcard": false,
       "selectors_found": [],
@@ -205,8 +164,9 @@
         "aa": true,
         "rcode": "NOERROR",
         "serial": 16777216,
-        "tcp": true,
-        "edns": true
+        "tcp": false,
+        "edns": true,
+        "retries": 1
       }
     ],
     "serials_consistent": true,
@@ -237,52 +197,47 @@
     "result": "none"
   },
   "wildcard": {
-    "status": "present",
-    "determined_by": "3 random names all answer",
+    "status": "unknown",
+    "determined_by": "the lookup for the random name sykmqymjzpvq did not complete",
     "probes": [
       {
-        "label": "tehqerxuwnlk",
+        "label": "ehehihemtdzm",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "hdauwsrudpvs",
-        "status": "answered",
-        "addresses": [
-          "150.95.255.38"
-        ]
+        "label": "sykmqymjzpvq",
+        "status": "unresolved",
+        "addresses": []
       },
       {
-        "label": "udujsnjoupcs",
+        "label": "qltpzmgbhwkx",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       }
     ],
-    "addresses": [
-      "150.95.255.38"
-    ],
-    "consistent": true,
-    "www_via_wildcard": true
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
   },
   "hsts_preload": "absent",
   "errors": [
+    "apex A lookup timed out",
+    "apex MX lookup timed out",
     "nameserver dns1.onamae.com.: no answer on 1 of 1 addresses"
   ],
   "warnings": [
-    "apex has no AAAA record",
     "www has no AAAA record",
-    "apex publishes a null MX (RFC 7505): accepts no mail",
-    "apex 150.95.255.38: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
+    "DNSSEC state unknown: DS or DNSKEY lookup did not complete",
     "www 150.95.255.38: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
-    "www is answered by a wildcard record, not a real host",
-    "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
     "www: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
+    "nameserver dns2.onamae.com. (163.44.76.150): no answer over TCP",
     "all IPv4 nameserver addresses share one /24"
   ],
   "ok": false,
-  "elapsed_ms": 10620
+  "elapsed_ms": 13012
 }

@@ -34,6 +34,7 @@ type Report struct {
 	// NotAZone is set when the name is a host inside a zone rather than a
 	// zone apex; EnclosingZone names that zone when a SOA revealed it.
 	NotAZone             bool            `json:"not_a_zone,omitempty"`
+	ReservedName         string          `json:"reserved_name,omitempty"` // the RFC reserving this suffix
 	EnclosingZone        string          `json:"enclosing_zone,omitempty"`
 	Resolver             string          `json:"resolver"`
 	Families             []string        `json:"families"`
@@ -129,8 +130,10 @@ func (f *findings) warningf(format string, a ...any) {
 func buildFindings(rep *Report) {
 	var f findings
 	f.dnsFindings(rep)
-	f.dnssecFindings(rep.DNSSEC)
-	f.delegationFindings(rep.Delegation)
+	if rep.ReservedName == "" {
+		f.dnssecFindings(rep.DNSSEC)
+		f.delegationFindings(rep)
+	}
 	f.reachabilityFindings(rep.DNS.ResolverReachable)
 	f.webFindings("apex", rep.Web.Apex)
 	f.webFindings("www", rep.Web.WWW)
@@ -142,12 +145,16 @@ func buildFindings(rep *Report) {
 
 func (f *findings) dnsFindings(rep *Report) {
 	apex := rep.DNS.Apex
-	if apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain {
+	// A reserved name not existing in the global DNS is the definition of
+	// the name, not a fault in it.
+	if rep.ReservedName == "" && (apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain) {
 		f.errorf("apex %s does not exist (NXDOMAIN)", rep.Domain)
 		return
 	}
 	// A bogus or SERVFAIL verdict already explains every failed lookup.
-	folded := rep.DNSSEC.State == DNSSECBogus || rep.DNSSEC.State == DNSSECServfail
+	// A reserved name folds its lookup failures the way a bogus zone does:
+	// they are all the one fact that the name is not in the global DNS.
+	folded := rep.DNSSEC.State == DNSSECBogus || rep.DNSSEC.State == DNSSECServfail || rep.ReservedName != ""
 	for _, t := range apexTypes {
 		f.lookupFindings("apex", t, apex[t], folded)
 	}
@@ -155,9 +162,11 @@ func (f *findings) dnsFindings(rep *Report) {
 		f.lookupFindings("www", t, rep.DNS.WWW[t], folded)
 	}
 	switch {
+	case rep.ReservedName != "":
+		f.warningf("%s is reserved by %s and is not served by the global DNS: delegation and DNSSEC checks do not apply", rep.Domain, rep.ReservedName)
 	case rep.NotAZone:
 		f.warningf("%s is not a zone apex%s: delegation and DNSSEC zone checks skipped", rep.Domain, enclosing(rep.EnclosingZone))
-	case rep.Delegation.Status == DelegationChildNoNS:
+	case rep.Delegation.Status == DelegationChildNoNS, rep.Delegation.Status == DelegationNoChildAnswer:
 		// the delegation finding already says the zone has no NS RRset
 	case !apex["NS"].HasRecords() && apex["NS"].Answered():
 		f.errorf("apex has no NS records")
@@ -239,13 +248,21 @@ func (f *findings) dnssecFindings(d DNSSECReport) {
 	}
 }
 
-func (f *findings) delegationFindings(d Delegation) {
+func (f *findings) delegationFindings(rep *Report) {
+	d := rep.Delegation
 	switch d.Status {
 	case DelegationMismatch:
 		f.errorf("NS delegation mismatch: parent-only %v, child-only %v", d.ParentOnly, d.ChildOnly)
 	case DelegationNotDelegated:
 		f.errorf("domain is not delegated by its parent zone (%s)", d.ParentServer)
 	case DelegationNoChildAnswer:
+		// NOERROR with an empty answer is an answer. Saying the servers
+		// did not respond sends an operator after a reachability problem
+		// when the zone simply has no apex NS RRset.
+		if rep.DNS.Apex["NS"].Status == StatusNXRRSet {
+			f.errorf("delegated NS servers answered with no NS records (NODATA): the zone has no apex NS RRset")
+			break
+		}
 		f.errorf("delegated NS servers did not answer the NS query: %s", firstNonEmpty(d.Error, "no response"))
 	case DelegationChildNoNS:
 		f.errorf("lame delegation: %s", d.Error)
@@ -401,6 +418,19 @@ func (f *findings) tlsFindings(label string, h *HostWeb, sibling *HostWeb) {
 // with the count of addresses it affected, the way the nameserver audit
 // reports a failing name. A CDN fleet that all fails the same way is one
 // fact, not fourteen; the per-address detail stays in the web section.
+// chainLabel names every defect, so a certificate that is both expired and
+// served for the wrong name says so in one finding.
+func chainLabel(t *TLSResult) string {
+	if len(t.Problems) < 2 {
+		return strings.ReplaceAll(t.Chain, "_", " ")
+	}
+	parts := make([]string, 0, len(t.Problems))
+	for _, p := range t.Problems {
+		parts = append(parts, strings.ReplaceAll(p, "_", " "))
+	}
+	return strings.Join(parts, " and ")
+}
+
 func (f *findings) chainFindings(label string, addrs []AddrWeb) {
 	type tally struct {
 		chain, detail string
@@ -412,9 +442,9 @@ func (f *findings) chainFindings(label string, addrs []AddrWeb) {
 		if a.TLS.Chain == ChainValid {
 			continue
 		}
-		key := a.TLS.Chain + "\x00" + a.TLS.Error
+		key := a.TLS.Chain + "\x00" + a.TLS.Error + "\x00" + strings.Join(a.TLS.Problems, ",")
 		if byCause[key] == nil {
-			byCause[key] = &tally{chain: a.TLS.Chain, detail: a.TLS.Error}
+			byCause[key] = &tally{chain: chainLabel(a.TLS), detail: a.TLS.Error}
 			order = append(order, key)
 		}
 		byCause[key].count++

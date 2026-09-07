@@ -83,6 +83,9 @@
           },
           "tls": {
             "chain": "expired",
+            "chain_problems": [
+              "expired"
+            ],
             "version": "TLS 1.2",
             "alpn": "http/1.1",
             "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
@@ -126,6 +129,7 @@
               "status": 200
             }
           ],
+          "ended": "final",
           "final_url": "https://expired.badssl.com/",
           "loop": false
         }
@@ -151,6 +155,10 @@
           },
           "tls": {
             "chain": "expired",
+            "chain_problems": [
+              "expired",
+              "hostname_mismatch"
+            ],
             "version": "TLS 1.2",
             "alpn": "http/1.1",
             "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
@@ -193,6 +201,7 @@
               "status": 421
             }
           ],
+          "ended": "final",
           "final_url": "https://www.expired.badssl.com/",
           "loop": false
         }
@@ -229,21 +238,21 @@
     "determined_by": "3 random names all answer",
     "probes": [
       {
-        "label": "aluofwvetlhn",
+        "label": "mtoxfkrloqyg",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
         ]
       },
       {
-        "label": "qxueldsxksub",
+        "label": "txywfxpcdcqi",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
         ]
       },
       {
-        "label": "eefqtgllwetw",
+        "label": "iyntvpfnlxgc",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
@@ -259,7 +268,7 @@
   "hsts_preload": "absent",
   "errors": [
     "apex: certificate expired on 1 of 1 addresses: certificate expired 2015-04-12T23:59:59Z",
-    "www: certificate expired on 1 of 1 addresses: certificate expired 2018-08-08T21:17:05Z"
+    "www: certificate expired and hostname mismatch on 1 of 1 addresses: certificate expired 2018-08-08T21:17:05Z"
   ],
   "warnings": [
     "expired.badssl.com is not a zone apex (inside zone badssl.com): delegation and DNSSEC zone checks skipped",
@@ -276,5 +285,5 @@
     "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/"
   ],
   "ok": false,
-  "elapsed_ms": 2753
+  "elapsed_ms": 2948
 }

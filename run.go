@@ -145,6 +145,13 @@ func probeBudget(cfg config) time.Duration {
 
 // classifyZone fills the not-a-zone and DNSSEC verdicts.
 func classifyZone(rep *Report, cfg config, dns dnsResults, r Runner) {
+	if rep.ReservedName = reservedName(cfg.Domain); rep.ReservedName != "" {
+		// The name is not in the global DNS, so neither a trust chain nor
+		// a delegation can be judged. Whatever the resolver answered says
+		// something about the resolver, not about the domain.
+		rep.DNSSEC = DNSSECReport{State: DNSSECUnknown, Detail: "name reserved by " + rep.ReservedName + ", outside the global DNS"}
+		return
+	}
 	if rep.NotAZone, rep.EnclosingZone = detectNotAZone(cfg.Domain, dns, rep.Delegation); rep.NotAZone {
 		rep.DNSSEC = classifyByTrust(dns.apex)
 		rep.Delegation = Delegation{Status: DelegationNotAZone, Error: "name is a host inside " + firstNonEmpty(rep.EnclosingZone, "another zone")}
