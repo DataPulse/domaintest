@@ -127,10 +127,15 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    `-no-hsts-preload` skips the check entirely.
 8. **Redirect chains** (`redirects`, per name and address family): from
    `http://<name>/` on the first address of the family, following
-   Location headers up to three hops while the target stays apex or www.
-   A loop or an over-long chain is an error, a chain that breaks after it
-   started or ends in 4xx/5xx a warning, an external target is recorded
-   as `external` and not followed. A chain is a property of the name, so
+   Location headers up to ten hops while the target stays apex or www.
+   Ordinary sites chain four to six (scheme upgrade, apex to www, path
+   normalisation, locale, session), so a lower limit fails normal domains;
+   browsers allow 20 and curl 50. A loop is an error, since it provably
+   never resolves however long you follow it. Running out of hops is a
+   warning: the follower stopped, so whether the chain ends is unknown,
+   and asserting a fault from that would be the vacuous negative again.
+   A chain that breaks after it started or ends in 4xx/5xx is a warning,
+   and an external target is recorded as `external` and not followed. A chain is a property of the name, so
    it is followed once per family, unlike the per-address probes above.
 9. **QUIC / HTTP3** via the sibling `quicprobe` tool, on every address of
    both names, so every address carries a `quic` object and the "QUIC/h3
@@ -316,7 +321,7 @@ Errors (set `ok` to false): apex NXDOMAIN, missing NS, DNSSEC bogus or
 SERVFAIL, delegation mismatch / not delegated / no child answer / lame
 zone, lookups that failed or timed out, resolver unreachable over an
 enabled family, reserved addresses in DNS, any certificate chain problem,
-every address 5xx on a port, redirect loops or over-long chains, DMARC
+every address 5xx on a port, redirect loops, DMARC
 records that are multiple or unparsable, SPF permerrors (over the lookup
 limit, multiple records), `+all`, unknown SPF mechanisms, MX targets that
 are CNAMEs, IP literals, non-existent or without an address, MTA-STS problems in enforce mode,
@@ -334,7 +339,8 @@ probed address of a host but not another, certificates expiring within 30
 days, a certificate not covering the sibling name, different certificates
 across a host's addresses, TLS 1.0 or 1.1 accepted, no TLS 1.3, some
 addresses 5xx or all 4xx, clear-text HTTP without redirect, HSTS max-age
-under 180 days, broken redirect chains, missing DMARC or `p=none` or
+under 180 days, broken redirect chains, a chain still redirecting at the
+hop limit, missing DMARC or `p=none` or
 `pct<100`, SPF `?all` / `ptr` / missing `all` / void lookups / includes
 without SPF, revoked DKIM keys, a zone that wildcards `_domainkey` (which makes every
 selector answer, so none can be verified), MTA-STS problems in testing mode,

@@ -511,3 +511,53 @@ func TestDelegationFindings_NoDataIsAnAnswer(t *testing.T) {
 	buildFindings(rep)
 	check(t, "silence still reported as silence", contains(rep.Errors, "did not answer the NS query"), true)
 }
+
+// A loop provably never resolves. Running out of hops only means the
+// follower stopped, so the destination is unknown and asserting a fault
+// from it is the vacuous negative in another guise.
+func TestRedirectFindings_HopLimitIsNotALoop(t *testing.T) {
+	hops := []RedirectHop{{URL: "http://x.example/", Status: 301}, {URL: "http://x.example/a", Status: 301}}
+
+	var limit findings
+	limit.redirectFindings("apex", map[string]*RedirectChain{
+		familyIPv4: {Hops: hops, Ended: RedirectHopLimit, Error: "more than 10 redirects"},
+	})
+	check(t, "not an error", limit.errors, []string(nil))
+	check(t, "warned as unknown", contains(limit.warnings, "still redirecting after 2 hops, so the destination is unknown"), true)
+
+	var loop findings
+	loop.redirectFindings("apex", map[string]*RedirectChain{
+		familyIPv4: {Hops: hops, Ended: RedirectLoop, Loop: true},
+	})
+	check(t, "a loop is still an error", contains(loop.errors, "redirect loop"), true)
+
+	// A chain that reached an external host is finished, and silent.
+	var ext findings
+	ext.redirectFindings("apex", map[string]*RedirectChain{
+		familyIPv4: {Hops: hops, Ended: RedirectExternal, External: "https://elsewhere.example/"},
+	})
+	check(t, "external is not a finding", []int{len(ext.errors), len(ext.warnings)}, []int{0, 0})
+}
+
+// A preloaded domain serving no HSTS header at all is a different fault
+// from one serving a header that falls short, and the fixes differ.
+func TestPreloadFindings_NoHeaderVersusWeakHeader(t *testing.T) {
+	withHSTS := func(h *HSTS) *Report {
+		return &Report{
+			HSTSPreload: PreloadPreloaded,
+			Web:         WebSection{Apex: &HostWeb{IPv4: []AddrWeb{{IP: "192.0.2.1", HTTPSRes: &HTTPResult{Status: 200, HSTS: h}}}}},
+		}
+	}
+	var none findings
+	none.preloadFindings(withHSTS(nil))
+	check(t, "no header", contains(none.warnings, "serves no HSTS header on this response"), true)
+	check(t, "does not imply one was served", contains(none.warnings, "does not meet"), false)
+
+	var weak findings
+	weak.preloadFindings(withHSTS(&HSTS{MaxAge: 300}))
+	check(t, "weak header", contains(weak.warnings, "the served header does not meet the preload requirements"), true)
+
+	var good findings
+	good.preloadFindings(withHSTS(&HSTS{MaxAge: preloadMinAge, IncludeSubdomains: true, Preload: true}))
+	check(t, "a compliant header is silent", good.warnings, []string(nil))
+}

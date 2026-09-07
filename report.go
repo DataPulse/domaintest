@@ -618,10 +618,13 @@ func (f *findings) redirectFindings(label string, chains map[string]*RedirectCha
 		switch {
 		case len(c.Hops) == 0:
 			// The entry point did not answer; port 80's state already says so.
-		case c.Loop:
+		case c.Loop || c.Ended == RedirectLoop:
+			// A loop provably never resolves, however long you follow it.
 			f.errorf("%s (%s): redirect loop %s", label, fam, describeHops(c.Hops))
-		case c.Error != "" && strings.HasPrefix(c.Error, "more than"):
-			f.errorf("%s (%s): %s: %s", label, fam, c.Error, describeHops(c.Hops))
+		case c.Ended == RedirectHopLimit:
+			// We stopped following, so whether the chain ends is unknown.
+			// Asserting a fault from that is the vacuous negative again.
+			f.warningf("%s (%s): still redirecting after %d hops, so the destination is unknown: %s", label, fam, len(c.Hops), describeHops(c.Hops))
 		case c.Error != "":
 			f.warningf("%s (%s): redirect chain broke: %s", label, fam, c.Error)
 		case c.Hops[len(c.Hops)-1].Status >= 400:
@@ -896,8 +899,12 @@ const preloadMinAge = 31536000
 func (f *findings) preloadFindings(rep *Report) {
 	h := servedHSTS(rep.Web.Apex)
 	switch {
+	case rep.HSTSPreload == PreloadPreloaded && h == nil:
+		// "No longer meets" implies a header we could measure. Saying so
+		// when none was served points at the wrong fix.
+		f.warningf("domain is on the HSTS preload list but serves no HSTS header on this response")
 	case rep.HSTSPreload == PreloadPreloaded && !meetsPreload(h):
-		f.warningf("domain is on the HSTS preload list but the served header no longer meets the preload requirements (max-age >= 1 year, includeSubDomains, preload)")
+		f.warningf("domain is on the HSTS preload list but the served header does not meet the preload requirements (max-age >= 1 year, includeSubDomains, preload)")
 	case rep.HSTSPreload == PreloadAbsent && h != nil && h.Preload && !meetsPreload(h):
 		f.warningf("HSTS header carries the preload directive but does not meet the preload requirements (max-age >= 1 year, includeSubDomains)")
 	case rep.HSTSPreload == PreloadUnknown:

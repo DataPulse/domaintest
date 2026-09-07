@@ -103,8 +103,14 @@ type RedirectChain struct {
 	Error    string        `json:"error,omitempty"`
 }
 
-// maxRedirectHops bounds the chain follower.
-const maxRedirectHops = 3
+// maxRedirectHops bounds the chain follower. Ordinary sites chain four to
+// six hops (scheme upgrade, apex to www, path normalisation, locale,
+// session), so a limit of three failed mail.google.com and much of any
+// real portfolio. Browsers allow 20 and curl defaults to 50; ten is
+// generous for a health check while still bounding the work. The probe
+// phase has its own budget, so a pathological chain runs out of time
+// rather than requests.
+const maxRedirectHops = 10
 
 // hostAddrs maps a hostname (apex or www) to the address to connect to for
 // one family; the follower only connects to hosts present here.

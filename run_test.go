@@ -581,7 +581,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	g.s.dialer.mapTarget(g.v4.String(), 443, weak)
 	g.s.dialer.mapTarget(g.v6.String(), 443, weak)
 	rep = g.s.run()
-	check(t, "decayed header warned", contains(rep.Warnings, "on the HSTS preload list but the served header no longer meets"), true)
+	check(t, "decayed header warned", contains(rep.Warnings, "on the HSTS preload list but the served header does not meet"), true)
 
 	// Not on the list but the header claims preload without meeting the bar.
 	g = googleScenario(t)
