@@ -120,3 +120,28 @@ func TestAssessCAA_WildcardUsesIssuewild(t *testing.T) {
 	check(t, "apex non-wildcard permitted", *rep.Hosts["apex"].Permitted, true)
 	check(t, "www wildcard forbidden", *rep.Hosts["www"].Permitted, false)
 }
+
+// "Any CA may issue" is a security-relevant all-clear and must come from a
+// zone that answered, never from a query that failed.
+func TestAssessCAA_UnansweredIsNotUnrestricted(t *testing.T) {
+	cert := servedCert{issuer: "Let's Encrypt"}
+	rep := assessCAA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusTimeout}, cert, cert)
+	for _, host := range []string{"apex", "www"} {
+		v := rep.Hosts[host]
+		check(t, host+": no verdict", v.Permitted == nil, true)
+		check(t, host+": says why", v.Note, "the CAA lookup did not complete, so no restriction can be ruled out")
+	}
+
+	// A zone that answered with no CAA really is unrestricted.
+	answered := assessCAA(Lookup{Status: StatusNXRRSet}, Lookup{Status: StatusNXRRSet}, cert, cert)
+	check(t, "answered absence permits", *answered.Hosts["apex"].Permitted, true)
+	check(t, "and says so", answered.Hosts["apex"].Note, "no CAA records; any CA may issue")
+
+	// www must not inherit the apex policy on the strength of a failed
+	// lookup: we do not know what www publishes.
+	apex := Lookup{Status: StatusOK, Records: []string{`0 issue "ssl.com"`}}
+	mixed := assessCAA(apex, Lookup{Status: StatusTimeout}, cert, cert)
+	check(t, "no climb from a failed lookup", mixed.Hosts["www"].Effective, []string{})
+	check(t, "www unknown", mixed.Hosts["www"].Permitted == nil, true)
+	check(t, "apex still judged", *mixed.Hosts["apex"].Permitted, false)
+}

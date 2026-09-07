@@ -291,6 +291,17 @@ empty, and an object is omitted only when the whole check did not apply
 known to compare it against, `tls` when 443 did not answer, `quic` when
 quicprobe was not run).
 
+The same rule governs three checks whose absence is only meaningful once
+observed. A `_dmarc` lookup that did not complete sets `mail.dmarc.unresolved`
+and warns that the lookup did not complete, rather than reporting no DMARC
+record. A CAA lookup that did not complete leaves `permitted` null with a
+note, because "any CA may issue" is a security-relevant all-clear that must
+never be derived from a failed query; for the same reason `www` only
+inherits the apex CAA policy when `www` itself answered that it publishes
+none. A TLSA lookup that did not complete reports `result: unknown` with
+`signed` false, rather than `none`, which would claim the domain has no
+DANE.
+
 The exception is the aggregates over the audited server set, which are
 `null` when nothing was audited: `serials_consistent` is null when no
 nameserver answered authoritatively, and `ipv4_prefixes_24` /

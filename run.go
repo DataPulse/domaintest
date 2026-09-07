@@ -709,6 +709,11 @@ func assessTLSA(apexRec, wwwRec Lookup, web WebSection) *TLSAReport {
 	rep := &TLSAReport{Apex: nonNil(apexRec.Records), WWW: nonNil(wwwRec.Records), Result: TLSANone}
 	rep.Signed = tlsaSigned(apexRec) && tlsaSigned(wwwRec)
 	if len(apexRec.Records)+len(wwwRec.Records) == 0 {
+		// No records and no answer is not "this domain has no DANE": the
+		// absence has to be observed before it can be reported.
+		if !apexRec.Answered() || !wwwRec.Answered() {
+			rep.Result, rep.Signed = TLSAUnknown, false
+		}
 		return rep
 	}
 	anyMatch, anyChecked := false, false

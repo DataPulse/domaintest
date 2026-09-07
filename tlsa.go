@@ -13,6 +13,7 @@ import (
 // TLSA outcomes per address.
 const (
 	TLSANone     = "none"
+	TLSAUnknown  = "unknown" // a lookup did not complete: absence was never observed
 	TLSAMatch    = "match"
 	TLSAMismatch = "mismatch"
 )

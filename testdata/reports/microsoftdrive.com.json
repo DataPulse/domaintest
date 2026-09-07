@@ -77,7 +77,7 @@
       "ns2.dnsowl.com.",
       "ns3.dnsowl.com."
     ],
-    "parent_server": "b.gtld-servers.net",
+    "parent_server": "m.gtld-servers.net",
     "child_ns": [
       "ns1.dnsowl.com.",
       "ns2.dnsowl.com.",
@@ -129,7 +129,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2000,
+            "handshake_ms": 2001,
             "error": "context deadline exceeded"
           }
         },
@@ -291,7 +291,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2001,
+            "handshake_ms": 2000,
             "error": "context deadline exceeded"
           }
         },
@@ -409,6 +409,7 @@
   "mail": {
     "dmarc": {
       "present": false,
+      "unresolved": false,
       "pct": 100,
       "rua": false,
       "records": 0,
@@ -595,10 +596,10 @@
   },
   "wildcard": {
     "status": "absent",
-    "determined_by": "the random name dlcmthvhxeqg is denied",
+    "determined_by": "the random name ihmwvjnoumnu is denied",
     "probes": [
       {
-        "label": "dlcmthvhxeqg",
+        "label": "ihmwvjnoumnu",
         "status": "denied",
         "addresses": []
       }
@@ -617,5 +618,5 @@
     "all IPv6 nameserver addresses share one /48"
   ],
   "ok": true,
-  "elapsed_ms": 3591
+  "elapsed_ms": 3110
 }

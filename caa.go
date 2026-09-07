@@ -147,10 +147,14 @@ type servedCert struct {
 // caaVerdict judges one served certificate against the CAA records that
 // apply to its host. Without CAA records any CA may issue (permitted
 // true, RFC 8659 §4).
-func caaVerdict(published, effective []string, cert servedCert) *CAAVerdict {
-	v := &CAAVerdict{Published: nonNil(published), Effective: nonNil(effective), Issuer: cert.issuer}
+func caaVerdict(rec Lookup, effective []string, cert servedCert) *CAAVerdict {
+	v := &CAAVerdict{Published: nonNil(rec.Records), Effective: nonNil(effective), Issuer: cert.issuer}
 	parsed := parseCAA(effective)
 	switch {
+	case !rec.Answered() && len(effective) == 0:
+		// "Any CA may issue" is a security-relevant all-clear, and it must
+		// come from a zone that answered, never from a query that failed.
+		v.Note = "the CAA lookup did not complete, so no restriction can be ruled out"
 	case cert.issuer == "":
 		v.Note = "no certificate observed"
 	case len(parsed) == 0:
@@ -173,12 +177,15 @@ func boolPtr(b bool) *bool { return &b }
 // is governed by its own records when it publishes any, otherwise by the
 // apex set, since RFC 8659 climbs to the closest ancestor with a CAA set.
 func assessCAA(apexRec, wwwRec Lookup, apexCert, wwwCert servedCert) CAAReport {
+	// The climb to the parent is only legitimate when www actually
+	// answered that it has no CAA of its own. A lookup that failed tells
+	// us nothing about what www publishes.
 	wwwEffective := wwwRec.Records
-	if len(wwwEffective) == 0 {
+	if len(wwwEffective) == 0 && wwwRec.Answered() {
 		wwwEffective = apexRec.Records
 	}
 	return CAAReport{Hosts: map[string]*CAAVerdict{
-		"apex": caaVerdict(apexRec.Records, apexRec.Records, apexCert),
-		"www":  caaVerdict(wwwRec.Records, wwwEffective, wwwCert),
+		"apex": caaVerdict(apexRec, apexRec.Records, apexCert),
+		"www":  caaVerdict(wwwRec, wwwEffective, wwwCert),
 	}}
 }

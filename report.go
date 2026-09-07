@@ -693,6 +693,8 @@ func (f *findings) mailFindings(m *MailReport) {
 
 func (f *findings) dmarcFindings(d DMARC) {
 	switch {
+	case d.Unresolved:
+		f.warningf("the DMARC lookup did not complete, so whether a record exists is unknown")
 	case !d.Present:
 		f.warningf("no DMARC record")
 		return

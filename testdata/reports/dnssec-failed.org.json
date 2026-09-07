@@ -62,7 +62,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "d0.org.afilias-nst.org",
+    "parent_server": "b2.org.afilias-nst.org",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -70,12 +70,13 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns101.comcast.net"
+    "child_server": "dns104.comcast.net"
   },
   "web": {},
   "mail": {
     "dmarc": {
       "present": false,
+      "unresolved": true,
       "pct": 100,
       "rua": false,
       "records": 0,
@@ -213,12 +214,12 @@
       "apex": {
         "published": [],
         "effective": [],
-        "note": "no certificate observed"
+        "note": "the CAA lookup did not complete, so no restriction can be ruled out"
       },
       "www": {
         "published": [],
         "effective": [],
-        "note": "no certificate observed"
+        "note": "the CAA lookup did not complete, so no restriction can be ruled out"
       }
     }
   },
@@ -226,14 +227,14 @@
     "apex": [],
     "www": [],
     "signed": false,
-    "result": "none"
+    "result": "unknown"
   },
   "wildcard": {
     "status": "unknown",
-    "determined_by": "the lookup for the random name prqprcnjcmsl did not complete",
+    "determined_by": "the lookup for the random name lkklsjkidzhq did not complete",
     "probes": [
       {
-        "label": "prqprcnjcmsl",
+        "label": "lkklsjkidzhq",
         "status": "unresolved",
         "addresses": []
       }
@@ -247,8 +248,9 @@
     "DNSSEC validation fails (bogus): resolver fails validation but data exists with checking disabled"
   ],
   "warnings": [
-    "no DMARC record"
+    "the DMARC lookup did not complete, so whether a record exists is unknown",
+    "TLSA records are published in an unsigned zone (DANE clients ignore them)"
   ],
   "ok": false,
-  "elapsed_ms": 958
+  "elapsed_ms": 964
 }

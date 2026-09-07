@@ -87,3 +87,18 @@ func TestTLSAMatches_UsagesSelectorsMatching(t *testing.T) {
 	check(t, "wrong data", tlsaMatches(tlsaRecord{Usage: 3, Selector: 1, Matching: 1, Data: []byte{1, 2, 3}}, chain, true), false)
 	_ = hex.EncodeToString
 }
+
+// A TLSA lookup that never answered is not a domain without DANE, and the
+// signed flag must not claim a validated denial we never received.
+func TestAssessTLSA_UnansweredIsNotAbsence(t *testing.T) {
+	web := WebSection{}
+	unk := assessTLSA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusTimeout}, web)
+	check(t, "unknown, not none", unk.Result, TLSAUnknown)
+	check(t, "no validated denial claimed", unk.Signed, false)
+
+	// A signed zone denying the records is a real, useful absence.
+	denied := Lookup{Status: StatusNXRRSet, Trust: TrustSecure}
+	none := assessTLSA(denied, denied, web)
+	check(t, "absence observed", none.Result, TLSANone)
+	check(t, "and it was validated", none.Signed, true)
+}

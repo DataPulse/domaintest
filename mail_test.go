@@ -347,3 +347,24 @@ func TestProbeDKIM_WildcardControl(t *testing.T) {
 	check(t, "both selectors found", res.SelectorsFound, []string{"selector1", "selector2"})
 	check(t, "only the empty one is revoked", res.Revoked, []string{"selector2"})
 }
+
+// Absence has to be observed. A _dmarc lookup that never answered must not
+// produce "no DMARC record", the same rule already applied to the MX and
+// SPF presence warnings beside it.
+func TestParseDMARC_UnansweredIsNotAbsence(t *testing.T) {
+	for _, st := range []LookupStatus{StatusTimeout, StatusFailure} {
+		d := parseDMARC(Lookup{Status: st})
+		check(t, "unresolved: "+string(st), d.Unresolved, true)
+		check(t, "not asserted present", d.Present, false)
+		f := &findings{}
+		f.dmarcFindings(d)
+		check(t, "says the lookup did not complete", contains(f.warnings, "the DMARC lookup did not complete"), true)
+		check(t, "does not claim absence", contains(f.warnings, "no DMARC record"), false)
+	}
+	// A definite denial is still absence.
+	denied := parseDMARC(Lookup{Status: StatusNXRRSet})
+	check(t, "denial is not unresolved", denied.Unresolved, false)
+	g := &findings{}
+	g.dmarcFindings(denied)
+	check(t, "absence reported", contains(g.warnings, "no DMARC record"), true)
+}

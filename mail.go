@@ -23,6 +23,7 @@ type lookupFn func(name, qtype string) Lookup
 // DMARC is the parsed _dmarc policy.
 type DMARC struct {
 	Present         bool     `json:"present"`
+	Unresolved      bool     `json:"unresolved"` // the lookup did not complete: absence was never observed
 	Policy          string   `json:"policy,omitempty"`
 	SubdomainPolicy string   `json:"subdomain_policy,omitempty"`
 	Pct             int      `json:"pct"`
@@ -33,7 +34,7 @@ type DMARC struct {
 
 // parseDMARC evaluates the TXT records found at _dmarc.<domain>.
 func parseDMARC(l Lookup) DMARC {
-	d := DMARC{Pct: 100, Problems: []string{}}
+	d := DMARC{Pct: 100, Problems: []string{}, Unresolved: l.Status != "" && !l.Answered()}
 	var dmarc []string
 	for _, r := range l.Records {
 		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(r)), "v=dmarc1") {

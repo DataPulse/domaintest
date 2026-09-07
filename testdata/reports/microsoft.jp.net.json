@@ -20,23 +20,32 @@
         "retries": 1
       },
       "AAAA": {
-        "status": "timeout",
-        "error": "delv timed out",
+        "status": "nxrrset",
+        "trust": "insecure",
         "retries": 1
       },
       "MX": {
-        "status": "timeout",
-        "error": "delv timed out",
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "0 ."
+        ],
         "retries": 1
       },
       "NS": {
-        "status": "timeout",
-        "error": "delv timed out",
-        "retries": 1
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "dns1.onamae.com.",
+          "dns2.onamae.com."
+        ]
       },
       "TXT": {
-        "status": "timeout",
-        "error": "delv timed out",
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "v=spf1 -all"
+        ],
         "retries": 1
       }
     },
@@ -46,12 +55,11 @@
         "trust": "insecure",
         "records": [
           "150.95.255.38"
-        ],
-        "retries": 1
+        ]
       },
       "AAAA": {
-        "status": "timeout",
-        "error": "delv timed out",
+        "status": "nxrrset",
+        "trust": "insecure",
         "retries": 1
       }
     },
@@ -66,13 +74,18 @@
     "dnskey": false
   },
   "delegation": {
-    "status": "no_child_answer",
+    "status": "match",
     "parent_ns": [
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
     "parent_server": "ns3.centralnic.net",
-    "error": "communications error to 163.44.76.150#53: timed out; communications error to 163.44.76.136#53: timed out; no servers could be reached"
+    "child_ns": [
+      "dns1.onamae.com.",
+      "dns2.onamae.com."
+    ],
+    "child_server": "dns2.onamae.com",
+    "error": "communications error to 163.44.76.136#53: timed out"
   },
   "web": {
     "apex": {
@@ -142,6 +155,7 @@
   "mail": {
     "dmarc": {
       "present": true,
+      "unresolved": false,
       "policy": "reject",
       "pct": 100,
       "rua": false,
@@ -149,13 +163,24 @@
       "problems": []
     },
     "spf": {
-      "records": 0,
+      "records": 1,
       "lookups": 0,
       "void_lookups": 0,
+      "all": "-all",
       "includes": [],
       "problems": []
     },
-    "mx": [],
+    "mx": [
+      {
+        "host": ".",
+        "preference": 0,
+        "addresses": 0,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      }
+    ],
     "dkim": {
       "wildcard": false,
       "selectors_found": [],
@@ -178,7 +203,7 @@
         "aa": true,
         "rcode": "NOERROR",
         "serial": 16777216,
-        "tcp": false,
+        "tcp": true,
         "edns": true
       },
       {
@@ -216,26 +241,28 @@
     "apex": [],
     "www": [],
     "signed": false,
-    "result": "none"
+    "result": "unknown"
   },
   "wildcard": {
     "status": "unknown",
-    "determined_by": "the lookup for the random name xadshbodiacy did not complete",
+    "determined_by": "the lookup for the random name iqupodpupjfe did not complete",
     "probes": [
       {
-        "label": "wtqmxgofihlm",
+        "label": "zcpokuddgaue",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "xadshbodiacy",
-        "status": "unresolved",
-        "addresses": []
+        "label": "ecuhpexfaxsn",
+        "status": "answered",
+        "addresses": [
+          "150.95.255.38"
+        ]
       },
       {
-        "label": "plxltozdtcvp",
+        "label": "iqupodpupjfe",
         "status": "unresolved",
         "addresses": []
       }
@@ -246,22 +273,19 @@
   },
   "hsts_preload": "absent",
   "errors": [
-    "apex AAAA lookup timed out",
-    "apex MX lookup timed out",
-    "apex TXT lookup timed out",
-    "apex NS lookup timed out",
-    "www AAAA lookup timed out",
-    "delegated NS servers did not answer the NS query: communications error to 163.44.76.150#53: timed out; communications error to 163.44.76.136#53: timed out; no servers could be reached",
     "nameserver dns2.onamae.com.: no answer on 1 of 1 addresses"
   ],
   "warnings": [
+    "apex has no AAAA record",
+    "www has no AAAA record",
+    "apex publishes a null MX (RFC 7505): accepts no mail",
     "apex 150.95.255.38: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
     "www 150.95.255.38: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
     "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
     "www: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
-    "nameserver dns1.onamae.com. (163.44.76.136): no answer over TCP",
-    "all IPv4 nameserver addresses share one /24"
+    "all IPv4 nameserver addresses share one /24",
+    "TLSA records are published in an unsigned zone (DANE clients ignore them)"
   ],
   "ok": false,
-  "elapsed_ms": 13012
+  "elapsed_ms": 13008
 }
