@@ -203,3 +203,18 @@ func TestCheckGlue(t *testing.T) {
 	out := checkGlue(parseDigYAML(fixture(t, "dig/jschmidt_at_org_referral.yaml")), "jschmidt.org", map[string][]netip.Addr{"ns-507.awsdns-63.com.": {netip.MustParseAddr("205.251.193.251")}})
 	check(t, "out-of-bailiwick needs no glue", len(out.Required), 0)
 }
+
+// no_soa says the zone has no SOA at that server. A truncated UDP answer
+// looks the same in the first message and is not the same fact: the record
+// is there, it did not fit, and the TCP query carries it.
+func TestInterpretAudit_TruncatedIsNotMissingSOA(t *testing.T) {
+	answer := digMessage{Status: "NOERROR", Flags: []string{"qr", "aa"}}
+	var s NSServer
+	interpretAudit(&s, []digMessage{answer, {Status: "NOERROR"}})
+	check(t, "no SOA is recorded", s.NoSOA, true)
+
+	truncated := digMessage{Status: "NOERROR", Flags: []string{"qr", "aa", "tc"}}
+	var tc NSServer
+	interpretAudit(&tc, []digMessage{truncated, {Status: "NOERROR"}})
+	check(t, "truncation is not a missing SOA", tc.NoSOA, false)
+}

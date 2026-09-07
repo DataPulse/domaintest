@@ -197,9 +197,11 @@ func interpretAudit(s *NSServer, msgs []digMessage) {
 	s.EDNS = udp.OPT
 	if soa := udp.records("SOA"); len(soa) > 0 {
 		s.Serial = soaSerial(soa[0].RData)
-	} else if s.AA {
+	} else if s.AA && !udp.hasFlag("tc") {
 		// The server answered authoritatively and still sent no SOA, so
 		// there is no serial to report rather than one we failed to read.
+		// A truncated answer is excluded: the SOA is there, it did not fit
+		// in the UDP response, and the TCP query below carries it.
 		s.NoSOA = true
 	}
 	s.TCP = len(msgs) > 1 && msgs[1].Error == "" && msgs[1].Status == "NOERROR"
