@@ -58,3 +58,35 @@ func requireTool(explicit, name string) (string, error) {
 	}
 	return path, nil
 }
+
+// limitedRunner caps how many external DNS tools run at once. One run
+// makes about 40 delv invocations and can have 18 or more in flight, each
+// validating DNSSEC in its own process; several runs at once on a small
+// host miss their deadlines through scheduling delay alone, with the
+// resolver still idle. The cap bounds the fan-out inside a run so callers
+// keep their own parallelism.
+type limitedRunner struct {
+	inner Runner
+	sem   chan struct{}
+}
+
+// limitRunner wraps r to allow at most n concurrent executions. n <= 0
+// means unlimited, and returns r unchanged.
+func limitRunner(r Runner, n int) Runner {
+	if n <= 0 {
+		return r
+	}
+	return &limitedRunner{inner: r, sem: make(chan struct{}, n)}
+}
+
+func (l *limitedRunner) Run(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+	select {
+	case l.sem <- struct{}{}:
+		defer func() { <-l.sem }()
+	case <-ctx.Done():
+		// Waiting for a slot is bounded by the caller's budget, so a
+		// saturated host degrades to timeouts rather than queueing forever.
+		return nil, nil, fmt.Errorf("%s: %w", name, ctx.Err())
+	}
+	return l.inner.Run(ctx, name, args...)
+}

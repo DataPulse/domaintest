@@ -4,7 +4,7 @@ Checks the technical configuration of a domain name and prints one compact
 JSON report.
 
 ```
-domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
+domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
 domaintest -warm-hsts-cache
 ```
 
@@ -204,7 +204,7 @@ Single-line JSON on stdout (`-pretty` indents). Top-level keys: `domain`,
 `tcp_timeout_sec`, `quic_timeout_sec`, `not_a_zone` and `enclosing_zone`
 (hosts only), `dns`, `dnssec`, `delegation`, `web`, `mail`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
-`reserved_addresses` (when any), `hsts_preload`,
+`dns_concurrency`, `reserved_addresses` (when any), `hsts_preload`,
 `hsts_preload_covered_by` and `hsts_preload_error` (unless disabled),
 `errors`, `warnings`, `ok`, `elapsed_ms`.
 
@@ -259,6 +259,27 @@ glue mismatch, TLSA in an unsigned zone, and www answered by a wildcard.
 The SOA drift warning names each nameserver with the address that answered,
 `ns1.example.(192.0.2.1)=9957`, since which address disagrees is the point.
 Warning and error strings are stable; key on them by prefix.
+
+## DNS concurrency
+
+One run makes about 40 `delv` invocations and wants roughly 18 of them in
+flight at once, each validating DNSSEC in its own process. That is free on
+a workstation and ruinous on a small host running several domains at once:
+on a two-vCPU worker at five concurrent runs the lookups miss their
+deadlines through scheduling delay alone, with the resolver still idle.
+
+`-dns-concurrency` caps how many DNS tool processes one run may have
+running, so a caller keeps its own job-level parallelism instead of
+trading it away. The default is twice the CPU count with a floor of 4,
+which leaves a large machine effectively unbounded and protects a small
+one without anyone passing a flag; `0` restores the old unlimited
+behaviour. The value in force is echoed as `dns_concurrency` in the
+report. Waiting for a slot is bounded by the same budget as the lookup
+itself, so a saturated host degrades to ordinary timeouts.
+
+The cap covers `delv` and `dig` only. `quicprobe` waits on the network
+rather than competing for CPU, and queueing it behind DNS work would cost
+QUIC answers for nothing.
 
 ## Timeouts
 

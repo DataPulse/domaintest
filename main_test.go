@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -303,4 +304,30 @@ func TestRealMain_WarmMode(t *testing.T) {
 	check(t, "exit 2 on failure", rc, 2)
 	check(t, "reason on stderr", strings.Contains(errBuf.String(), "fetch failed"), true)
 	check(t, "resolver scrubbed", strings.Contains(errBuf.String(), "10.0.0.2"), false)
+}
+
+func TestParseArgs_DNSConcurrency(t *testing.T) {
+	cfg, err := parseArgs([]string{"example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "default is CPU-scaled", cfg.DNSConcurrency, defaultDNSConcurrency())
+	check(t, "default never below 4", defaultDNSConcurrency() >= 4, true)
+	check(t, "default is even multiple of CPUs or the floor", defaultDNSConcurrency() == maxInt(4, 2*runtime.NumCPU()), true)
+
+	cfg, err = parseArgs([]string{"-dns-concurrency", "3", "example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "explicit cap", cfg.DNSConcurrency, 3)
+
+	cfg, err = parseArgs([]string{"-dns-concurrency", "0", "example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "zero means unlimited", cfg.DNSConcurrency, 0)
+
+	if _, err := parseArgs([]string{"-dns-concurrency", "-2", "example.com"}); err == nil {
+		t.Error("a negative cap should be rejected")
+	}
 }

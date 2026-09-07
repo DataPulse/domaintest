@@ -7,6 +7,7 @@
   ],
   "timeout_sec": 3,
   "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
   "quic_timeout_sec": 2,
   "dns": {
     "apex": {
@@ -72,14 +73,14 @@
       "ns-2001.awsdns-58.co.uk.",
       "ns-507.awsdns-63.com."
     ],
-    "parent_server": "c0.org.afilias-nst.info",
+    "parent_server": "a2.org.afilias-nst.info",
     "child_ns": [
       "ns-1013.awsdns-62.net.",
       "ns-1034.awsdns-01.org.",
       "ns-2001.awsdns-58.co.uk.",
       "ns-507.awsdns-63.com."
     ],
-    "child_server": "ns-507.awsdns-63.com"
+    "child_server": "ns-1013.awsdns-62.net"
   },
   "web": {},
   "mail": {
@@ -256,5 +257,5 @@
     "www has no A or AAAA records"
   ],
   "ok": true,
-  "elapsed_ms": 707
+  "elapsed_ms": 760
 }

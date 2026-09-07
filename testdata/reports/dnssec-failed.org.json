@@ -7,6 +7,7 @@
   ],
   "timeout_sec": 3,
   "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
   "quic_timeout_sec": 2,
   "dns": {
     "apex": {
@@ -61,7 +62,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "c0.org.afilias-nst.info",
+    "parent_server": "b2.org.afilias-nst.org",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -69,8 +70,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns101.comcast.net",
-    "error": "communications error to 192.36.148.17#53: timed out"
+    "child_server": "dns103.comcast.net"
   },
   "web": {},
   "mail": {
@@ -239,5 +239,5 @@
     "no DMARC record"
   ],
   "ok": false,
-  "elapsed_ms": 1571
+  "elapsed_ms": 946
 }

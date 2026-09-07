@@ -628,3 +628,23 @@ func TestRun_ExhaustedDNSBudgetDoesNotPoisonLateLookups(t *testing.T) {
 	check(t, "mx still resolved", rep.Mail.MX[0].Addresses, 8)
 	check(t, "no bogus 'no address' errors", contains(rep.Errors, "has no address"), false)
 }
+
+// With a cap of one, every DNS tool runs in turn and the report is the
+// same as the uncapped one; quicprobe is deliberately not capped.
+func TestRun_DNSConcurrencyCap(t *testing.T) {
+	s := jschmidtScenario(t)
+	s.cfg.DNSConcurrency = 1
+	rep := s.run()
+	check(t, "still healthy", rep.Errors, []string{})
+	check(t, "dnssec", rep.DNSSEC.State, DNSSECSecure)
+	check(t, "delegation", rep.Delegation.Status, DelegationMatch)
+	check(t, "nameservers audited", len(rep.Nameservers.Servers), 8)
+	check(t, "mail evaluated", rep.Mail.DMARC.Policy, "quarantine")
+	check(t, "cap echoed in the report", rep.DNSConcurrency, 1)
+
+	uncapped := jschmidtScenario(t)
+	full := uncapped.run()
+	check(t, "same errors", rep.Errors, full.Errors)
+	check(t, "same warnings", rep.Warnings, full.Warnings)
+	check(t, "same NS verdicts", len(rep.Nameservers.Servers), len(full.Nameservers.Servers))
+}

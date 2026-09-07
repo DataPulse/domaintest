@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +36,7 @@ const (
 	defaultTimeoutSec     = 3
 	defaultTCPTimeoutSec  = 2
 	defaultQuicTimeoutSec = 2
-	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache"
+	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache"
 )
 
 // config is the parsed command line.
@@ -50,6 +51,7 @@ type config struct {
 	// in full by every non-QUIC site.
 	QuicTimeoutSec int
 	TCPTimeoutSec  int
+	DNSConcurrency int    // most delv/dig processes at once; 0 is unlimited
 	HSTSPreload    bool   // consult the HSTS preload list (on by default; -no-hsts-preload disables)
 	HSTSCache      string // path to the cached preload list; "-" disables caching
 	WarmHSTSCache  bool   // populate the cache and exit
@@ -122,7 +124,7 @@ func (r resolver) String() string {
 }
 
 // valueFlags take an argument, so the token after them is not positional.
-var valueFlags = map[string]bool{"-t": true, "-tcp-timeout": true, "-quic-timeout": true, "-quicprobe": true, "-delv": true, "-dig": true, "-hsts-cache": true}
+var valueFlags = map[string]bool{"-t": true, "-tcp-timeout": true, "-quic-timeout": true, "-dns-concurrency": true, "-quicprobe": true, "-delv": true, "-dig": true, "-hsts-cache": true}
 
 // splitArgs separates argv into flag tokens, the @server and positionals so
 // that, like dig, the domain and @server may appear anywhere.
@@ -195,6 +197,9 @@ func domainConfig(cfg config, positional []string) (config, error) {
 	if err := validateTimeouts(cfg); err != nil {
 		return config{}, err
 	}
+	if cfg.DNSConcurrency < 0 {
+		return config{}, errors.New("-dns-concurrency must be zero (unlimited) or positive")
+	}
 	var err error
 	cfg.Domain, cfg.UnicodeDomain, err = normalizeDomain(positional[0])
 	if err != nil {
@@ -214,6 +219,7 @@ func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
 	fs.IntVar(&cfg.TimeoutSec, "t", defaultTimeoutSec, "per-probe timeout in seconds")
 	fs.IntVar(&cfg.QuicTimeoutSec, "quic-timeout", defaultQuicTimeoutSec, "QUIC handshake timeout in seconds")
 	fs.IntVar(&cfg.TCPTimeoutSec, "tcp-timeout", defaultTCPTimeoutSec, "TCP connect timeout in seconds")
+	fs.IntVar(&cfg.DNSConcurrency, "dns-concurrency", defaultDNSConcurrency(), "most DNS tool processes to run at once (0 for unlimited)")
 	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
 	fs.StringVar(&cfg.HSTSCache, "hsts-cache", "", "path to the cached HSTS preload list (default: user cache dir; \"-\" disables caching)")
 	fs.BoolVar(&cfg.WarmHSTSCache, "warm-hsts-cache", false, "populate the HSTS preload cache and exit")
@@ -221,6 +227,15 @@ func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
 	fs.StringVar(&cfg.DelvPath, "delv", "", "path to delv")
 	fs.StringVar(&cfg.DigPath, "dig", "", "path to dig")
 	return fs, only4, only6, noPreload
+}
+
+// defaultDNSConcurrency scales the DNS fan-out to the machine: twice the
+// CPU count, never below 4. A run wants about 18 lookups in flight, which
+// is fine on a workstation and ruinous on a two-vCPU host running several
+// domains at once, so the default protects the small host and leaves the
+// large one effectively unbounded.
+func defaultDNSConcurrency() int {
+	return maxInt(4, 2*runtime.NumCPU())
 }
 
 // validateTimeouts rejects non-positive budgets.

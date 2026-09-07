@@ -154,6 +154,7 @@ func baseConfig(domain, server string) config {
 		TimeoutSec:     5,
 		TCPTimeoutSec:  defaultTCPTimeoutSec,
 		QuicTimeoutSec: defaultQuicTimeoutSec,
+		DNSConcurrency: 0, // unlimited unless a test caps it
 		HSTSCache:      noCachePath,
 		DelvPath:       "delv",
 		DigPath:        "dig",

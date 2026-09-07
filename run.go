@@ -88,20 +88,25 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	start := time.Now()
 	rep := newReport(cfg)
 
+	// The DNS tools are capped together; quicprobe is left alone because it
+	// waits on the network rather than competing for CPU, and queueing it
+	// behind delv would only cost QUIC answers.
+	dnsRunner := limitRunner(r, cfg.DNSConcurrency)
+
 	var dns dnsResults
 	parallel(
-		func() { rep.Delegation = runTrace(ctx, cfg, r) },
-		func() { dns = gatherDNS(ctx, cfg, r) },
+		func() { rep.Delegation = runTrace(ctx, cfg, dnsRunner) },
+		func() { dns = gatherDNS(ctx, cfg, dnsRunner) },
 	)
 	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach}
-	classifyZone(rep, cfg, dns, r)
+	classifyZone(rep, cfg, dns, dnsRunner)
 
 	probeCtx, cancel := context.WithTimeout(ctx, probeBudget(cfg))
 	defer cancel()
 	dns.cache.setContext(probeCtx) // late lookups share the probe budget
 	parallel(
 		func() { rep.Web = probeWeb(probeCtx, cfg, r, d, dns, rep) },
-		func() { rep.Nameservers = auditNameservers(probeCtx, cfg, r, dns, rep) },
+		func() { rep.Nameservers = auditNameservers(probeCtx, cfg, dnsRunner, dns, rep) },
 		func() { rep.Mail = assessMail(probeCtx, cfg, dns, rep.NotAZone) },
 		func() {
 			rep.HSTSPreload, rep.HSTSPreloadCoveredBy, rep.HSTSPreloadError = checkPreload(probeCtx, cfg)
@@ -124,6 +129,7 @@ func newReport(cfg config) *Report {
 		TimeoutSec:     cfg.TimeoutSec,
 		TCPTimeoutSec:  cfg.TCPTimeoutSec,
 		QuicTimeoutSec: cfg.QuicTimeoutSec,
+		DNSConcurrency: cfg.DNSConcurrency,
 	}
 }
 

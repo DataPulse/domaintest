@@ -39,6 +39,7 @@ type Report struct {
 	Families             []string        `json:"families"`
 	TimeoutSec           int             `json:"timeout_sec"`
 	TCPTimeoutSec        int             `json:"tcp_timeout_sec"`
+	DNSConcurrency       int             `json:"dns_concurrency"`
 	QuicTimeoutSec       int             `json:"quic_timeout_sec"`
 	DNS                  DNSSection      `json:"dns"`
 	DNSSEC               DNSSECReport    `json:"dnssec"`
