@@ -61,7 +61,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "a2.org.afilias-nst.info",
+    "parent_server": "c0.org.afilias-nst.info",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -69,7 +69,8 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns103.comcast.net"
+    "child_server": "dns101.comcast.net",
+    "error": "communications error to 192.36.148.17#53: timed out"
   },
   "web": {},
   "mail": {
@@ -206,16 +207,15 @@
     "unresolvable": []
   },
   "caa": {
-    "apex": [],
-    "www": [],
-    "note": "no certificate observed",
     "hosts": {
       "apex": {
-        "records": [],
+        "published": [],
+        "effective": [],
         "note": "no certificate observed"
       },
       "www": {
-        "records": [],
+        "published": [],
+        "effective": [],
         "note": "no certificate observed"
       }
     }
@@ -239,5 +239,5 @@
     "no DMARC record"
   ],
   "ok": false,
-  "elapsed_ms": 936
+  "elapsed_ms": 1571
 }

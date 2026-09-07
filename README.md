@@ -117,16 +117,21 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     the MX set (problems are errors in `enforce` mode, warnings otherwise);
     TLS-RPT presence. A null MX is reported as "accepts no mail". No SMTP
     connection is made. No finding ever names the resolver used.
-11. **CAA** (`caa`): records at the apex and www (www falls back to the
-    apex records when it has none, as RFC 8659 climbs) are compared per
-    host with the issuer of the certificate that host actually served,
-    using a table of CA organisations to CAA identifiers. `caa.hosts.apex`
-    and `caa.hosts.www` each carry `records`, `issuer`, `permitted` and
-    `note`; the top-level `issuer`, `permitted` and `note` mirror the apex
-    verdict. `permitted` is true when there are no CAA records (any CA may
-    issue) and absent only when nothing could be judged: no certificate
-    observed, or an issuer not in the table (the note says which). A CA
-    the records forbid is an error per host.
+11. **CAA** (`caa`): the certificate each host actually served is compared
+    with the CAA records that govern that host, using a table of CA
+    organisations to CAA identifiers. `caa` holds nothing but `hosts`, with
+    one verdict for `apex` and one for `www`, so no value can be read as
+    the domain's when it is only the apex's. Each verdict carries
+    `published` (the records at that name, empty when it publishes none),
+    `effective` (the set that governs it after RFC 8659 climbs to the
+    closest ancestor with a CAA set, so a www without records shows the
+    apex set here), `issuer`, `permitted` and `note`. `permitted` is true
+    when no records govern the name, since any CA may then issue, and
+    absent only when nothing could be judged: no certificate observed, or
+    an issuer not in the table, with the note saying which. A wildcard
+    certificate is checked against `issuewild` when the set has one, so a
+    CA allowed to issue may still be forbidden to issue wildcards. A CA
+    the records forbid is an error naming the host.
 12. **DANE / TLSA** (`tlsa`): `_443._tcp.` records for apex and www are
     matched against every address's served chain per usage, selector and
     matching type. No match anywhere is an error; records in an unsigned
@@ -251,6 +256,8 @@ under 180 days, broken redirect chains, missing DMARC or `p=none` or
 without SPF, revoked DKIM keys, MTA-STS problems in testing mode,
 nameservers without TCP or EDNS, SOA serial drift, low prefix diversity,
 glue mismatch, TLSA in an unsigned zone, and www answered by a wildcard.
+The SOA drift warning names each nameserver with the address that answered,
+`ns1.example.(192.0.2.1)=9957`, since which address disagrees is the point.
 Warning and error strings are stable; key on them by prefix.
 
 ## Timeouts

@@ -75,25 +75,25 @@ func normalizeOrg(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// CAAVerdict is the cross-check for one hostname. Permitted is absent
-// only when nothing could be judged: no certificate was observed or the
-// issuer is not in the mapping table (the note says which).
+// CAAVerdict is the cross-check for one hostname. Published and Effective
+// are kept apart deliberately: a name that publishes no CAA records is
+// still governed by the closest ancestor that does (RFC 8659 §3), so
+// Published can be empty while Effective is not. Permitted is absent only
+// when nothing could be judged: no certificate was observed or the issuer
+// is not in the mapping table (the note says which).
 type CAAVerdict struct {
-	Records   []string `json:"records"`
+	Published []string `json:"published"` // records at this name
+	Effective []string `json:"effective"` // records that govern it after the climb
 	Issuer    string   `json:"issuer,omitempty"`
 	Permitted *bool    `json:"permitted,omitempty"`
 	Note      string   `json:"note,omitempty"`
 }
 
-// CAAReport is the caa section of the report. issuer, permitted and note
-// are the apex verdict; hosts carries the verdict for apex and www.
+// CAAReport is the caa section of the report: one verdict per host and
+// nothing else, so no value can be read as the domain's when it is only
+// the apex's.
 type CAAReport struct {
-	Apex      []string               `json:"apex"`
-	WWW       []string               `json:"www"`
-	Issuer    string                 `json:"issuer,omitempty"`
-	Permitted *bool                  `json:"permitted,omitempty"`
-	Note      string                 `json:"note,omitempty"`
-	Hosts     map[string]*CAAVerdict `json:"hosts"`
+	Hosts map[string]*CAAVerdict `json:"hosts"`
 }
 
 // caaPermits decides whether a CA (by its identifiers) may issue for a
@@ -147,9 +147,9 @@ type servedCert struct {
 // caaVerdict judges one served certificate against the CAA records that
 // apply to its host. Without CAA records any CA may issue (permitted
 // true, RFC 8659 §4).
-func caaVerdict(records []string, cert servedCert) *CAAVerdict {
-	v := &CAAVerdict{Records: nonNil(records), Issuer: cert.issuer}
-	parsed := parseCAA(records)
+func caaVerdict(published, effective []string, cert servedCert) *CAAVerdict {
+	v := &CAAVerdict{Published: nonNil(published), Effective: nonNil(effective), Issuer: cert.issuer}
+	parsed := parseCAA(effective)
 	switch {
 	case cert.issuer == "":
 		v.Note = "no certificate observed"
@@ -170,17 +170,15 @@ func caaVerdict(records []string, cert servedCert) *CAAVerdict {
 func boolPtr(b bool) *bool { return &b }
 
 // assessCAA builds the CAA report with one verdict per host. The www name
-// uses its own records when it has any, otherwise the apex records apply
-// (RFC 8659 climbs to the closest ancestor with a CAA set).
+// is governed by its own records when it publishes any, otherwise by the
+// apex set, since RFC 8659 climbs to the closest ancestor with a CAA set.
 func assessCAA(apexRec, wwwRec Lookup, apexCert, wwwCert servedCert) CAAReport {
-	wwwRecords := wwwRec.Records
-	if len(wwwRecords) == 0 {
-		wwwRecords = apexRec.Records
+	wwwEffective := wwwRec.Records
+	if len(wwwEffective) == 0 {
+		wwwEffective = apexRec.Records
 	}
-	hosts := map[string]*CAAVerdict{
-		"apex": caaVerdict(apexRec.Records, apexCert),
-		"www":  caaVerdict(wwwRecords, wwwCert),
-	}
-	a := hosts["apex"]
-	return CAAReport{Apex: nonNil(apexRec.Records), WWW: nonNil(wwwRec.Records), Issuer: a.Issuer, Permitted: a.Permitted, Note: a.Note, Hosts: hosts}
+	return CAAReport{Hosts: map[string]*CAAVerdict{
+		"apex": caaVerdict(apexRec.Records, apexRec.Records, apexCert),
+		"www":  caaVerdict(wwwRec.Records, wwwEffective, wwwCert),
+	}}
 }

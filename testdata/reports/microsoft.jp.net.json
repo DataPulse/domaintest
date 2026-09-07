@@ -15,7 +15,8 @@
         "trust": "insecure",
         "records": [
           "150.95.255.38"
-        ]
+        ],
+        "retries": 1
       },
       "AAAA": {
         "status": "nxrrset",
@@ -78,7 +79,8 @@
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "child_server": "dns2.onamae.com"
+    "child_server": "dns2.onamae.com",
+    "error": "communications error to 163.44.76.136#53: timed out"
   },
   "web": {
     "apex": {
@@ -198,11 +200,10 @@
       {
         "name": "dns2.onamae.com.",
         "ip": "163.44.76.150",
-        "aa": true,
-        "rcode": "NOERROR",
-        "serial": 16777216,
-        "tcp": true,
-        "edns": true
+        "aa": false,
+        "tcp": false,
+        "edns": false,
+        "error": "no servers could be reached"
       }
     ],
     "serials_consistent": true,
@@ -217,16 +218,15 @@
     "unresolvable": []
   },
   "caa": {
-    "apex": [],
-    "www": [],
-    "note": "no certificate observed",
     "hosts": {
       "apex": {
-        "records": [],
+        "published": [],
+        "effective": [],
         "note": "no certificate observed"
       },
       "www": {
-        "records": [],
+        "published": [],
+        "effective": [],
         "note": "no certificate observed"
       }
     }
@@ -245,7 +245,9 @@
     "www_via_wildcard": true
   },
   "hsts_preload": "absent",
-  "errors": [],
+  "errors": [
+    "nameserver dns2.onamae.com.: no servers could be reached on 1 of 1 addresses"
+  ],
   "warnings": [
     "apex has no AAAA record",
     "www has no AAAA record",
@@ -257,6 +259,6 @@
     "www: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
     "all IPv4 nameserver addresses share one /24"
   ],
-  "ok": true,
-  "elapsed_ms": 2731
+  "ok": false,
+  "elapsed_ms": 7096
 }

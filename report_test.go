@@ -373,8 +373,18 @@ func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
 	if nulls := regexp.MustCompile(`"([a-z_0-9]+)":null`).FindAllStringSubmatch(out, -1); len(nulls) > 0 {
 		t.Errorf("null values for keys: %v", nulls)
 	}
-	for _, want := range []string{`"selectors_found":[]`, `"revoked":[]`, `"includes":[]`, `"problems":[]`, `"mx":[]`, `"addresses":[]`, `"www_via_wildcard":false`, `"signed":false`, `"hosts":{`, `"servers":[]`, `"ns_cname":[]`, `"unresolvable":[]`, `"pct":100`} {
+	for _, want := range []string{`"selectors_found":[]`, `"revoked":[]`, `"includes":[]`, `"problems":[]`, `"mx":[]`, `"addresses":[]`, `"www_via_wildcard":false`, `"signed":false`, `"hosts":{`, `"published":[]`, `"effective":[]`, `"servers":[]`, `"ns_cname":[]`, `"unresolvable":[]`, `"pct":100`} {
 		check(t, "present: "+want, strings.Contains(out, want), true)
 	}
 	check(t, "no null arrays", strings.Contains(out, ":null"), false)
+}
+
+func TestSerialList_NamesTheAddress(t *testing.T) {
+	got := serialList([]NSServer{
+		{Name: "ns1.example.", IP: "192.0.2.1", AA: true, Serial: 9957},
+		{Name: "ns1.example.", IP: "2001:db8::1", AA: true, Serial: 9958},
+		{Name: "ns2.example.", IP: "192.0.2.2", AA: false, Serial: 1}, // lame: excluded
+	})
+	check(t, "one entry per address, with the address", got, "ns1.example.(192.0.2.1)=9957, ns1.example.(2001:db8::1)=9958")
+	check(t, "no authoritative servers", serialList([]NSServer{{Name: "x.", AA: false}}), "")
 }

@@ -306,8 +306,9 @@ func TestIntegration_GoogleTLSAndCAA(t *testing.T) {
 	check(t, "https status is a redirect to www", a.HTTPSRes.Status, 301)
 	check(t, "http answers with a redirect", isRedirect(a.HTTPRes.Status), true)
 	check(t, "redirect chain ends at www", strings.Contains(rep.Web.Apex.Redirects[familyIPv4].FinalURL+rep.Web.Apex.Redirects[familyIPv4].External, "www.google.com"), true)
-	check(t, "caa permitted", rep.CAA.Permitted != nil && *rep.CAA.Permitted, true)
-	check(t, "issuer mapped", strings.HasPrefix(rep.CAA.Issuer, "Google Trust Services"), true)
+	apexCAA := rep.CAA.Hosts["apex"]
+	check(t, "caa permitted", apexCAA.Permitted != nil && *apexCAA.Permitted, true)
+	check(t, "issuer mapped", strings.HasPrefix(apexCAA.Issuer, "Google Trust Services"), true)
 	check(t, "glue present", len(rep.Nameservers.Glue.Missing), 0)
 	check(t, "dmarc reject", rep.Mail.DMARC.Policy, "reject")
 	check(t, "preload answered", rep.HSTSPreload != "" && !strings.HasPrefix(rep.HSTSPreload, "error"), true)

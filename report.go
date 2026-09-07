@@ -727,11 +727,14 @@ func (f *findings) serverWarnings(s NSServer) {
 	}
 }
 
+// serialList names the address beside each serial: in a drift report which
+// address disagrees is the useful part, and a dual-stack or anycast name
+// would otherwise repeat itself with no added information.
 func serialList(servers []NSServer) string {
 	var parts []string
 	for _, s := range servers {
 		if s.AA {
-			parts = append(parts, fmt.Sprintf("%s=%d", s.Name, s.Serial))
+			parts = append(parts, fmt.Sprintf("%s(%s)=%d", s.Name, s.IP, s.Serial))
 		}
 	}
 	return strings.Join(parts, ", ")
