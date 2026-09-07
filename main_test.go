@@ -331,3 +331,29 @@ func TestParseArgs_DNSConcurrency(t *testing.T) {
 		t.Error("a negative cap should be rejected")
 	}
 }
+
+// A top-level domain is never all digits (RFC 3696 §2), which is what
+// separates a hostname from a dotted-quad address. A leading digit
+// elsewhere is fine and common: RFC 1123 §2.1 relaxed the old letter-first
+// rule, and 29 names in the portdb corpus start with one.
+func TestNormalizeDomain_AllNumericTLD(t *testing.T) {
+	for _, bad := range []string{"1.1.1.1", "8.8.8.8", "192.168.0.1", "3.14", "255.255.255.255"} {
+		if _, _, err := normalizeDomain(bad); err == nil {
+			t.Errorf("%q accepted as a domain, want rejected", bad)
+		}
+	}
+	for _, good := range []string{"333oracle.xyz", "1password.com", "7-eleven.com", "4chan.org", "365oracle.com", "1.example.com"} {
+		if _, _, err := normalizeDomain(good); err != nil {
+			t.Errorf("%q rejected: %v", good, err)
+		}
+	}
+}
+
+func TestAllDigits(t *testing.T) {
+	for _, s := range []string{"1", "42", "0000"} {
+		check(t, "digits: "+s, allDigits(s), true)
+	}
+	for _, s := range []string{"", "a", "1a", "a1", "1-2", "xn--0zwm56d"} {
+		check(t, "not all digits: "+s, allDigits(s), false)
+	}
+}

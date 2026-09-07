@@ -480,6 +480,12 @@ check stops at its first definite answer, so it costs two queries on a zone
 that denies a random name, none at all when www is NXDOMAIN, and six only
 when a wildcard is really there.
 
+An all-numeric top-level domain is rejected as a usage error (exit 2):
+`1.1.1.1` is an address, not a name (RFC 3696 §2). A digit elsewhere,
+including at the start of a label, is valid and common since RFC 1123 §2.1
+relaxed the older letter-first rule, so `1password.com`, `7-eleven.com` and
+`333oracle.xyz` are all accepted.
+
 ## Requirements
 
 - `delv` and `dig` (BIND 9.18 or later, `+yaml` support) on `PATH`.

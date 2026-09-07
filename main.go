@@ -285,6 +285,19 @@ var idnaProfile = idna.New(idna.MapForLookup(), idna.StrictDomainName(false), id
 // and returns the canonical A-label form plus the U-label form when the two
 // differ. IDNA 2008 lookup rules are applied, so malformed punycode and
 // disallowed code points are rejected.
+// allDigits reports whether every character is an ASCII digit.
+func allDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func normalizeDomain(input string) (ascii, unicode string, err error) {
 	trimmed := strings.TrimSuffix(strings.TrimSpace(input), ".")
 	if trimmed == "" {
@@ -298,10 +311,19 @@ func normalizeDomain(input string) (ascii, unicode string, err error) {
 	if len(ascii) > 253 {
 		return "", "", fmt.Errorf("invalid domain %q: longer than 253 octets", input)
 	}
-	for _, label := range strings.Split(ascii, ".") {
+	labels := strings.Split(ascii, ".")
+	for _, label := range labels {
 		if !validLabel(label) {
 			return "", "", fmt.Errorf("invalid domain label %q in %q", label, input)
 		}
+	}
+	// A top-level domain is never all digits (RFC 3696 §2), which is what
+	// separates a hostname from a dotted-quad address: 1.1.1.1 is an IP,
+	// not a domain. A leading digit elsewhere is fine and common, since
+	// RFC 1123 §2.1 relaxed the old letter-first rule, so 333oracle.xyz
+	// and 7-eleven.com stay valid.
+	if allDigits(labels[len(labels)-1]) {
+		return "", "", fmt.Errorf("invalid domain %q: the top-level domain %q is all digits (an address, not a name)", input, labels[len(labels)-1])
 	}
 	unicode, err = idnaProfile.ToUnicode(ascii)
 	if err != nil || unicode == ascii {
