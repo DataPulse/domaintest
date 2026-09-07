@@ -70,8 +70,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns102.comcast.net",
-    "error": "communications error to 192.36.148.17#53: timed out"
+    "child_server": "dns104.comcast.net"
   },
   "web": {},
   "mail": {
@@ -232,10 +231,10 @@
   },
   "wildcard": {
     "status": "unknown",
-    "determined_by": "the lookup for the random name torxmxtifbdr did not complete",
+    "determined_by": "the lookup for the random name jrqqubrecqtk did not complete",
     "probes": [
       {
-        "label": "torxmxtifbdr",
+        "label": "jrqqubrecqtk",
         "status": "unresolved",
         "addresses": []
       }
@@ -253,5 +252,5 @@
     "TLSA records are published in an unsigned zone (DANE clients ignore them)"
   ],
   "ok": false,
-  "elapsed_ms": 1646
+  "elapsed_ms": 1031
 }

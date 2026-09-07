@@ -35,6 +35,7 @@ type Report struct {
 	// zone apex; EnclosingZone names that zone when a SOA revealed it.
 	NotAZone             bool            `json:"not_a_zone,omitempty"`
 	ReservedName         string          `json:"reserved_name,omitempty"` // the RFC reserving this suffix
+	PublicSuffix         bool            `json:"public_suffix,omitempty"` // the name is itself a public suffix, not a registrable domain
 	EnclosingZone        string          `json:"enclosing_zone,omitempty"`
 	Resolver             string          `json:"resolver"`
 	Families             []string        `json:"families"`
@@ -230,6 +231,12 @@ func (f *findings) presenceWarnings(rep *Report) {
 	f.addressWarnings("apex", apex["A"], apex["AAAA"])
 	if registrableDomain(rep.Domain) {
 		f.addressWarnings("www", www["A"], www["AAAA"])
+	}
+	// Mail-shaped warnings only make sense where a mail section does. A
+	// registry suffix, a host inside a zone and a name that cannot exist
+	// all have nobody to act on them.
+	if rep.Mail == nil {
+		return
 	}
 	switch {
 	case apex["MX"].IsNullMX():

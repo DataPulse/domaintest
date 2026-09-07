@@ -77,13 +77,13 @@
       "ns2.dnsowl.com.",
       "ns3.dnsowl.com."
     ],
-    "parent_server": "m.gtld-servers.net",
+    "parent_server": "f.gtld-servers.net",
     "child_ns": [
       "ns1.dnsowl.com.",
       "ns2.dnsowl.com.",
       "ns3.dnsowl.com."
     ],
-    "child_server": "ns3.dnsowl.com"
+    "child_server": "ns2.dnsowl.com"
   },
   "web": {
     "apex": {
@@ -596,10 +596,10 @@
   },
   "wildcard": {
     "status": "absent",
-    "determined_by": "the random name djpciohlcxtf is denied",
+    "determined_by": "the random name strjluuowbtc is denied",
     "probes": [
       {
-        "label": "djpciohlcxtf",
+        "label": "strjluuowbtc",
         "status": "denied",
         "addresses": []
       }
@@ -618,5 +618,5 @@
     "all IPv6 nameserver addresses share one /48"
   ],
   "ok": true,
-  "elapsed_ms": 2992
+  "elapsed_ms": 3167
 }

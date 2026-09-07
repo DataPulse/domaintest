@@ -80,7 +80,7 @@
       "ns-2001.awsdns-58.co.uk.",
       "ns-507.awsdns-63.com."
     ],
-    "child_server": "ns-507.awsdns-63.com"
+    "child_server": "ns-2001.awsdns-58.co.uk"
   },
   "web": {},
   "mail": {
@@ -251,10 +251,10 @@
   },
   "wildcard": {
     "status": "absent",
-    "determined_by": "the random name atrqbfeqwvmw is denied",
+    "determined_by": "the random name zpzxgvcgevln is denied",
     "probes": [
       {
-        "label": "atrqbfeqwvmw",
+        "label": "zpzxgvcgevln",
         "status": "denied",
         "addresses": []
       }
@@ -270,5 +270,5 @@
     "www has no A or AAAA records"
   ],
   "ok": true,
-  "elapsed_ms": 714
+  "elapsed_ms": 762
 }

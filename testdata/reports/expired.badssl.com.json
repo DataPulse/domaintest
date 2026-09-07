@@ -112,7 +112,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2000,
+            "handshake_ms": 2001,
             "error": "context deadline exceeded"
           }
         }
@@ -164,21 +164,21 @@
     "determined_by": "3 random names all answer",
     "probes": [
       {
-        "label": "rrfulllwaspk",
+        "label": "qtpjzaliklqx",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
         ]
       },
       {
-        "label": "pqoxtfdphfxj",
+        "label": "coyuudhalzes",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
         ]
       },
       {
-        "label": "upbblgmiqycj",
+        "label": "lesrzkvyuuex",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
@@ -198,12 +198,10 @@
   "warnings": [
     "expired.badssl.com is not a zone apex (inside zone badssl.com): delegation and DNSSEC zone checks skipped",
     "apex has no AAAA record",
-    "apex has no MX records",
-    "no SPF (v=spf1) record in apex TXT",
     "www is answered by a wildcard record, not a real host",
     "apex: TLS 1.0/1.1 still accepted on 1 of 1 addresses",
     "apex: no TLS 1.3 on 1 of 1 addresses"
   ],
   "ok": false,
-  "elapsed_ms": 2969
+  "elapsed_ms": 2716
 }

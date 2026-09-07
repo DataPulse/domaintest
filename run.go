@@ -145,6 +145,7 @@ func probeBudget(cfg config) time.Duration {
 
 // classifyZone fills the not-a-zone and DNSSEC verdicts.
 func classifyZone(rep *Report, cfg config, dns dnsResults, r Runner) {
+	rep.PublicSuffix = !registrableDomain(cfg.Domain) && isPublicSuffix(cfg.Domain)
 	if rep.ReservedName = reservedName(cfg.Domain); rep.ReservedName != "" {
 		// The name is not in the global DNS, so neither a trust chain nor
 		// a delegation can be judged. Whatever the resolver answered says
@@ -317,9 +318,11 @@ func fixedLookups(res *dnsResults, mu *sync.Mutex, cfg config, get lookupFn) []f
 // that the evaluators run against memoised answers.
 func dependentLookups(res *dnsResults, cfg config, get lookupFn) []func() {
 	var tasks []func()
-	for _, sel := range dkimSelectors {
-		name := sel + "._domainkey." + cfg.Domain
-		tasks = append(tasks, func() { get(name, "TXT") })
+	if !registrySuffix(cfg.Domain) {
+		for _, sel := range dkimSelectors {
+			name := sel + "._domainkey." + cfg.Domain
+			tasks = append(tasks, func() { get(name, "TXT") })
+		}
 	}
 	for _, host := range mxHosts(res.apex["MX"]) {
 		tasks = append(tasks, func() { get(host, "A") }, func() { get(host, "AAAA") })
@@ -648,7 +651,7 @@ func auditNameservers(ctx context.Context, cfg config, r Runner, dns dnsResults,
 // that does not exist. None of them has anything to configure, so "no
 // DMARC record" would be a warning nobody could act on.
 func noMailPossible(rep *Report, dns dnsResults) bool {
-	if rep.NotAZone || rep.ReservedName != "" {
+	if rep.NotAZone || rep.ReservedName != "" || registrySuffix(rep.Domain) {
 		return true
 	}
 	apex := dns.apex

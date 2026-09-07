@@ -31,6 +31,13 @@ func healthyReport(t *testing.T) *Report {
 		DNSSEC:     DNSSECReport{State: DNSSECInsecure},
 		Delegation: compareDelegation(blocks, nil, "google.com"),
 		Web:        WebSection{Apex: hostWeb([]netip.Addr{v4, v6}, ports, quic), WWW: &HostWeb{SameAsApex: true}},
+		// A real run of a registrable domain always assesses mail, and the
+		// mail-shaped presence warnings are reported only where it did.
+		Mail: &MailReport{
+			DMARC: DMARC{Present: true, Policy: "reject", Pct: 100, RUA: true, Records: 1, Problems: []string{}},
+			SPF:   SPFResult{Records: 1, All: "-all", Includes: []string{}, Problems: []string{}},
+			MX:    []MXCheck{}, DKIM: DKIMResult{SelectorsFound: []string{}, Revoked: []string{}},
+		},
 	}
 }
 

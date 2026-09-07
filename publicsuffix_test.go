@@ -34,3 +34,34 @@ func TestRegistrableDomain(t *testing.T) {
 		check(t, "registrable: "+c.domain, registrableDomain(c.domain), c.want)
 	}
 }
+
+// Nobody receives mail at a registry's own zone, so the mail checks have
+// no subject there and the DKIM probing is wasted traffic. Private
+// suffixes are excluded: github.io and herokuapp.com are on the list so
+// names under them are registrable, but they are ordinary domains their
+// owners could run mail on.
+func TestRegistrySuffix(t *testing.T) {
+	for _, c := range []struct {
+		domain string
+		want   bool
+	}{
+		{"com", true},
+		{"co.uk", true},
+		{"org", true},
+		{"github.io", false},     // private suffix: GitHub operates it
+		{"herokuapp.com", false}, // private suffix
+		{"bbc.co.uk", false},     // a registrable domain, not a suffix
+		{"jschmidt.org", false},
+		{"", false},
+	} {
+		check(t, "registry suffix: "+c.domain, registrySuffix(c.domain), c.want)
+	}
+
+	// Both sections count as a public suffix for reporting purposes.
+	for _, d := range []string{"com", "co.uk", "github.io", "herokuapp.com"} {
+		check(t, "public suffix: "+d, isPublicSuffix(d), true)
+	}
+	for _, d := range []string{"bbc.co.uk", "jschmidt.org", "old.reddit.com"} {
+		check(t, "not a public suffix: "+d, isPublicSuffix(d), false)
+	}
+}

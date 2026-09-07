@@ -279,6 +279,14 @@ chain_length, error), `tlsa` (match / mismatch / none, only when TLSA records ex
 `web` is an empty object when the name has no usable addresses (no
 A/AAAA, NXDOMAIN, bogus zone): callers must not assume `web.apex` exists.
 `mail` and `nameservers` are absent for a name that is not a zone apex.
+`mail` is also absent for a name that is itself an ICANN public suffix:
+nobody receives mail at `com` or `co.uk`, so a missing DMARC record there
+is advice to a registry that no caller can act on, and the eight DKIM
+selector probes are wasted queries against a registry's nameservers.
+Private suffixes such as `github.io` and `herokuapp.com` keep their mail
+checks, being ordinary domains their owners operate. A name that is itself
+a public suffix of either section carries `public_suffix: true`, which also
+explains why `web.www` is absent for it.
 
 `web.www` is absent unless the name is a **registrable domain**, meaning
 one label below a public suffix as the Public Suffix List defines it.
