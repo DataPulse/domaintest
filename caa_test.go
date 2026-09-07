@@ -60,22 +60,41 @@ func TestCAAPermits(t *testing.T) {
 
 func TestAssessCAA(t *testing.T) {
 	apex := parseDelvYAML(fixture(t, "delv/caa/google.yaml"), "CAA")
-	www := parseDelvYAML(fixture(t, "delv/caa/www_google.yaml"), "CAA")
-	rep := assessCAA(apex, www, "Google Trust Services LLC", false)
-	check(t, "permitted", *rep.Permitted, true)
+	www := parseDelvYAML(fixture(t, "delv/caa/www_google.yaml"), "CAA") // NXRRSET: apex records apply
+	gts := servedCert{issuer: "Google Trust Services LLC"}
+	rep := assessCAA(apex, www, gts, gts)
+	check(t, "apex permitted", *rep.Permitted, true)
 	check(t, "issuer", rep.Issuer, "Google Trust Services LLC")
-	rep = assessCAA(apex, www, "Let's Encrypt", false)
-	check(t, "not permitted", *rep.Permitted, false)
-	rep = assessCAA(apex, www, "Example Private CA", false)
+	check(t, "www inherits apex records", rep.Hosts["www"].Records, []string{`0 issue "pki.goog"`})
+	check(t, "www permitted", *rep.Hosts["www"].Permitted, true)
+	check(t, "top level mirrors apex", rep.Hosts["apex"].Permitted, rep.Permitted)
+
+	// Per-host issuers: the apex is fine, www serves a certificate from a CA
+	// the records forbid.
+	rep = assessCAA(apex, www, gts, servedCert{issuer: "Let's Encrypt"})
+	check(t, "apex still permitted", *rep.Permitted, true)
+	check(t, "www forbidden", *rep.Hosts["www"].Permitted, false)
+	check(t, "www issuer", rep.Hosts["www"].Issuer, "Let's Encrypt")
+
+	rep = assessCAA(apex, www, servedCert{issuer: "Example Private CA"}, servedCert{})
 	check(t, "unmapped issuer", rep.Permitted, (*bool)(nil))
 	check(t, "note", rep.Note, "issuer not in the CAA mapping table")
-	none := parseDelvYAML(fixture(t, "delv/caa/www_google.yaml"), "CAA") // NXRRSET
-	rep = assessCAA(none, none, "Let's Encrypt", false)
-	check(t, "no CAA", rep.Permitted, (*bool)(nil))
+	check(t, "www without certificate", rep.Hosts["www"].Note, "no certificate observed")
+	check(t, "www permitted absent", rep.Hosts["www"].Permitted, (*bool)(nil))
+
+	none := parseDelvYAML(fixture(t, "delv/caa/www_google.yaml"), "CAA")
+	rep = assessCAA(none, none, servedCert{issuer: "Let's Encrypt"}, servedCert{issuer: "Let's Encrypt"})
+	check(t, "no CAA means any CA may issue", *rep.Permitted, true)
 	check(t, "no CAA note", rep.Note, "no CAA records; any CA may issue")
-	rep = assessCAA(apex, www, "", false)
-	check(t, "no cert", rep.Note, "no certificate observed")
+	check(t, "empty record lists, not null", []int{len(rep.Apex), len(rep.WWW)}, []int{0, 0})
+	check(t, "apex list non-nil", rep.Apex != nil, true)
+
 	// www with its own CAA overrides the apex policy.
-	rep = assessCAA(apex, parseDelvYAML(fixture(t, "delv/caa/cloudflare.yaml"), "CAA"), "DigiCert Inc", false)
-	check(t, "www policy wins", *rep.Permitted, true)
+	rep = assessCAA(apex, parseDelvYAML(fixture(t, "delv/caa/cloudflare.yaml"), "CAA"), gts, servedCert{issuer: "DigiCert Inc"})
+	check(t, "www policy wins", *rep.Hosts["www"].Permitted, true)
+	rep = assessCAA(apex, parseDelvYAML(fixture(t, "delv/caa/cloudflare.yaml"), "CAA"), gts, servedCert{issuer: "Amazon"})
+	check(t, "www policy forbids amazon", *rep.Hosts["www"].Permitted, false)
+	// Wildcard leaf on www consults issuewild.
+	rep = assessCAA(apex, parseDelvYAML(fixture(t, "delv/caa/cloudflare.yaml"), "CAA"), gts, servedCert{issuer: "Let's Encrypt", wildcard: true})
+	check(t, "issuewild honoured", *rep.Hosts["www"].Permitted, true)
 }

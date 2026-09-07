@@ -51,7 +51,7 @@
     },
     "resolver_reachable": {
       "ipv4": "yes",
-      "ipv6": "skipped"
+      "ipv6": "skipped: resolver has no ipv6 address"
     }
   },
   "dnssec": {
@@ -92,7 +92,7 @@
               "issuer": "COMODO RSA Domain Validation Secure Server CA",
               "not_before": "2015-04-09T00:00:00Z",
               "not_after": "2015-04-12T23:59:59Z",
-              "days_remaining": -4164,
+              "days_remaining": -4165,
               "sans": [
                 "*.badssl.com",
                 "badssl.com"
@@ -125,7 +125,8 @@
               "status": 200
             }
           ],
-          "final_url": "https://expired.badssl.com/"
+          "final_url": "https://expired.badssl.com/",
+          "loop": false
         }
       },
       "cert_consistent": true
@@ -165,6 +166,7 @@
               ],
               "covers_apex": false,
               "covers_www": false,
+              "wildcard": false,
               "key": "RSA 2048",
               "fingerprint_sha256": "d073b38943b36bd970ec8f61b3a1aea66e58eff160daee143bcb9d9967867813"
             },
@@ -173,7 +175,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2000,
+            "handshake_ms": 2001,
             "error": "context deadline exceeded"
           }
         }
@@ -190,37 +192,37 @@
               "status": 421
             }
           ],
-          "final_url": "https://www.expired.badssl.com/"
+          "final_url": "https://www.expired.badssl.com/",
+          "loop": false
         }
       },
       "cert_consistent": true
     }
   },
-  "mail": {
-    "dmarc": {
-      "present": false,
-      "pct": 100,
-      "rua": false,
-      "records": 0
-    },
-    "spf": {
-      "records": 0,
-      "lookups": 0,
-      "void_lookups": 0
-    },
-    "dkim": {},
-    "mta_sts": {
-      "record": false,
-      "policy_ok": false,
-      "mx_covered": false
-    },
-    "tls_rpt": false
-  },
   "caa": {
+    "apex": [],
+    "www": [],
     "issuer": "COMODO CA Limited",
-    "note": "no CAA records; any CA may issue"
+    "permitted": true,
+    "note": "no CAA records; any CA may issue",
+    "hosts": {
+      "apex": {
+        "records": [],
+        "issuer": "COMODO CA Limited",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      },
+      "www": {
+        "records": [],
+        "issuer": "BadSSL",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      }
+    }
   },
   "tlsa": {
+    "apex": [],
+    "www": [],
     "signed": false,
     "result": "none"
   },
@@ -231,7 +233,7 @@
     ],
     "www_via_wildcard": true
   },
-  "hsts_preload": "unknown",
+  "hsts_preload": "absent",
   "errors": [
     "apex 104.154.89.105: certificate expired: certificate expired 2015-04-12T23:59:59Z",
     "www 104.154.89.105: certificate expired: certificate expired 2018-08-08T21:17:05Z"
@@ -248,9 +250,8 @@
     "www: TLS 1.0/1.1 still accepted on 1 of 1 addresses",
     "www: no TLS 1.3 on 1 of 1 addresses",
     "www: every address returns a client error on port 443",
-    "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/",
-    "no DMARC record"
+    "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/"
   ],
   "ok": false,
-  "elapsed_ms": 2526
+  "elapsed_ms": 2364
 }

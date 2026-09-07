@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"crypto/x509"
 	"net"
 	"net/netip"
 	"os"
@@ -49,6 +48,12 @@ func (c *lookupCache) get(name, qtype string) Lookup {
 	c.mu.Unlock()
 	if ok {
 		return l
+	}
+	if base.Err() != nil {
+		// The phase budget is already spent (a first-wave lookup hung). Do
+		// not run, and do not cache: a later phase retries with its own
+		// budget instead of inheriting a poisoned timeout.
+		return Lookup{Name: name, Type: qtype, Status: StatusTimeout, Error: "delv timed out"}
 	}
 	lctx, cancel := context.WithTimeout(base, c.cfg.timeout())
 	defer cancel()
@@ -97,8 +102,8 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	parallel(
 		func() { rep.Web = probeWeb(probeCtx, cfg, r, d, dns, rep) },
 		func() { rep.Nameservers = auditNameservers(probeCtx, cfg, r, dns, rep) },
-		func() { rep.Mail = assessMail(probeCtx, cfg, dns) },
-		func() { rep.HSTSPreload = checkPreload(probeCtx, cfg) },
+		func() { rep.Mail = assessMail(probeCtx, cfg, dns, rep.NotAZone) },
+		func() { rep.HSTSPreload, rep.HSTSPreloadError = checkPreload(probeCtx, cfg) },
 	)
 	rep.Wildcard = wildcardSection(dns, rep.Web)
 	rep.CAA, rep.TLSA = assessCertPolicies(dns, rep)
@@ -301,7 +306,7 @@ const reachabilityQuery = "."
 // that family.
 func checkReachability(ctx context.Context, cfg config, r Runner, family string) string {
 	if !resolverSupports(cfg, family) {
-		return ReachSkipped
+		return ReachSkipped + ": resolver has no " + family + " address"
 	}
 	l := delvLookup(ctx, r, cfg.DelvPath, cfg.Resolver, family, reachabilityQuery, "NS")
 	if l.Answered() {
@@ -401,7 +406,7 @@ func probeHost(ctx context.Context, cfg config, r Runner, d dialer, host string,
 		tasks = append(tasks, func() { probes[i] = probeAddress(ctx, d, ip, host, apex, www, cfg.tcpTimeout()) })
 	}
 	var quic map[string]*QUICResult
-	tasks = append(tasks, func() { quic = quicPerFamily(ctx, cfg, r, host, addrs) })
+	tasks = append(tasks, func() { quic = quicAll(ctx, cfg, r, host, addrs) })
 	parallel(tasks...)
 
 	h := &HostWeb{}
@@ -486,19 +491,18 @@ func familyOf(ip netip.Addr) string {
 	return familyIPv6
 }
 
-// quicPerFamily probes QUIC once per family, on the first address of that
-// family, keyed by the address string.
-func quicPerFamily(ctx context.Context, cfg config, r Runner, host string, addrs []netip.Addr) map[string]*QUICResult {
-	first := map[string]netip.Addr{}
-	for _, ip := range addrs {
-		if _, ok := first[familyOf(ip)]; !ok {
-			first[familyOf(ip)] = ip
-		}
-	}
+// quicAll probes QUIC on every address of the host, keyed by address, so
+// that QUIC facts are as complete as the TLS and HTTP ones.
+func quicAll(ctx context.Context, cfg config, r Runner, host string, addrs []netip.Addr) map[string]*QUICResult {
 	out := map[string]*QUICResult{}
 	var mu sync.Mutex
 	var tasks []func()
-	for _, ip := range first {
+	seen := map[netip.Addr]bool{}
+	for _, ip := range addrs {
+		if seen[ip] {
+			continue
+		}
+		seen[ip] = true
 		tasks = append(tasks, func() {
 			q := probeQUIC(ctx, r, cfg.QuicPath, host, ip, cfg.QuicTimeoutSec)
 			mu.Lock()
@@ -534,8 +538,14 @@ func auditNameservers(ctx context.Context, cfg config, r Runner, dns dnsResults,
 	return &ns
 }
 
-// assessMail evaluates DMARC, SPF, MX, DKIM, MTA-STS and TLS-RPT.
-func assessMail(ctx context.Context, cfg config, dns dnsResults) *MailReport {
+// assessMail evaluates DMARC, SPF, MX, DKIM, MTA-STS and TLS-RPT for a
+// zone apex. Hosts inside a zone get no mail section, like the nameserver
+// audit: mail policy lives at the zone, and looking up _dmarc under a
+// _dmarc name only produces noise.
+func assessMail(ctx context.Context, cfg config, dns dnsResults, notAZone bool) *MailReport {
+	if notAZone {
+		return nil
+	}
 	get := dns.cache.get
 	m := &MailReport{
 		DMARC:  parseDMARC(dns.dmarc),
@@ -544,20 +554,34 @@ func assessMail(ctx context.Context, cfg config, dns dnsResults) *MailReport {
 		DKIM:   probeDKIM(cfg.Domain, get),
 		TLSRPT: hasTLSRPT(dns.tlsRPT),
 	}
-	m.MTASTS = checkMTASTS(ctx, cfg.Domain, dns.mtaSTS, mxHosts(dns.apex["MX"]), cfg.tcpTimeout())
+	m.MTASTS = checkMTASTS(ctx, cfg.Domain, dns.mtaSTS, mxHosts(dns.apex["MX"]), cfg.tcpTimeout(), get)
 	return m
 }
 
-// checkPreload consults the HSTS preload list when -hsts-preload is set.
-func checkPreload(ctx context.Context, cfg config) string {
+// Preload-list statuses as reported by the tool.
+const (
+	PreloadPreloaded = "preloaded"
+	PreloadAbsent    = "absent"  // the list was consulted and the domain is not on it
+	PreloadUnknown   = "unknown" // the list could not be consulted; see hsts_preload_error
+)
+
+// checkPreload consults the HSTS preload list unless disabled. The API's
+// own "unknown" means "not on the list" and is reported as absent; a
+// failed lookup is reported as unknown with the reason (resolver
+// addresses scrubbed) in hsts_preload_error.
+func checkPreload(ctx context.Context, cfg config) (status, problem string) {
 	if !cfg.HSTSPreload {
-		return ""
+		return "", ""
 	}
 	status, err := preloadFetcher(ctx, cfg.Domain, cfg.tcpTimeout())
-	if err != nil {
-		return "error: " + err.Error()
+	switch {
+	case err != nil:
+		return PreloadUnknown, scrubResolver(err.Error())
+	case status == "unknown":
+		return PreloadAbsent, ""
+	default:
+		return status, ""
 	}
-	return status
 }
 
 // wildcardSection evaluates the nonce probe and stamps www when its
@@ -573,32 +597,28 @@ func wildcardSection(dns dnsResults, web WebSection) *WildcardReport {
 // assessCertPolicies evaluates CAA and TLSA against the certificates that
 // were actually served.
 func assessCertPolicies(dns dnsResults, rep *Report) (*CAAReport, *TLSAReport) {
-	leaf, wildcard := servedLeaf(rep.Web)
-	issuer := ""
-	if leaf != nil {
-		issuer = issuerOrg(leaf)
-	}
-	caa := assessCAA(dns.caaApex, dns.caaWWW, issuer, wildcard)
+	caa := assessCAA(dns.caaApex, dns.caaWWW, servedLeaf(rep.Web.Apex), servedLeaf(rep.Web.WWW))
 	tlsa := assessTLSA(dns.tlsaApex, dns.tlsaWWW, rep.Web)
 	return &caa, tlsa
 }
 
-// servedLeaf returns the first leaf certificate observed (apex first).
-func servedLeaf(web WebSection) (*x509.Certificate, bool) {
-	for _, h := range []*HostWeb{web.Apex, web.WWW} {
-		for _, a := range h.addrs() {
-			if a.TLS != nil && len(a.TLS.chain) > 0 {
-				return a.TLS.chain[0], a.TLS.Cert != nil && a.TLS.Cert.Wildcard
-			}
+// servedLeaf describes the first leaf certificate a host presented.
+func servedLeaf(h *HostWeb) servedCert {
+	for _, a := range h.addrs() {
+		if a.TLS != nil && len(a.TLS.chain) > 0 {
+			return servedCert{issuer: issuerOrg(a.TLS.chain[0]), wildcard: a.TLS.Cert != nil && a.TLS.Cert.Wildcard}
 		}
 	}
-	return nil, false
+	return servedCert{}
 }
 
-// TLSAReport is the tlsa section of the report.
+// TLSAReport is the tlsa section of the report. Signed says whether the
+// TLSA answers, positive or negative, were DNSSEC-validated: in a signed
+// zone the denial of a missing TLSA set is itself signed, which is what
+// lets a DANE client trust the absence.
 type TLSAReport struct {
-	Apex   []string `json:"apex,omitempty"`
-	WWW    []string `json:"www,omitempty"`
+	Apex   []string `json:"apex"`
+	WWW    []string `json:"www"`
 	Signed bool     `json:"signed"`
 	Result string   `json:"result"` // none, match, mismatch, unverified
 }
@@ -606,11 +626,11 @@ type TLSAReport struct {
 // assessTLSA matches the TLSA sets against every address's chain and
 // stamps each address with its own verdict.
 func assessTLSA(apexRec, wwwRec Lookup, web WebSection) *TLSAReport {
-	rep := &TLSAReport{Apex: apexRec.Records, WWW: wwwRec.Records, Result: TLSANone}
+	rep := &TLSAReport{Apex: nonNil(apexRec.Records), WWW: nonNil(wwwRec.Records), Result: TLSANone}
+	rep.Signed = tlsaSigned(apexRec) && tlsaSigned(wwwRec)
 	if len(apexRec.Records)+len(wwwRec.Records) == 0 {
 		return rep
 	}
-	rep.Signed = tlsaSigned(apexRec) && tlsaSigned(wwwRec)
 	anyMatch, anyChecked := false, false
 	for _, pair := range []struct {
 		h   *HostWeb
@@ -634,8 +654,9 @@ func assessTLSA(apexRec, wwwRec Lookup, web WebSection) *TLSAReport {
 	return rep
 }
 
+// tlsaSigned is true when the answer, positive or negative, validated.
 func tlsaSigned(l Lookup) bool {
-	return len(l.Records) == 0 || l.Trust == TrustSecure
+	return l.Trust == TrustSecure
 }
 
 // stampHost applies matchTLSA to every address of a host and reports

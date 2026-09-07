@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"net/netip"
 	"path/filepath"
 	"strings"
@@ -90,13 +91,14 @@ func TestRun_SignedDomainWithoutWeb(t *testing.T) {
 	check(t, "families", rep.Families, []string{familyIPv4, familyIPv6})
 	check(t, "dnssec state", rep.DNSSEC.State, DNSSECSecure)
 	check(t, "delegation", rep.Delegation.Status, DelegationMatch)
-	check(t, "reachability", rep.DNS.ResolverReachable, map[string]string{familyIPv4: ReachYes, familyIPv6: ReachSkipped})
+	check(t, "reachability", rep.DNS.ResolverReachable, map[string]string{familyIPv4: ReachYes, familyIPv6: "skipped: resolver has no ipv6 address"})
 	check(t, "web", rep.Web, WebSection{})
 	check(t, "warnings", rep.Warnings, []string{"apex has no A or AAAA records", "www has no A or AAAA records"})
 	check(t, "no quic", len(s.r.called("quicprobe")), 0)
 	check(t, "no dials", len(s.dialer.seen), 0)
 	check(t, "no bogus probe", len(s.digCalls("+cd")), 0)
-	check(t, "preload consulted", rep.HSTSPreload, "unknown")
+	check(t, "API unknown is reported as absent", rep.HSTSPreload, PreloadAbsent)
+	check(t, "no preload error", rep.HSTSPreloadError, "")
 }
 
 func TestRun_MailAndNameserverSections(t *testing.T) {
@@ -130,7 +132,10 @@ func TestRun_MailAndNameserverSections(t *testing.T) {
 	check(t, "prefix diversity", []int{n.IPv4Prefixes24, n.IPv6Prefixes48}, []int{4, 4})
 	check(t, "no glue needed", len(n.Glue.Required), 0)
 	check(t, "caa", rep.CAA.Note, "no certificate observed")
+	check(t, "caa hosts", len(rep.CAA.Hosts), 2)
 	check(t, "tlsa", rep.TLSA.Result, TLSANone)
+	check(t, "tlsa absence is signed in a signed zone", rep.TLSA.Signed, true)
+	check(t, "tlsa lists present", rep.TLSA.Apex != nil && rep.TLSA.WWW != nil, true)
 	check(t, "wildcard", rep.Wildcard.Present, false)
 	check(t, "audit digs", len(s.digCalls("+norecurse", "SOA")), 8)
 }
@@ -208,8 +213,11 @@ func TestRun_WebDomainFullProbe(t *testing.T) {
 	check(t, "final url", chain.FinalURL, "https://google.com/")
 	check(t, "www probed separately", rep.Web.WWW.SameAsApex && len(rep.Web.WWW.IPv4) == 1, true)
 	check(t, "www cert", rep.Web.WWW.IPv4[0].TLS.Chain, ChainValid)
-	check(t, "quic per name per family", len(g.s.r.called("quicprobe")), 4)
+	check(t, "quic on every address of both names", len(g.s.r.called("quicprobe")), 4)
+	check(t, "v6 quic attached", apex.IPv6[0].QUIC != nil, true)
 	check(t, "caa permitted", *rep.CAA.Permitted, true)
+	check(t, "caa www permitted", *rep.CAA.Hosts["www"].Permitted, true)
+	check(t, "tlsa unsigned in an unsigned zone", rep.TLSA.Signed, false)
 	check(t, "nameservers glue ok", []int{len(rep.Nameservers.Glue.Required), len(rep.Nameservers.Glue.Missing)}, []int{4, 0})
 	check(t, "mail dmarc reject", rep.Mail.DMARC.Policy, "reject")
 }
@@ -474,6 +482,52 @@ func TestRun_TXTOnlyNameInSignedZone(t *testing.T) {
 	check(t, "warned once about the zone", contains(rep.Warnings, "not a zone apex (inside zone jschmidt.org)"), true)
 	check(t, "no bogus probe", len(s.digCalls("+cd")), 0)
 	check(t, "no nameserver audit for a host", rep.Nameservers, (*NSReport)(nil))
+	check(t, "no mail section for a host", rep.Mail, (*MailReport)(nil))
+	check(t, "no DMARC noise", contains(rep.Warnings, "DMARC"), false)
+}
+
+func TestRun_PreloadStatuses(t *testing.T) {
+	g := googleScenario(t) // header: max-age 1y, includeSubDomains, preload
+	preloadFetcher = func(context.Context, string, time.Duration) (string, error) { return "preloaded", nil }
+	rep := g.s.run()
+	check(t, "preloaded", rep.HSTSPreload, PreloadPreloaded)
+	check(t, "header meets requirements", contains(rep.Warnings, "preload"), false)
+
+	// Preloaded but the served header has decayed (cloudflare.com's case).
+	g = googleScenario(t)
+	preloadFetcher = func(context.Context, string, time.Duration) (string, error) { return "preloaded", nil }
+	weak := tlsServer(t, okHandler(map[string]string{"Strict-Transport-Security": "max-age=15780000"}), []*x509.Certificate{g.leaf, g.ca.cert}, g.key, tls.VersionTLS12, tls.VersionTLS13)
+	g.s.dialer.mapTarget(g.v4.String(), 443, weak)
+	g.s.dialer.mapTarget(g.v6.String(), 443, weak)
+	rep = g.s.run()
+	check(t, "decayed header warned", contains(rep.Warnings, "on the HSTS preload list but the served header no longer meets"), true)
+
+	// Not on the list but the header claims preload without meeting the bar.
+	g = googleScenario(t)
+	preloadFetcher = func(context.Context, string, time.Duration) (string, error) { return "unknown", nil }
+	claim := tlsServer(t, okHandler(map[string]string{"Strict-Transport-Security": "max-age=300; preload"}), []*x509.Certificate{g.leaf, g.ca.cert}, g.key, tls.VersionTLS12, tls.VersionTLS13)
+	g.s.dialer.mapTarget(g.v4.String(), 443, claim)
+	g.s.dialer.mapTarget(g.v6.String(), 443, claim)
+	rep = g.s.run()
+	check(t, "absent", rep.HSTSPreload, PreloadAbsent)
+	check(t, "directive without requirements warned", contains(rep.Warnings, "carries the preload directive but does not meet"), true)
+
+	// Lookup failure: unknown plus a scrubbed reason, and a warning.
+	g = googleScenario(t)
+	preloadFetcher = func(context.Context, string, time.Duration) (string, error) {
+		return "", errors.New("Get \"https://hstspreload.org\": dial tcp: lookup hstspreload.org on 10.0.0.2:53: server misbehaving")
+	}
+	rep = g.s.run()
+	check(t, "unknown", rep.HSTSPreload, PreloadUnknown)
+	check(t, "reason kept", strings.Contains(rep.HSTSPreloadError, "server misbehaving"), true)
+	check(t, "resolver scrubbed", strings.Contains(rep.HSTSPreloadError, "10.0.0.2"), false)
+	check(t, "warned", contains(rep.Warnings, "HSTS preload list could not be consulted"), true)
+
+	// Disabled: no status, no error, no warning.
+	g = googleScenario(t)
+	g.s.cfg.HSTSPreload = false
+	rep = g.s.run()
+	check(t, "disabled", rep.HSTSPreload+rep.HSTSPreloadError, "")
 }
 
 func TestRun_ResolverWithPort(t *testing.T) {
@@ -529,4 +583,24 @@ func TestRun_HostInsideZoneIsNotAZone(t *testing.T) {
 	check(t, "only the TXT failure remains an error", rep.Errors, []string{"apex TXT lookup failed: delv: resolution failed"})
 	check(t, "not-a-zone warning", contains(rep.Warnings, "is not a zone apex"), true)
 	check(t, "addresses probed (refused)", rep.Web.Apex.IPv4[0].HTTPS, PortRefused)
+	check(t, "no mail section", rep.Mail, (*MailReport)(nil))
+}
+
+// A first-wave lookup that hangs must not poison the nameserver audit:
+// the pre-fetch wave runs on the spent DNS budget, but the audit later
+// resolves the names with the probe phase's own budget.
+func TestRun_ExhaustedDNSBudgetDoesNotPoisonLateLookups(t *testing.T) {
+	s := jschmidtScenario(t)
+	s.cfg.TimeoutSec = 1
+	s.trace("trace/jschmidt.txt", t)
+	s.r.on("delv", delvArgs(resolver{}, "", "jschmidt.org", "DNSKEY"), fakeCall{delay: 3 * time.Second})
+	rep := s.run()
+	check(t, "dnskey timed out", rep.DNSSEC.State, DNSSECUnknown)
+	if rep.Nameservers == nil {
+		t.Fatal("nameservers missing")
+	}
+	check(t, "nameservers resolved after the DNS phase", rep.Nameservers.Unresolvable, []string{})
+	check(t, "all eight audited", len(rep.Nameservers.Servers), 8)
+	check(t, "mx still resolved", rep.Mail.MX[0].Addresses, 8)
+	check(t, "no bogus 'no address' errors", contains(rep.Errors, "has no address"), false)
 }

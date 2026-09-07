@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/netip"
+	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 func healthyReport(t *testing.T) *Report {
@@ -347,4 +350,31 @@ func TestBuildFindings_ServfailFoldsLookupFailures(t *testing.T) {
 	buildFindings(rep)
 	check(t, "single servfail error", contains(rep.Errors, "resolver returned SERVFAIL"), true)
 	check(t, "lookup failures folded", contains(rep.Errors, "lookup failed"), false)
+}
+
+func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
+	lookup := indexLookup(t)
+	rep := healthyReport(t)
+	rep.Mail = &MailReport{DMARC: parseDMARC(Lookup{}), SPF: evaluateSPF("x", Lookup{}, lookup), MX: checkMX(Lookup{}, lookup), DKIM: probeDKIM("x", lookup), MTASTS: checkMTASTS(context.Background(), "x", Lookup{}, nil, time.Second, lookup)}
+	w := assessWildcard(Lookup{}, Lookup{}, Lookup{}, Lookup{})
+	rep.Wildcard = &w
+	rep.TLSA = assessTLSA(Lookup{}, Lookup{}, rep.Web)
+	c := assessCAA(Lookup{}, Lookup{}, servedCert{}, servedCert{})
+	rep.CAA = &c
+	n := resolveNS(nil, lookup)
+	rep.Nameservers = &n
+	rep.Families = []string{familyIPv4}
+	buildFindings(rep) // sets errors/warnings, as every real run does
+	b, err := json.Marshal(rep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(b)
+	if nulls := regexp.MustCompile(`"([a-z_0-9]+)":null`).FindAllStringSubmatch(out, -1); len(nulls) > 0 {
+		t.Errorf("null values for keys: %v", nulls)
+	}
+	for _, want := range []string{`"selectors_found":[]`, `"revoked":[]`, `"includes":[]`, `"problems":[]`, `"mx":[]`, `"addresses":[]`, `"www_via_wildcard":false`, `"signed":false`, `"hosts":{`, `"servers":[]`, `"ns_cname":[]`, `"unresolvable":[]`, `"pct":100`} {
+		check(t, "present: "+want, strings.Contains(out, want), true)
+	}
+	check(t, "no null arrays", strings.Contains(out, ":null"), false)
 }

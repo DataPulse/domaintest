@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,15 +25,15 @@ type DMARC struct {
 	Present         bool     `json:"present"`
 	Policy          string   `json:"policy,omitempty"`
 	SubdomainPolicy string   `json:"subdomain_policy,omitempty"`
-	Pct             int      `json:"pct,omitempty"`
+	Pct             int      `json:"pct"`
 	RUA             bool     `json:"rua"`
 	Records         int      `json:"records"`
-	Problems        []string `json:"problems,omitempty"`
+	Problems        []string `json:"problems"`
 }
 
 // parseDMARC evaluates the TXT records found at _dmarc.<domain>.
 func parseDMARC(l Lookup) DMARC {
-	d := DMARC{Pct: 100}
+	d := DMARC{Pct: 100, Problems: []string{}}
 	var dmarc []string
 	for _, r := range l.Records {
 		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(r)), "v=dmarc1") {
@@ -92,8 +93,8 @@ type SPFResult struct {
 	Lookups     int      `json:"lookups"`
 	VoidLookups int      `json:"void_lookups"`
 	All         string   `json:"all,omitempty"`
-	Includes    []string `json:"includes,omitempty"`
-	Problems    []string `json:"problems,omitempty"`
+	Includes    []string `json:"includes"`
+	Problems    []string `json:"problems"`
 }
 
 // spfEvaluator walks include/redirect chains counting DNS-querying terms.
@@ -109,7 +110,7 @@ type spfEvaluator struct {
 // evaluateSPF parses the apex TXT records and follows the include tree.
 func evaluateSPF(domain string, txt Lookup, lookup lookupFn) SPFResult {
 	spf := spfRecords(txt.Records)
-	res := SPFResult{Records: len(spf)}
+	res := SPFResult{Records: len(spf), Includes: []string{}, Problems: []string{}}
 	if len(spf) == 0 {
 		return res
 	}
@@ -119,14 +120,14 @@ func evaluateSPF(domain string, txt Lookup, lookup lookupFn) SPFResult {
 	}
 	res.All = e.walk(spf[0], domain, 0)
 	res.Lookups, res.VoidLookups = e.lookups, e.void
-	res.Includes = e.includes
+	res.Includes = nonNil(e.includes)
 	if e.lookups > spfLookupLimit {
 		e.problems = append(e.problems, fmt.Sprintf("%d DNS lookups exceed the limit of %d (permerror: SPF fails entirely)", e.lookups, spfLookupLimit))
 	}
 	if e.void > spfVoidLimit {
 		e.problems = append(e.problems, fmt.Sprintf("%d void lookups exceed the limit of %d", e.void, spfVoidLimit))
 	}
-	res.Problems = e.problems
+	res.Problems = nonNil(e.problems)
 	return res
 }
 
@@ -255,25 +256,24 @@ type MXCheck struct {
 	Host      string   `json:"host"`
 	Pref      int      `json:"preference"`
 	Addresses int      `json:"addresses"`
-	CNAME     bool     `json:"cname,omitempty"`
-	IPLiteral bool     `json:"ip_literal,omitempty"`
-	Problems  []string `json:"problems,omitempty"`
+	CNAME     bool     `json:"cname"`
+	IPLiteral bool     `json:"ip_literal"`
+	Problems  []string `json:"problems"`
 }
 
 // checkMX validates every MX target: no IP literals, no CNAME, resolvable.
 func checkMX(mx Lookup, lookup lookupFn) []MXCheck {
-	var out []MXCheck
+	out := []MXCheck{}
 	for _, rec := range mx.Records {
 		f := strings.Fields(rec)
 		if len(f) != 2 {
 			continue
 		}
-		c := MXCheck{Host: strings.ToLower(f[1])}
+		c := MXCheck{Host: strings.ToLower(f[1]), Problems: []string{}}
 		c.Pref, _ = strconv.Atoi(f[0])
 		if c.Host == "." {
-			c.Problems = append(c.Problems, "null MX mixed with real MX records")
-			if len(mx.Records) == 1 {
-				c.Problems = nil
+			if len(mx.Records) > 1 {
+				c.Problems = append(c.Problems, "null MX mixed with real MX records")
 			}
 			out = append(out, c)
 			continue
@@ -314,12 +314,12 @@ var dkimSelectors = []string{"google", "selector1", "selector2", "default", "k1"
 
 // DKIMResult lists selectors that publish a key.
 type DKIMResult struct {
-	SelectorsFound []string `json:"selectors_found,omitempty"`
-	Revoked        []string `json:"revoked,omitempty"`
+	SelectorsFound []string `json:"selectors_found"`
+	Revoked        []string `json:"revoked"`
 }
 
 func probeDKIM(domain string, lookup lookupFn) DKIMResult {
-	var res DKIMResult
+	res := DKIMResult{SelectorsFound: []string{}, Revoked: []string{}}
 	for _, sel := range dkimSelectors {
 		l := lookup(sel+"._domainkey."+domain, "TXT")
 		for _, r := range l.Records {
@@ -346,7 +346,7 @@ type MTASTS struct {
 	ID        string   `json:"id,omitempty"`
 	Mode      string   `json:"mode,omitempty"`
 	MaxAge    int      `json:"max_age,omitempty"`
-	MXPattern []string `json:"mx,omitempty"`
+	MXPattern []string `json:"mx"`
 	PolicyOK  bool     `json:"policy_ok"`
 	MXCovered bool     `json:"mx_covered"`
 	Error     string   `json:"error,omitempty"`
@@ -421,13 +421,23 @@ func matchesAny(patterns []string, host string) bool {
 var policyFetcher = fetchMTASTSPolicy
 
 // fetchMTASTSPolicy GETs https://mta-sts.<domain>/.well-known/mta-sts.txt
-// with full certificate verification, as RFC 8461 requires.
-func fetchMTASTSPolicy(ctx context.Context, domain string, timeout time.Duration) (string, error) {
+// with full certificate verification, as RFC 8461 requires. The host is
+// resolved through the tool's own validating lookups rather than the
+// system resolver, so the fetch sees the same DNS as every other check.
+func fetchMTASTSPolicy(ctx context.Context, domain string, timeout time.Duration, lookup lookupFn) (string, error) {
+	host := "mta-sts." + domain
+	addrs := append(lookup(host, "A").Addrs(), lookup(host, "AAAA").Addrs()...)
+	if len(addrs) == 0 {
+		return "", fmt.Errorf("%s has no address", host)
+	}
+	dialer := &net.Dialer{Timeout: timeout}
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{RootCAs: tlsRoots, MinVersion: tls.VersionTLS12},
-			DialContext:     (&net.Dialer{Timeout: timeout}).DialContext,
+			TLSClientConfig: &tls.Config{RootCAs: tlsRoots, MinVersion: tls.VersionTLS12, ServerName: host},
+			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return dialer.DialContext(ctx, network, netip.AddrPortFrom(addrs[0], 443).String())
+			},
 		},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
@@ -448,14 +458,15 @@ func fetchMTASTSPolicy(ctx context.Context, domain string, timeout time.Duration
 }
 
 // checkMTASTS combines the record, the policy fetch and the MX comparison.
-func checkMTASTS(ctx context.Context, domain string, rec Lookup, mxHosts []string, timeout time.Duration) *MTASTS {
+func checkMTASTS(ctx context.Context, domain string, rec Lookup, mxHosts []string, timeout time.Duration, lookup lookupFn) *MTASTS {
 	m := parseMTASTSRecord(rec)
+	m.MXPattern = []string{}
 	if !m.Record {
 		return &m
 	}
-	body, err := policyFetcher(ctx, domain, timeout)
+	body, err := policyFetcher(ctx, domain, timeout, lookup)
 	if err != nil {
-		m.Error = "policy fetch failed: " + err.Error()
+		m.Error = "policy fetch failed: " + scrubResolver(err.Error())
 		return &m
 	}
 	parseMTASTSPolicy(body, &m)
@@ -467,13 +478,22 @@ func checkMTASTS(ctx context.Context, domain string, rec Lookup, mxHosts []strin
 	return &m
 }
 
+// resolverAddrRe matches Go's "lookup X on 10.0.0.2:53: ..." fragments.
+var resolverAddrRe = regexp.MustCompile(` on [0-9a-fA-F.:\[\]]+:\d+`)
+
+// scrubResolver removes resolver addresses from error text so that no
+// finding reveals which resolver the probe used.
+func scrubResolver(msg string) string {
+	return resolverAddrRe.ReplaceAllString(msg, "")
+}
+
 // ----------------------------------------------------------------- Mail
 
 // MailReport is the mail section of the report.
 type MailReport struct {
 	DMARC  DMARC      `json:"dmarc"`
 	SPF    SPFResult  `json:"spf"`
-	MX     []MXCheck  `json:"mx,omitempty"`
+	MX     []MXCheck  `json:"mx"`
 	DKIM   DKIMResult `json:"dkim"`
 	MTASTS *MTASTS    `json:"mta_sts,omitempty"`
 	TLSRPT bool       `json:"tls_rpt"`

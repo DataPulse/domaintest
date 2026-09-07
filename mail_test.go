@@ -75,7 +75,7 @@ func TestEvaluateSPF_Fixtures(t *testing.T) {
 	check(t, "outlook chain followed", contains(j.Includes, "spf2.outlook.com"), true)
 	check(t, "amazonses included", contains(j.Includes, "amazonses.com"), true)
 	check(t, "lookups within limit", j.Lookups <= spfLookupLimit && j.Lookups >= 3, true)
-	check(t, "no problems", j.Problems, []string(nil))
+	check(t, "no problems", j.Problems, []string{})
 
 	// Google now inlines its netblocks: one include, one lookup.
 	g := evaluateSPF("google.com", lookup("google.com", "TXT"), lookup)
@@ -193,16 +193,46 @@ func TestMTASTS(t *testing.T) {
 
 	old := policyFetcher
 	t.Cleanup(func() { policyFetcher = old })
-	policyFetcher = func(context.Context, string, time.Duration) (string, error) { return policy, nil }
-	got := checkMTASTS(context.Background(), "gmail.com", parseDelvYAML(fixture(t, "delv/mail/mta_sts_gmail.yaml"), "TXT"), []string{"gmail-smtp-in.l.google.com."}, time.Second)
+	lookup := indexLookup(t)
+	policyFetcher = func(context.Context, string, time.Duration, lookupFn) (string, error) { return policy, nil }
+	got := checkMTASTS(context.Background(), "gmail.com", parseDelvYAML(fixture(t, "delv/mail/mta_sts_gmail.yaml"), "TXT"), []string{"gmail-smtp-in.l.google.com."}, time.Second, lookup)
 	check(t, "fetched and covered", got.MXCovered, true)
-	policyFetcher = func(context.Context, string, time.Duration) (string, error) { return "", errors.New("boom") }
-	got = checkMTASTS(context.Background(), "gmail.com", parseDelvYAML(fixture(t, "delv/mail/mta_sts_gmail.yaml"), "TXT"), nil, time.Second)
-	check(t, "fetch error", strings.Contains(got.Error, "boom"), true)
-	got = checkMTASTS(context.Background(), "x.org", Lookup{}, nil, time.Second)
+	policyFetcher = func(context.Context, string, time.Duration, lookupFn) (string, error) {
+		return "", errors.New("Get https://mta-sts.gmail.com/: dial tcp: lookup mta-sts.gmail.com on 10.0.0.2:53: no such host")
+	}
+	got = checkMTASTS(context.Background(), "gmail.com", parseDelvYAML(fixture(t, "delv/mail/mta_sts_gmail.yaml"), "TXT"), nil, time.Second, lookup)
+	check(t, "fetch error kept", strings.Contains(got.Error, "no such host"), true)
+	check(t, "resolver address scrubbed", strings.Contains(got.Error, "10.0.0.2"), false)
+	got = checkMTASTS(context.Background(), "x.org", Lookup{}, nil, time.Second, lookup)
 	check(t, "no record no fetch", got.Record, false)
+	check(t, "mx list present even without record", got.MXPattern, []string{})
+
+	// The real fetcher resolves the policy host through the tool's lookups
+	// and refuses to fall back to the system resolver.
+	policyFetcher = old
+	_, err := fetchMTASTSPolicy(context.Background(), "nosuch.example", time.Second, lookup)
+	check(t, "unresolvable policy host", err != nil && strings.Contains(err.Error(), "mta-sts.nosuch.example has no address"), true)
 }
 
 func TestMXHosts(t *testing.T) {
 	check(t, "hosts", mxHosts(Lookup{Records: []string{"10 b.example.", "5 a.example.", "0 ."}}), []string{"a.example.", "b.example."})
+}
+
+func TestScrubResolver(t *testing.T) {
+	check(t, "ipv4", scrubResolver("lookup x on 10.0.0.2:53: no such host"), "lookup x: no such host")
+	check(t, "ipv6", scrubResolver("lookup x on [::1]:5353: read udp"), "lookup x: read udp")
+	check(t, "untouched", scrubResolver("connection refused"), "connection refused")
+}
+
+func TestMailConventions(t *testing.T) {
+	lookup := indexLookup(t)
+	none := checkMX(Lookup{Status: StatusNXRRSet}, lookup)
+	check(t, "mx list not null", none != nil && len(none) == 0, true)
+	d := probeDKIM("nothing.example", lookup)
+	check(t, "dkim lists not null", d.SelectorsFound != nil && d.Revoked != nil, true)
+	dm := parseDMARC(Lookup{Status: StatusNXRRSet})
+	check(t, "dmarc problems not null", dm.Problems != nil, true)
+	check(t, "pct present", dm.Pct, 100)
+	spf := evaluateSPF("x", Lookup{Status: StatusNXRRSet}, lookup)
+	check(t, "spf lists not null", spf.Includes != nil && spf.Problems != nil, true)
 }

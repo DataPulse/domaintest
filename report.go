@@ -51,6 +51,7 @@ type Report struct {
 	Wildcard          *WildcardReport `json:"wildcard,omitempty"`
 	ReservedAddresses []string        `json:"reserved_addresses,omitempty"`
 	HSTSPreload       string          `json:"hsts_preload,omitempty"`
+	HSTSPreloadError  string          `json:"hsts_preload_error,omitempty"`
 	Errors            []string        `json:"errors"`
 	Warnings          []string        `json:"warnings"`
 	OK                bool            `json:"ok"`
@@ -347,6 +348,7 @@ func (f *findings) deepFindings(rep *Report) {
 	f.nsFindings(rep.Nameservers)
 	f.caaFindings(rep.CAA)
 	f.tlsaFindings(rep.TLSA)
+	f.preloadFindings(rep)
 }
 
 // ------------------------------------------------------------ deep checks
@@ -764,9 +766,45 @@ func (f *findings) glueFindings(g *GlueReport) {
 }
 
 func (f *findings) caaFindings(c *CAAReport) {
-	if c != nil && c.Permitted != nil && !*c.Permitted {
-		f.errorf("CAA records do not permit the certificate issuer %q", c.Issuer)
+	if c == nil {
+		return
 	}
+	for _, label := range []string{"apex", "www"} {
+		if v := c.Hosts[label]; v != nil && v.Permitted != nil && !*v.Permitted {
+			f.errorf("%s: CAA records do not permit the certificate issuer %q", label, v.Issuer)
+		}
+	}
+}
+
+// preloadMinAge is the max-age the HSTS preload list requires.
+const preloadMinAge = 31536000
+
+// preloadFindings cross-checks the preload-list status with the header
+// actually served on the apex.
+func (f *findings) preloadFindings(rep *Report) {
+	h := servedHSTS(rep.Web.Apex)
+	switch {
+	case rep.HSTSPreload == PreloadPreloaded && !meetsPreload(h):
+		f.warningf("domain is on the HSTS preload list but the served header no longer meets the preload requirements (max-age >= 1 year, includeSubDomains, preload)")
+	case rep.HSTSPreload == PreloadAbsent && h != nil && h.Preload && !meetsPreload(h):
+		f.warningf("HSTS header carries the preload directive but does not meet the preload requirements (max-age >= 1 year, includeSubDomains)")
+	case rep.HSTSPreload == PreloadUnknown:
+		f.warningf("HSTS preload list could not be consulted: %s", rep.HSTSPreloadError)
+	}
+}
+
+// servedHSTS returns the first HSTS header seen on the host, or nil.
+func servedHSTS(h *HostWeb) *HSTS {
+	for _, a := range h.addrs() {
+		if a.HTTPSRes != nil && a.HTTPSRes.HSTS != nil {
+			return a.HTTPSRes.HSTS
+		}
+	}
+	return nil
+}
+
+func meetsPreload(h *HSTS) bool {
+	return h != nil && h.Preload && h.IncludeSubdomains && h.MaxAge >= preloadMinAge
 }
 
 func (f *findings) tlsaFindings(t *TLSAReport) {

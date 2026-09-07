@@ -86,7 +86,7 @@ type RedirectChain struct {
 	Hops     []RedirectHop `json:"hops"`
 	FinalURL string        `json:"final_url,omitempty"`
 	External string        `json:"external,omitempty"` // first target outside apex/www, not followed
-	Loop     bool          `json:"loop,omitempty"`
+	Loop     bool          `json:"loop"`
 	Error    string        `json:"error,omitempty"`
 }
 
@@ -100,7 +100,7 @@ type hostAddrs map[string]netip.Addr
 // followRedirects starts at scheme://host/ on the given address and follows
 // Location headers while they stay within the known hosts.
 func followRedirects(ctx context.Context, d dialer, scheme, host string, hosts hostAddrs, timeout time.Duration) RedirectChain {
-	chain := RedirectChain{}
+	chain := RedirectChain{Hops: []RedirectHop{}}
 	current := scheme + "://" + host + "/"
 	seen := map[string]bool{}
 	for hop := 0; hop <= maxRedirectHops; hop++ {

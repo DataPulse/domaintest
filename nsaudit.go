@@ -23,21 +23,21 @@ type NSServer struct {
 
 // GlueReport compares the parent's glue with the child's own addresses.
 type GlueReport struct {
-	Required []string `json:"required,omitempty"` // in-bailiwick NS names
-	Missing  []string `json:"missing,omitempty"`
-	Mismatch []string `json:"mismatch,omitempty"`
+	Required []string `json:"required"` // in-bailiwick NS names
+	Missing  []string `json:"missing"`
+	Mismatch []string `json:"mismatch"`
 }
 
 // NSReport is the nameservers section of the report.
 type NSReport struct {
 	Count             int         `json:"count"`
-	Servers           []NSServer  `json:"servers,omitempty"`
+	Servers           []NSServer  `json:"servers"`
 	SerialsConsistent bool        `json:"serials_consistent"`
 	IPv4Prefixes24    int         `json:"ipv4_prefixes_24"`
 	IPv6Prefixes48    int         `json:"ipv6_prefixes_48"`
 	Glue              *GlueReport `json:"glue,omitempty"`
-	NSCNAME           []string    `json:"ns_cname,omitempty"`
-	Unresolvable      []string    `json:"unresolvable,omitempty"`
+	NSCNAME           []string    `json:"ns_cname"`
+	Unresolvable      []string    `json:"unresolvable"`
 	addrs             map[string][]netip.Addr
 }
 
@@ -54,7 +54,7 @@ func nsNames(ns Lookup) []string {
 // resolveNS looks up every NS name and records CNAME and unresolvable
 // offenders.
 func resolveNS(names []string, lookup lookupFn) NSReport {
-	rep := NSReport{Count: len(names), addrs: map[string][]netip.Addr{}}
+	rep := NSReport{Count: len(names), addrs: map[string][]netip.Addr{}, Servers: []NSServer{}, NSCNAME: []string{}, Unresolvable: []string{}}
 	type answer struct{ a, aaaa Lookup }
 	answers := make([]answer, len(names))
 	var tasks []func()
@@ -236,7 +236,7 @@ func checkGlue(msgs []digMessage, domain string, addrs map[string][]netip.Addr) 
 	if len(msgs) == 0 || msgs[0].Error != "" {
 		return nil
 	}
-	g := &GlueReport{}
+	g := &GlueReport{Required: []string{}, Missing: []string{}, Mismatch: []string{}}
 	glue := glueAddresses(msgs[0])
 	suffix := "." + strings.ToLower(strings.TrimSuffix(domain, ".")) + "."
 	for _, n := range sortedAddrKeys(addrs) {
@@ -249,6 +249,7 @@ func checkGlue(msgs []digMessage, domain string, addrs map[string][]netip.Addr) 
 			continue
 		}
 		g.Mismatch = append(g.Mismatch, glueMismatches(n, addrs[n], glue[n])...)
+		g.Mismatch = nonNil(g.Mismatch)
 	}
 	return g
 }

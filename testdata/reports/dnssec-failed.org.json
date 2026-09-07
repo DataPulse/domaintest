@@ -43,7 +43,7 @@
     },
     "resolver_reachable": {
       "ipv4": "yes",
-      "ipv6": "skipped"
+      "ipv6": "skipped: resolver has no ipv6 address"
     }
   },
   "dnssec": {
@@ -61,7 +61,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "a2.org.afilias-nst.info",
+    "parent_server": "b0.org.afilias-nst.org",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -69,7 +69,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns102.comcast.net"
+    "child_server": "dns101.comcast.net"
   },
   "web": {},
   "mail": {
@@ -77,16 +77,24 @@
       "present": false,
       "pct": 100,
       "rua": false,
-      "records": 0
+      "records": 0,
+      "problems": []
     },
     "spf": {
       "records": 0,
       "lookups": 0,
-      "void_lookups": 0
+      "void_lookups": 0,
+      "includes": [],
+      "problems": []
     },
-    "dkim": {},
+    "mx": [],
+    "dkim": {
+      "selectors_found": [],
+      "revoked": []
+    },
     "mta_sts": {
       "record": false,
+      "mx": [],
       "policy_ok": false,
       "mx_covered": false
     },
@@ -189,19 +197,41 @@
     "serials_consistent": true,
     "ipv4_prefixes_24": 5,
     "ipv6_prefixes_48": 5,
-    "glue": {}
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": []
   },
   "caa": {
-    "note": "no certificate observed"
+    "apex": [],
+    "www": [],
+    "note": "no certificate observed",
+    "hosts": {
+      "apex": {
+        "records": [],
+        "note": "no certificate observed"
+      },
+      "www": {
+        "records": [],
+        "note": "no certificate observed"
+      }
+    }
   },
   "tlsa": {
+    "apex": [],
+    "www": [],
     "signed": false,
     "result": "none"
   },
   "wildcard": {
-    "present": false
+    "present": false,
+    "addresses": [],
+    "www_via_wildcard": false
   },
-  "hsts_preload": "unknown",
+  "hsts_preload": "absent",
   "errors": [
     "DNSSEC validation fails (bogus): resolver fails validation but data exists with checking disabled"
   ],
@@ -209,5 +239,5 @@
     "no DMARC record"
   ],
   "ok": false,
-  "elapsed_ms": 1417
+  "elapsed_ms": 940
 }

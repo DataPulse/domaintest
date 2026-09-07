@@ -271,7 +271,7 @@ func TestIntegration_MailPosture(t *testing.T) {
 	check(t, "dmarc", m.DMARC.Policy, "quarantine")
 	check(t, "spf softfail", m.SPF.All, "~all")
 	check(t, "spf within limit", m.SPF.Lookups <= spfLookupLimit, true)
-	check(t, "spf problems", m.SPF.Problems, []string(nil))
+	check(t, "spf problems", m.SPF.Problems, []string{})
 	check(t, "mx resolves", m.MX[0].Addresses > 0, true)
 	check(t, "dkim selectors", m.DKIM.SelectorsFound, []string{"selector1", "selector2"})
 	check(t, "errors", rep.Errors, []string{})

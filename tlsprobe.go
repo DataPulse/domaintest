@@ -48,10 +48,10 @@ type CertInfo struct {
 	NotBefore     string   `json:"not_before"`
 	NotAfter      string   `json:"not_after"`
 	DaysRemaining int      `json:"days_remaining"`
-	SANs          []string `json:"sans,omitempty"`
+	SANs          []string `json:"sans"`
 	CoversApex    bool     `json:"covers_apex"`
 	CoversWWW     bool     `json:"covers_www"`
-	Wildcard      bool     `json:"wildcard,omitempty"`
+	Wildcard      bool     `json:"wildcard"`
 	Key           string   `json:"key"`
 	Fingerprint   string   `json:"fingerprint_sha256"`
 }
@@ -238,7 +238,7 @@ func certInfo(leaf *x509.Certificate, apex, www string) CertInfo {
 		NotBefore:     leaf.NotBefore.UTC().Format(time.RFC3339),
 		NotAfter:      leaf.NotAfter.UTC().Format(time.RFC3339),
 		DaysRemaining: int(time.Until(leaf.NotAfter).Hours() / 24),
-		SANs:          leaf.DNSNames,
+		SANs:          nonNil(leaf.DNSNames),
 		CoversApex:    leaf.VerifyHostname(apex) == nil,
 		CoversWWW:     leaf.VerifyHostname(www) == nil,
 		Key:           keyDescription(leaf),

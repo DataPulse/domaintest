@@ -61,7 +61,7 @@
     },
     "resolver_reachable": {
       "ipv4": "yes",
-      "ipv6": "skipped"
+      "ipv6": "skipped: resolver has no ipv6 address"
     }
   },
   "dnssec": {
@@ -76,7 +76,7 @@
       "ns2.dnsowl.com.",
       "ns3.dnsowl.com."
     ],
-    "parent_server": "a.gtld-servers.net",
+    "parent_server": "g.gtld-servers.net",
     "child_ns": [
       "ns1.dnsowl.com.",
       "ns2.dnsowl.com.",
@@ -119,6 +119,7 @@
               ],
               "covers_apex": true,
               "covers_www": false,
+              "wildcard": false,
               "key": "ECDSA P-256",
               "fingerprint_sha256": "05bf3129fd54338ca6f17259abee3f4c0d8909934cb09aba660a37452952843d"
             },
@@ -162,10 +163,16 @@
               ],
               "covers_apex": true,
               "covers_www": false,
+              "wildcard": false,
               "key": "ECDSA P-256",
               "fingerprint_sha256": "05bf3129fd54338ca6f17259abee3f4c0d8909934cb09aba660a37452952843d"
             },
             "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "error": "context deadline exceeded"
           }
         },
         {
@@ -200,10 +207,16 @@
               ],
               "covers_apex": true,
               "covers_www": false,
+              "wildcard": false,
               "key": "ECDSA P-256",
               "fingerprint_sha256": "05bf3129fd54338ca6f17259abee3f4c0d8909934cb09aba660a37452952843d"
             },
             "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "error": "context deadline exceeded"
           }
         }
       ],
@@ -223,7 +236,8 @@
               "status": 301
             }
           ],
-          "external": "https://graph.microsoft.com"
+          "external": "https://graph.microsoft.com",
+          "loop": false
         }
       },
       "cert_consistent": true
@@ -263,6 +277,7 @@
               ],
               "covers_apex": false,
               "covers_www": true,
+              "wildcard": false,
               "key": "ECDSA P-256",
               "fingerprint_sha256": "953ff74052cac65f557a22e9335667ea7b3b120977fd937ff18431bf04c0a9ee"
             },
@@ -306,10 +321,16 @@
               ],
               "covers_apex": false,
               "covers_www": true,
+              "wildcard": false,
               "key": "ECDSA P-256",
               "fingerprint_sha256": "953ff74052cac65f557a22e9335667ea7b3b120977fd937ff18431bf04c0a9ee"
             },
             "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "error": "context deadline exceeded"
           }
         },
         {
@@ -344,10 +365,16 @@
               ],
               "covers_apex": false,
               "covers_www": true,
+              "wildcard": false,
               "key": "ECDSA P-256",
               "fingerprint_sha256": "953ff74052cac65f557a22e9335667ea7b3b120977fd937ff18431bf04c0a9ee"
             },
             "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "error": "context deadline exceeded"
           }
         }
       ],
@@ -363,7 +390,8 @@
               "status": 301
             }
           ],
-          "external": "https://graph.microsoft.com"
+          "external": "https://graph.microsoft.com",
+          "loop": false
         }
       },
       "cert_consistent": true
@@ -374,23 +402,33 @@
       "present": false,
       "pct": 100,
       "rua": false,
-      "records": 0
+      "records": 0,
+      "problems": []
     },
     "spf": {
       "records": 0,
       "lookups": 0,
-      "void_lookups": 0
+      "void_lookups": 0,
+      "includes": [],
+      "problems": []
     },
     "mx": [
       {
         "host": "microsoft-com.mail.protection.outlook.com.",
         "preference": 0,
-        "addresses": 8
+        "addresses": 8,
+        "cname": false,
+        "ip_literal": false,
+        "problems": []
       }
     ],
-    "dkim": {},
+    "dkim": {
+      "selectors_found": [],
+      "revoked": []
+    },
     "mta_sts": {
       "record": false,
+      "mx": [],
       "policy_ok": false,
       "mx_covered": false
     },
@@ -511,20 +549,47 @@
     "serials_consistent": true,
     "ipv4_prefixes_24": 2,
     "ipv6_prefixes_48": 1,
-    "glue": {}
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": []
   },
   "caa": {
+    "apex": [],
+    "www": [],
     "issuer": "Let's Encrypt",
-    "note": "no CAA records; any CA may issue"
+    "permitted": true,
+    "note": "no CAA records; any CA may issue",
+    "hosts": {
+      "apex": {
+        "records": [],
+        "issuer": "Let's Encrypt",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      },
+      "www": {
+        "records": [],
+        "issuer": "Let's Encrypt",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      }
+    }
   },
   "tlsa": {
+    "apex": [],
+    "www": [],
     "signed": false,
     "result": "none"
   },
   "wildcard": {
-    "present": false
+    "present": false,
+    "addresses": [],
+    "www_via_wildcard": false
   },
-  "hsts_preload": "unknown",
+  "hsts_preload": "absent",
   "errors": [],
   "warnings": [
     "apex has no AAAA record",
@@ -534,5 +599,5 @@
     "all IPv6 nameserver addresses share one /48"
   ],
   "ok": true,
-  "elapsed_ms": 2948
+  "elapsed_ms": 3162
 }

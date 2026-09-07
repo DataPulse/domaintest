@@ -9,8 +9,8 @@ import (
 // WildcardReport says whether the zone answers for names that do not exist.
 type WildcardReport struct {
 	Present        bool     `json:"present"`
-	Addresses      []string `json:"addresses,omitempty"`
-	WWWViaWildcard bool     `json:"www_via_wildcard,omitempty"`
+	Addresses      []string `json:"addresses"`
+	WWWViaWildcard bool     `json:"www_via_wildcard"`
 }
 
 // wildcardLabel returns a label that cannot exist by accident.
@@ -25,7 +25,7 @@ func wildcardLabel() string {
 // assessWildcard compares the nonce probe with the www answers.
 func assessWildcard(probeA, probeAAAA, wwwA, wwwAAAA Lookup) WildcardReport {
 	addrs := append(probeA.Addrs(), probeAAAA.Addrs()...)
-	rep := WildcardReport{Present: len(addrs) > 0 || len(probeA.CNAME) > 0 || len(probeAAAA.CNAME) > 0}
+	rep := WildcardReport{Present: len(addrs) > 0 || len(probeA.CNAME) > 0 || len(probeAAAA.CNAME) > 0, Addresses: []string{}}
 	for _, ip := range addrs {
 		rep.Addresses = append(rep.Addresses, ip.String())
 	}

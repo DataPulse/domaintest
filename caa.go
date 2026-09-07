@@ -75,13 +75,25 @@ func normalizeOrg(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// CAAReport is the caa section of the report.
-type CAAReport struct {
-	Apex      []string `json:"apex,omitempty"`
-	WWW       []string `json:"www,omitempty"`
+// CAAVerdict is the cross-check for one hostname. Permitted is absent
+// only when nothing could be judged: no certificate was observed or the
+// issuer is not in the mapping table (the note says which).
+type CAAVerdict struct {
+	Records   []string `json:"records"`
 	Issuer    string   `json:"issuer,omitempty"`
 	Permitted *bool    `json:"permitted,omitempty"`
 	Note      string   `json:"note,omitempty"`
+}
+
+// CAAReport is the caa section of the report. issuer, permitted and note
+// are the apex verdict; hosts carries the verdict for apex and www.
+type CAAReport struct {
+	Apex      []string               `json:"apex"`
+	WWW       []string               `json:"www"`
+	Issuer    string                 `json:"issuer,omitempty"`
+	Permitted *bool                  `json:"permitted,omitempty"`
+	Note      string                 `json:"note,omitempty"`
+	Hosts     map[string]*CAAVerdict `json:"hosts"`
 }
 
 // caaPermits decides whether a CA (by its identifiers) may issue for a
@@ -125,28 +137,50 @@ func hasTag(records []caaRecord, tag string) bool {
 	return false
 }
 
-// assessCAA builds the CAA report from the two lookups and the certificate
-// actually served for the apex (or www when the apex has no TLS).
-func assessCAA(apex, www Lookup, issuer string, wildcardLeaf bool) CAAReport {
-	rep := CAAReport{Apex: apex.Records, WWW: www.Records, Issuer: issuer}
-	effective := parseCAA(apex.Records)
-	if len(www.Records) > 0 {
-		effective = parseCAA(www.Records) // the www name has its own policy
+// servedCert is what a host presented: issuer organisation and whether the
+// leaf is a wildcard certificate. A zero value means no certificate.
+type servedCert struct {
+	issuer   string
+	wildcard bool
+}
+
+// caaVerdict judges one served certificate against the CAA records that
+// apply to its host. Without CAA records any CA may issue (permitted
+// true, RFC 8659 §4).
+func caaVerdict(records []string, cert servedCert) *CAAVerdict {
+	v := &CAAVerdict{Records: nonNil(records), Issuer: cert.issuer}
+	parsed := parseCAA(records)
+	switch {
+	case cert.issuer == "":
+		v.Note = "no certificate observed"
+	case len(parsed) == 0:
+		v.Note = "no CAA records; any CA may issue"
+		v.Permitted = boolPtr(true)
+	default:
+		ids := caaIDsFor(cert.issuer)
+		if ids == nil {
+			v.Note = "issuer not in the CAA mapping table"
+			return v
+		}
+		v.Permitted = boolPtr(caaPermits(parsed, ids, cert.wildcard))
 	}
-	if issuer == "" {
-		rep.Note = "no certificate observed"
-		return rep
+	return v
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+// assessCAA builds the CAA report with one verdict per host. The www name
+// uses its own records when it has any, otherwise the apex records apply
+// (RFC 8659 climbs to the closest ancestor with a CAA set).
+func assessCAA(apexRec, wwwRec Lookup, apexCert, wwwCert servedCert) CAAReport {
+	wwwRecords := wwwRec.Records
+	if len(wwwRecords) == 0 {
+		wwwRecords = apexRec.Records
 	}
-	if len(effective) == 0 {
-		rep.Note = "no CAA records; any CA may issue"
-		return rep
+	hosts := map[string]*CAAVerdict{
+		"apex": caaVerdict(apexRec.Records, apexCert),
+		"www":  caaVerdict(wwwRecords, wwwCert),
 	}
-	ids := caaIDsFor(issuer)
-	if ids == nil {
-		rep.Note = "issuer not in the CAA mapping table"
-		return rep
-	}
-	permitted := caaPermits(effective, ids, wildcardLeaf)
-	rep.Permitted = &permitted
-	return rep
+	a := hosts["apex"]
+	return CAAReport{Apex: nonNil(apexRec.Records), WWW: nonNil(wwwRec.Records), Issuer: a.Issuer, Permitted: a.Permitted, Note: a.Note, Hosts: hosts}
 }

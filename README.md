@@ -76,8 +76,13 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    warning. Port 80 serving content instead of redirecting to https is a
    warning, as is an HSTS max-age under 180 days. HSTS absence is a fact,
    not a warning. `hsts_preload` carries the domain's status on the
-   Chromium preload list (hstspreload.org, `preloaded` / `unknown` /
-   `pending` ...); `-no-hsts-preload` skips that third-party call.
+   Chromium preload list (hstspreload.org): `preloaded`, `pending`,
+   `rejected`, `absent` (consulted, not on the list) or `unknown` (the list
+   could not be consulted; `hsts_preload_error` says why, with resolver
+   addresses removed). A preloaded domain whose served header no longer
+   meets the preload bar (max-age of a year, includeSubDomains, preload),
+   or a header that carries `preload` without meeting it, is a warning.
+   `-no-hsts-preload` skips that third-party call.
 8. **Redirect chains** (`redirects`, per name and address family): from
    `http://<name>/` on the first address of the family, following
    Location headers up to three hops while the target stays apex or www.
@@ -85,12 +90,12 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    started or ends in 4xx/5xx a warning, an external target is recorded
    as `external` and not followed. A chain is a property of the name, so
    it is followed once per family, unlike the per-address probes above.
-9. **QUIC / HTTP3** via the sibling `quicprobe` tool. This is sampled:
-   one probe per name and address family, on the first address of that
-   family, so only that address carries a `quic` object and the
-   "QUIC/h3 works on another probed address" warning can only compare
-   IPv4 with IPv6, or apex with www.
-10. **Mail** (`mail`): DMARC at `_dmarc` (missing or `p=none` warn,
+9. **QUIC / HTTP3** via the sibling `quicprobe` tool, on every address of
+   both names, so every address carries a `quic` object and the "QUIC/h3
+   works on another probed address" warning means what it says.
+10. **Mail** (`mail`, zone apexes only; absent for a host inside a zone,
+    like `nameservers`, since mail policy lives at the zone): DMARC at
+    `_dmarc` (missing or `p=none` warn,
     multiple or unparsable records error, `pct` below 100 warns); SPF is
     evaluated, not just found: include/redirect chains are followed and
     DNS-querying terms counted (more than 10 is a permerror and an error,
@@ -103,27 +108,38 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     fact since selectors cannot be enumerated); MTA-STS `_mta-sts` record
     and, when present, the policy at
     `https://mta-sts.<domain>/.well-known/mta-sts.txt` fetched with full
-    certificate verification and compared with the MX set (problems are
-    errors in `enforce` mode, warnings otherwise); TLS-RPT presence. A
-    null MX is reported as "accepts no mail". No SMTP connection is made.
-11. **CAA** (`caa`): records at the apex (and www when it has its own) are
-    compared with the issuer of the certificate actually served, using a
-    table of CA organisations to CAA identifiers; a CA the records do not
-    permit is an error, an issuer missing from the table or no CAA at all
-    is a fact.
+    certificate verification, its host resolved through the tool's own
+    validating lookups rather than the system resolver, and compared with
+    the MX set (problems are errors in `enforce` mode, warnings otherwise);
+    TLS-RPT presence. A null MX is reported as "accepts no mail". No SMTP
+    connection is made. No finding ever names the resolver used.
+11. **CAA** (`caa`): records at the apex and www (www falls back to the
+    apex records when it has none, as RFC 8659 climbs) are compared per
+    host with the issuer of the certificate that host actually served,
+    using a table of CA organisations to CAA identifiers. `caa.hosts.apex`
+    and `caa.hosts.www` each carry `records`, `issuer`, `permitted` and
+    `note`; the top-level `issuer`, `permitted` and `note` mirror the apex
+    verdict. `permitted` is true when there are no CAA records (any CA may
+    issue) and absent only when nothing could be judged: no certificate
+    observed, or an issuer not in the table (the note says which). A CA
+    the records forbid is an error per host.
 12. **DANE / TLSA** (`tlsa`): `_443._tcp.` records for apex and www are
     matched against every address's served chain per usage, selector and
     matching type. No match anywhere is an error; records in an unsigned
-    zone are a warning because DANE clients ignore them.
+    zone are a warning because DANE clients ignore them. `signed` says
+    whether the TLSA answers, positive or negative, were DNSSEC-validated:
+    in a signed zone the denial of a missing TLSA set is itself signed, so
+    `signed` is true there even with `result: none`.
 13. **Wildcard** (`wildcard`): a random label under the domain is looked
     up; if it answers, the zone has a wildcard, and when www resolves to
     exactly the wildcard's addresses the report says `www_via_wildcard`
     (and www carries `via_wildcard`) with a warning.
 14. **Resolver reachability** over IPv4 and IPv6 (a root NS query per
-    family). A family is `skipped` when the resolver has no address in it:
-    with `@127.0.0.1:8053` or any IPv4 literal, `ipv6` is always `skipped`
-    even though `families` still lists it for the TCP and QUIC probes. That
-    is expected, not a defect.
+    family). A family whose transport the resolver cannot use reads
+    `skipped: resolver has no ipv6 address` (or ipv4): with
+    `@127.0.0.1:8053` or any IPv4 literal, `ipv6` is always skipped even
+    though `families` still lists it for the TCP and QUIC probes. That is
+    expected, not a defect; key on the `skipped` prefix.
 
 Steps 5 to 9 run over both IPv4 and IPv6 unless `-4` or `-6` is given.
 DNS record data is fetched once; a literal `@server` address fixes the DNS
@@ -145,7 +161,8 @@ Single-line JSON on stdout (`-pretty` indents). Top-level keys: `domain`,
 `tcp_timeout_sec`, `quic_timeout_sec`, `not_a_zone` and `enclosing_zone`
 (hosts only), `dns`, `dnssec`, `delegation`, `web`, `mail`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
-`reserved_addresses` (when any), `hsts_preload` (unless disabled),
+`reserved_addresses` (when any), `hsts_preload` and `hsts_preload_error`
+(unless disabled),
 `errors`, `warnings`, `ok`, `elapsed_ms`.
 
 Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has
@@ -153,12 +170,19 @@ Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has
 skipped), `http` and `https` (status, location, server, hsts, error),
 `tls` (chain, version, alpn, cipher, tls10, tls11, cert, chain_length,
 error), `tlsa` (match / mismatch / none, only when TLSA records exist) and
-`quic` (sampled). Each host has `same_as_apex`, `via_wildcard`,
+`quic` (every address). Each host has `same_as_apex`, `via_wildcard`,
 `redirects` (per family: hops, final_url, external, loop, error) and
 `cert_consistent`.
 
 `web` is an empty object when the name has no usable addresses (no
 A/AAAA, NXDOMAIN, bogus zone): callers must not assume `web.apex` exists.
+`mail` and `nameservers` are absent for a name that is not a zone apex.
+
+Conventions inside the new sections: arrays are always present (empty
+rather than null), booleans are always present, strings are omitted when
+empty, and an object is omitted only when the whole check did not apply
+(`glue` when the parent could not be asked, `tls` when 443 did not
+answer, `quic` when quicprobe was not run).
 Per-lookup objects carry `retries: 1` when the first delv attempt timed
 out and the retry answered.
 
@@ -242,7 +266,9 @@ TLSA, wildcard probe) are all cache hits on a warm resolver.
 binary: microsoftdrive.com (healthy, CDN-fronted, redirect chain ending
 off-site; the most representative healthy web domain), jschmidt.org
 (healthy, signed, mail-only), microsoft.jp.net (parked, HTTP only, null
-MX), expired.badssl.com (certificate errors on a host inside a zone) and
+MX; captured while one of its registrar's nameservers was unreachable
+from the capturing host, so it also shows a nameserver error),
+expired.badssl.com (certificate errors on a host inside a zone) and
 dnssec-failed.org (DNSSEC bogus). Use them to write parsers against the
 real shape.
 
