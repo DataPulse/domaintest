@@ -611,6 +611,10 @@ func (f *findings) mailFindings(m *MailReport) {
 	f.spfFindings(m.SPF)
 	for _, mx := range m.MX {
 		for _, p := range mx.Problems {
+			if mx.Unresolved && p == mxUnresolvedProblem {
+				f.warningf("MX %s: %s", mx.Host, p)
+				continue
+			}
 			f.errorf("MX %s: %s", mx.Host, p)
 		}
 	}
@@ -679,8 +683,14 @@ func (f *findings) nsFindings(n *NSReport) {
 	for _, name := range n.Unresolvable {
 		f.errorf("nameserver %s has no address", name)
 	}
+	for _, name := range n.Unresolved {
+		f.warningf("nameserver %s: the address lookup did not complete, so it was not audited", name)
+	}
+	if len(n.Servers) == 0 {
+		f.warningf("no nameserver was reached, so none of the per-server checks ran")
+	}
 	f.serverFindings(n.Servers)
-	if !n.SerialsConsistent {
+	if n.SerialsConsistent != nil && !*n.SerialsConsistent {
 		f.warningf("SOA serial differs between nameservers: %s", serialList(n.Servers))
 	}
 	f.diversityFindings(n)
@@ -741,7 +751,12 @@ func serialList(servers []NSServer) string {
 	return strings.Join(parts, ", ")
 }
 
+// diversityFindings warns only when prefixes were actually counted. A null
+// count means nothing was examined and says nothing about diversity.
 func (f *findings) diversityFindings(n *NSReport) {
+	if n.IPv4Prefixes24 == nil || n.IPv6Prefixes48 == nil {
+		return
+	}
 	v4, v6 := 0, 0
 	for _, s := range n.Servers {
 		if ip, err := netip.ParseAddr(s.IP); err == nil && ip.Is4() {
@@ -750,10 +765,10 @@ func (f *findings) diversityFindings(n *NSReport) {
 			v6++
 		}
 	}
-	if v4 >= 2 && n.IPv4Prefixes24 == 1 {
+	if v4 >= 2 && *n.IPv4Prefixes24 == 1 {
 		f.warningf("all IPv4 nameserver addresses share one /24")
 	}
-	if v6 >= 2 && n.IPv6Prefixes48 == 1 {
+	if v6 >= 2 && *n.IPv6Prefixes48 == 1 {
 		f.warningf("all IPv6 nameserver addresses share one /48")
 	}
 }

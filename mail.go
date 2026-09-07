@@ -251,15 +251,22 @@ func (e *spfEvaluator) descend(target string, depth int) {
 
 // ------------------------------------------------------------------- MX
 
-// MXCheck is the sanity result for one MX exchange.
+// MXCheck is the sanity result for one MX exchange. Unresolved marks a
+// target whose address lookup never completed, which is a gap in the check
+// rather than a fault in the domain.
 type MXCheck struct {
-	Host      string   `json:"host"`
-	Pref      int      `json:"preference"`
-	Addresses int      `json:"addresses"`
-	CNAME     bool     `json:"cname"`
-	IPLiteral bool     `json:"ip_literal"`
-	Problems  []string `json:"problems"`
+	Host       string   `json:"host"`
+	Pref       int      `json:"preference"`
+	Addresses  int      `json:"addresses"`
+	CNAME      bool     `json:"cname"`
+	IPLiteral  bool     `json:"ip_literal"`
+	Unresolved bool     `json:"unresolved"`
+	Problems   []string `json:"problems"`
 }
+
+// mxUnresolvedProblem is the text recorded when neither address lookup
+// reached a definite answer. It is reported as a warning, not an error.
+const mxUnresolvedProblem = "MX target lookup did not complete, so the target was not checked"
 
 // checkMX validates every MX target: no IP literals, no CNAME, resolvable.
 // Targets are checked in parallel.
@@ -301,10 +308,13 @@ func checkMXTarget(c MXCheck, lookup lookupFn) MXCheck {
 		c.Problems = append(c.Problems, "MX target is a CNAME (RFC 2181 §10.3)")
 	}
 	switch {
+	case !a.Answered() || !aaaa.Answered():
+		// One family unanswered is enough: "no address" would then be an
+		// assertion about an answer we never received.
+		c.Unresolved = true
+		c.Problems = append(c.Problems, mxUnresolvedProblem)
 	case a.Status == StatusNXDomain:
 		c.Problems = append(c.Problems, "MX target does not exist")
-	case !a.Answered() && !aaaa.Answered():
-		c.Problems = append(c.Problems, "MX target lookup failed")
 	case c.Addresses == 0:
 		c.Problems = append(c.Problems, "MX target has no address")
 	}

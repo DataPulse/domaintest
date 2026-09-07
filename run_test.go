@@ -7,9 +7,11 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/netip"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -128,8 +130,8 @@ func TestRun_MailAndNameserverSections(t *testing.T) {
 		check(t, "edns "+srv.IP, srv.EDNS, true)
 		check(t, "tcp "+srv.IP, srv.TCP, true)
 	}
-	check(t, "serials", n.SerialsConsistent, true)
-	check(t, "prefix diversity", []int{n.IPv4Prefixes24, n.IPv6Prefixes48}, []int{4, 4})
+	check(t, "serials", *n.SerialsConsistent, true)
+	check(t, "prefix diversity", []int{*n.IPv4Prefixes24, *n.IPv6Prefixes48}, []int{4, 4})
 	check(t, "no glue needed", len(n.Glue.Required), 0)
 	check(t, "caa", rep.CAA.Hosts["apex"].Note, "no certificate observed")
 	check(t, "caa hosts", len(rep.CAA.Hosts), 2)
@@ -672,4 +674,75 @@ func TestRun_CapDoesNotStarveReachabilityProbe(t *testing.T) {
 	check(t, "resolver still measured as reachable", rep.DNS.ResolverReachable[familyIPv4], ReachYes)
 	check(t, "no false resolver error", contains(rep.Errors, "resolver not reachable"), false)
 	check(t, "the domain's own lookups did time out", rep.DNS.Apex["A"].Status, StatusTimeout)
+}
+
+// budgetRunner records the deadline each distinct call was given and can
+// stall selected calls, so a test can observe how much of the DNS budget a
+// lookup actually received.
+type budgetRunner struct {
+	inner Runner
+	delay func(key string) time.Duration
+	mu    sync.Mutex
+	left  map[string]time.Duration // first observation per call
+}
+
+func (b *budgetRunner) Run(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+	key := callKey(name, args)
+	b.mu.Lock()
+	if _, seen := b.left[key]; !seen {
+		if dl, ok := ctx.Deadline(); ok {
+			b.left[key] = time.Until(dl)
+		}
+	}
+	b.mu.Unlock()
+	if d := b.delay(key); d > 0 {
+		select {
+		case <-time.After(d):
+		case <-ctx.Done():
+			return nil, nil, fmt.Errorf("%s: %w", name, ctx.Err())
+		}
+	}
+	return b.inner.Run(ctx, name, args...)
+}
+
+func (b *budgetRunner) budgetFor(key string) time.Duration {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.left[key]
+}
+
+// The dependent wave gets its own budget. A first wave that spends most of
+// the allowance must not leave the MX targets and nameserver names with
+// only the remainder, because those lookups then all time out at once and
+// the report reads as a domain with no nameserver addresses.
+func TestRun_DependentWaveHasItsOwnBudget(t *testing.T) {
+	s := jschmidtScenario(t)
+	s.cfg.TimeoutSec = 1
+	b := &budgetRunner{inner: s.r, left: map[string]time.Duration{}, delay: func(key string) time.Duration {
+		switch {
+		case strings.HasSuffix(key, " jschmidt.org TXT"): // first wave: burns the budget
+			return 700 * time.Millisecond
+		case strings.Contains(key, "awsdns"): // second wave: needs a real allowance
+			return 400 * time.Millisecond
+		}
+		return 0
+	}}
+	rep := run(context.Background(), s.cfg, b, s.dialer)
+
+	nsKey := callKey("delv", delvArgs(s.cfg.Resolver, "", "ns-1013.awsdns-62.net", "A"))
+	if got := b.budgetFor(nsKey); got < 500*time.Millisecond {
+		t.Errorf("second wave got %v of a %v budget, want most of it", got, s.cfg.timeout())
+	}
+	if rep.Nameservers == nil {
+		t.Fatal("nameservers missing")
+	}
+	check(t, "no name left unresolved", rep.Nameservers.Unresolved, []string{})
+	check(t, "none reported absent", rep.Nameservers.Unresolvable, []string{})
+	check(t, "all eight audited", len(rep.Nameservers.Servers), 8)
+	if rep.Nameservers.SerialsConsistent == nil {
+		t.Fatal("serials unknown: no nameserver was reached")
+	}
+	check(t, "serials compared", *rep.Nameservers.SerialsConsistent, true)
+	check(t, "mx resolved", rep.Mail.MX[0].Addresses, 8)
+	check(t, "no 'has no address' errors", contains(rep.Errors, "has no address"), false)
 }

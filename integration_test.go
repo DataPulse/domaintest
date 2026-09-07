@@ -292,7 +292,7 @@ func TestIntegration_MailPosture(t *testing.T) {
 		check(t, "edns "+s.IP, s.EDNS, true)
 		check(t, "tcp "+s.IP, s.TCP, true)
 	}
-	check(t, "serials consistent", n.SerialsConsistent, true)
+	check(t, "serials consistent", *n.SerialsConsistent, true)
 }
 
 func TestIntegration_GoogleTLSAndCAA(t *testing.T) {

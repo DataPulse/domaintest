@@ -176,7 +176,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2000,
+            "handshake_ms": 2001,
             "error": "context deadline exceeded"
           }
         }
@@ -251,5 +251,5 @@
     "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/"
   ],
   "ok": false,
-  "elapsed_ms": 2973
+  "elapsed_ms": 2380
 }

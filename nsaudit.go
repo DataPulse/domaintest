@@ -28,16 +28,19 @@ type GlueReport struct {
 	Mismatch []string `json:"mismatch"`
 }
 
-// NSReport is the nameservers section of the report.
+// NSReport is the nameservers section of the report. Every aggregate is a
+// pointer so that a check which examined nothing reports null instead of a
+// pass: an empty server list must never be able to read as a clean audit.
 type NSReport struct {
 	Count             int         `json:"count"`
 	Servers           []NSServer  `json:"servers"`
-	SerialsConsistent bool        `json:"serials_consistent"`
-	IPv4Prefixes24    int         `json:"ipv4_prefixes_24"`
-	IPv6Prefixes48    int         `json:"ipv6_prefixes_48"`
-	Glue              *GlueReport `json:"glue,omitempty"`
+	SerialsConsistent *bool       `json:"serials_consistent"` // null: no server answered authoritatively
+	IPv4Prefixes24    *int        `json:"ipv4_prefixes_24"`   // null: no address was examined
+	IPv6Prefixes48    *int        `json:"ipv6_prefixes_48"`
+	Glue              *GlueReport `json:"glue,omitempty"` // absent: nothing could be checked
 	NSCNAME           []string    `json:"ns_cname"`
-	Unresolvable      []string    `json:"unresolvable"`
+	Unresolvable      []string    `json:"unresolvable"` // answered, and the name has no address
+	Unresolved        []string    `json:"unresolved"`   // the address lookup did not complete
 	addrs             map[string][]netip.Addr
 }
 
@@ -51,10 +54,10 @@ func nsNames(ns Lookup) []string {
 	return out
 }
 
-// resolveNS looks up every NS name and records CNAME and unresolvable
-// offenders.
+// resolveNS looks up every NS name, separating names the resolver denied an
+// address for from names whose lookup never completed.
 func resolveNS(names []string, lookup lookupFn) NSReport {
-	rep := NSReport{Count: len(names), addrs: map[string][]netip.Addr{}, Servers: []NSServer{}, NSCNAME: []string{}, Unresolvable: []string{}}
+	rep := NSReport{Count: len(names), addrs: map[string][]netip.Addr{}, Servers: []NSServer{}, NSCNAME: []string{}, Unresolvable: []string{}, Unresolved: []string{}}
 	type answer struct{ a, aaaa Lookup }
 	answers := make([]answer, len(names))
 	var tasks []func()
@@ -71,14 +74,31 @@ func resolveNS(names []string, lookup lookupFn) NSReport {
 			rep.NSCNAME = append(rep.NSCNAME, n)
 		}
 		addrs := append(a.Addrs(), aaaa.Addrs()...)
-		if len(addrs) == 0 {
+		switch {
+		case !a.Answered() || !aaaa.Answered():
+			// An unanswered query is not a denial, so it must not be
+			// recorded as the name having no address.
+			rep.Unresolved = append(rep.Unresolved, n)
+		case len(addrs) == 0:
 			rep.Unresolvable = append(rep.Unresolvable, n)
-			continue
+		default:
+			rep.addrs[n] = addrs
 		}
-		rep.addrs[n] = addrs
 	}
-	rep.IPv4Prefixes24, rep.IPv6Prefixes48 = prefixDiversity(rep.allAddrs())
+	rep.setDiversity()
 	return rep
+}
+
+// setDiversity counts distinct prefixes, leaving both counts null when no
+// address was examined so that zero cannot be read as a diversity finding.
+func (r *NSReport) setDiversity() {
+	addrs := r.allAddrs()
+	if len(addrs) == 0 {
+		r.IPv4Prefixes24, r.IPv6Prefixes48 = nil, nil
+		return
+	}
+	v4, v6 := prefixDiversity(addrs)
+	r.IPv4Prefixes24, r.IPv6Prefixes48 = &v4, &v6
 }
 
 func (r NSReport) allAddrs() []netip.Addr {
@@ -195,7 +215,10 @@ func auditAll(ctx context.Context, r Runner, digPath string, rep *NSReport, doma
 	rep.SerialsConsistent = serialsConsistent(rep.Servers)
 }
 
-func serialsConsistent(servers []NSServer) bool {
+// serialsConsistent compares the serials of the servers that answered
+// authoritatively. It returns nil when none did, because a comparison over
+// nothing is unknown rather than agreement.
+func serialsConsistent(servers []NSServer) *bool {
 	var first int64
 	seen := false
 	for _, s := range servers {
@@ -203,11 +226,14 @@ func serialsConsistent(servers []NSServer) bool {
 			continue
 		}
 		if seen && s.Serial != first {
-			return false
+			return boolPtr(false)
 		}
 		first, seen = s.Serial, true
 	}
-	return true
+	if !seen {
+		return nil
+	}
+	return boolPtr(true)
 }
 
 func containsString(list []string, s string) bool {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/netip"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -370,13 +371,24 @@ func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := string(b)
-	if nulls := regexp.MustCompile(`"([a-z_0-9]+)":null`).FindAllStringSubmatch(out, -1); len(nulls) > 0 {
-		t.Errorf("null values for keys: %v", nulls)
+	// Arrays and plain booleans are always present and never null. The
+	// only keys allowed to be null are the aggregates computed over a set
+	// of examined servers: with nothing examined they are unknown, and
+	// null is how they say so rather than reporting a vacuous pass.
+	unknownable := map[string]bool{"serials_consistent": true, "ipv4_prefixes_24": true, "ipv6_prefixes_48": true}
+	var seen []string
+	for _, m := range regexp.MustCompile(`"([a-z_0-9]+)":null`).FindAllStringSubmatch(out, -1) {
+		if !unknownable[m[1]] {
+			t.Errorf("unexpected null value for key %q", m[1])
+		}
+		seen = append(seen, m[1])
 	}
-	for _, want := range []string{`"selectors_found":[]`, `"revoked":[]`, `"includes":[]`, `"problems":[]`, `"mx":[]`, `"addresses":[]`, `"www_via_wildcard":false`, `"signed":false`, `"hosts":{`, `"published":[]`, `"effective":[]`, `"servers":[]`, `"ns_cname":[]`, `"unresolvable":[]`, `"pct":100`} {
+	sort.Strings(seen)
+	check(t, "empty aggregates report unknown", seen, []string{"ipv4_prefixes_24", "ipv6_prefixes_48", "serials_consistent"})
+	for _, want := range []string{`"selectors_found":[]`, `"revoked":[]`, `"includes":[]`, `"problems":[]`, `"mx":[]`, `"addresses":[]`, `"www_via_wildcard":false`, `"signed":false`, `"hosts":{`, `"published":[]`, `"effective":[]`, `"servers":[]`, `"ns_cname":[]`, `"unresolvable":[]`, `"unresolved":[]`, `"pct":100`} {
 		check(t, "present: "+want, strings.Contains(out, want), true)
 	}
-	check(t, "no null arrays", strings.Contains(out, ":null"), false)
+	check(t, "glue absent when nothing was checkable", strings.Contains(out, `"glue"`), false)
 }
 
 func TestSerialList_NamesTheAddress(t *testing.T) {
@@ -387,4 +399,21 @@ func TestSerialList_NamesTheAddress(t *testing.T) {
 	})
 	check(t, "one entry per address, with the address", got, "ns1.example.(192.0.2.1)=9957, ns1.example.(2001:db8::1)=9958")
 	check(t, "no authoritative servers", serialList([]NSServer{{Name: "x.", AA: false}}), "")
+}
+
+// An audit that reached nothing must warn about the gap and must not claim
+// the names have no address or that their serials agree.
+func TestNSFindings_UnansweredIsAGapNotAFault(t *testing.T) {
+	f := &findings{}
+	f.nsFindings(&NSReport{Count: 2, Servers: []NSServer{}, Unresolvable: []string{}, Unresolved: []string{"ns1.example.", "ns2.example."}})
+	check(t, "no errors", f.errors, []string(nil))
+	check(t, "gap reported", contains(f.warnings, "did not complete"), true)
+	check(t, "audit gap reported", contains(f.warnings, "none of the per-server checks ran"), true)
+	check(t, "no serial claim", contains(f.warnings, "SOA serial"), false)
+	check(t, "no diversity claim", contains(f.warnings, "share one"), false)
+
+	// A denial is still an error.
+	g := &findings{}
+	g.nsFindings(&NSReport{Count: 2, Servers: []NSServer{}, Unresolved: []string{}, Unresolvable: []string{"ns1.example."}})
+	check(t, "denial errors", contains(g.errors, "has no address"), true)
 }

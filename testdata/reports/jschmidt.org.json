@@ -73,7 +73,7 @@
       "ns-2001.awsdns-58.co.uk.",
       "ns-507.awsdns-63.com."
     ],
-    "parent_server": "a2.org.afilias-nst.info",
+    "parent_server": "a0.org.afilias-nst.info",
     "child_ns": [
       "ns-1013.awsdns-62.net.",
       "ns-1034.awsdns-01.org.",
@@ -111,6 +111,7 @@
         "addresses": 8,
         "cname": false,
         "ip_literal": false,
+        "unresolved": false,
         "problems": []
       }
     ],
@@ -214,7 +215,8 @@
       "mismatch": []
     },
     "ns_cname": [],
-    "unresolvable": []
+    "unresolvable": [],
+    "unresolved": []
   },
   "caa": {
     "hosts": {
@@ -257,5 +259,5 @@
     "www has no A or AAAA records"
   ],
   "ok": true,
-  "elapsed_ms": 760
+  "elapsed_ms": 708
 }

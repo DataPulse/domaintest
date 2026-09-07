@@ -77,13 +77,13 @@
       "ns2.dnsowl.com.",
       "ns3.dnsowl.com."
     ],
-    "parent_server": "a.gtld-servers.net",
+    "parent_server": "j.gtld-servers.net",
     "child_ns": [
       "ns1.dnsowl.com.",
       "ns2.dnsowl.com.",
       "ns3.dnsowl.com."
     ],
-    "child_server": "ns2.dnsowl.com"
+    "child_server": "ns3.dnsowl.com"
   },
   "web": {
     "apex": {
@@ -420,6 +420,7 @@
         "addresses": 8,
         "cname": false,
         "ip_literal": false,
+        "unresolved": false,
         "problems": []
       }
     ],
@@ -556,7 +557,8 @@
       "mismatch": []
     },
     "ns_cname": [],
-    "unresolvable": []
+    "unresolvable": [],
+    "unresolved": []
   },
   "caa": {
     "hosts": {
@@ -597,5 +599,5 @@
     "all IPv6 nameserver addresses share one /48"
   ],
   "ok": true,
-  "elapsed_ms": 4094
+  "elapsed_ms": 3703
 }

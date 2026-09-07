@@ -29,14 +29,44 @@ func TestResolveNS(t *testing.T) {
 	check(t, "count", rep.Count, 4)
 	check(t, "all resolved", len(rep.Unresolvable), 0)
 	check(t, "no cname", len(rep.NSCNAME), 0)
-	check(t, "four /24s", rep.IPv4Prefixes24, 4)
-	check(t, "four /48s", rep.IPv6Prefixes48, 4)
+	check(t, "four /24s", *rep.IPv4Prefixes24, 4)
+	check(t, "four /48s", *rep.IPv6Prefixes48, 4)
 	check(t, "eight addresses", len(rep.allAddrs()), 8)
 
 	bad := fixtureLookup(t, map[string]string{"cname.example/A": "delv/www_github_cname.yaml"})
 	rep = resolveNS([]string{"cname.example.", "gone.example."}, bad)
 	check(t, "cname ns", rep.NSCNAME, []string{"cname.example."})
 	check(t, "unresolvable", rep.Unresolvable, []string{"gone.example."})
+	check(t, "denial is not a gap", rep.Unresolved, []string{})
+}
+
+// A lookup that never answered must be reported as unresolved, not as a
+// name without an address, and must leave the diversity counts unknown
+// rather than reporting zero of everything.
+func TestResolveNS_UnansweredIsNotAbsent(t *testing.T) {
+	timedOut := func(name, qtype string) Lookup {
+		l := parseDelvYAML(fixture(t, "delv/timeout.yaml"), qtype)
+		l.Name, l.Status = name, StatusTimeout
+		return l
+	}
+	rep := resolveNS([]string{"ns1.example.", "ns2.example."}, timedOut)
+	check(t, "nothing claimed absent", rep.Unresolvable, []string{})
+	check(t, "both unresolved", rep.Unresolved, []string{"ns1.example.", "ns2.example."})
+	check(t, "v4 diversity unknown", rep.IPv4Prefixes24 == nil, true)
+	check(t, "v6 diversity unknown", rep.IPv6Prefixes48 == nil, true)
+
+	// One family answering and the other timing out is still a gap.
+	half := func(name, qtype string) Lookup {
+		if qtype == "AAAA" {
+			return timedOut(name, qtype)
+		}
+		l := parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), qtype)
+		l.Name = name
+		return l
+	}
+	rep = resolveNS([]string{"ns1.example."}, half)
+	check(t, "half an answer is a gap", rep.Unresolved, []string{"ns1.example."})
+	check(t, "not called absent", rep.Unresolvable, []string{})
 }
 
 func TestPrefixDiversity(t *testing.T) {
@@ -95,7 +125,7 @@ func TestAuditAllAndSerials(t *testing.T) {
 	auditAll(context.Background(), r, "dig", &rep, "jschmidt.org", []string{familyIPv4, familyIPv6}, 3)
 	check(t, "eight servers audited", len(rep.Servers), 8)
 	check(t, "sorted by name", rep.Servers[0].Name, "ns-1013.awsdns-62.net.")
-	check(t, "serials consistent (lame ones ignored)", rep.SerialsConsistent, true)
+	check(t, "serials consistent (lame ones ignored)", *rep.SerialsConsistent, true)
 	var lame int
 	for _, s := range rep.Servers {
 		if !s.AA {
@@ -108,9 +138,11 @@ func TestAuditAllAndSerials(t *testing.T) {
 	auditAll(context.Background(), r, "dig", &only4, "jschmidt.org", []string{familyIPv4}, 3)
 	check(t, "ipv4 only", len(only4.Servers), 4)
 
-	check(t, "drift", serialsConsistent([]NSServer{{AA: true, Serial: 1}, {AA: true, Serial: 2}}), false)
-	check(t, "single", serialsConsistent([]NSServer{{AA: true, Serial: 5}}), true)
-	check(t, "none", serialsConsistent(nil), true)
+	check(t, "drift", *serialsConsistent([]NSServer{{AA: true, Serial: 1}, {AA: true, Serial: 2}}), false)
+	check(t, "single", *serialsConsistent([]NSServer{{AA: true, Serial: 5}}), true)
+	// Nothing was compared, so the answer is unknown, not agreement.
+	check(t, "none is unknown", serialsConsistent(nil) == nil, true)
+	check(t, "only lame servers is unknown", serialsConsistent([]NSServer{{AA: false, Serial: 7}}) == nil, true)
 }
 
 func TestCheckGlue(t *testing.T) {

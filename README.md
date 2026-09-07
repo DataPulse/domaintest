@@ -42,7 +42,10 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    then skipped, `dnssec.state` is taken from the validation status of the
    answers, and `not_a_zone` / `enclosing_zone` appear in the report.
 4. **Nameserver audit** (`nameservers`): every NS name is resolved (a
-   CNAME or an unresolvable name is an error) and every address is asked
+   CNAME is an error, and so is a name the resolver says has no address;
+   a name whose lookup never completed is listed in `unresolved` and
+   warned about, since an unanswered query is not a denial) and every
+   address is asked
    for the zone SOA non-recursively over UDP, over TCP and with EDNS/DNSSEC
    in one `dig` run: not authoritative or unreachable is an error, no TCP
    or no EDNS a warning, SOA serial drift between servers a warning. Fewer
@@ -224,8 +227,17 @@ A/AAAA, NXDOMAIN, bogus zone): callers must not assume `web.apex` exists.
 Conventions inside the new sections: arrays are always present (empty
 rather than null), booleans are always present, strings are omitted when
 empty, and an object is omitted only when the whole check did not apply
-(`glue` when the parent could not be asked, `tls` when 443 did not
-answer, `quic` when quicprobe was not run).
+(`glue` when the parent could not be asked or no nameserver address was
+known to compare it against, `tls` when 443 did not answer, `quic` when
+quicprobe was not run).
+
+The exception is the aggregates over the audited server set, which are
+`null` when nothing was audited: `serials_consistent` is null when no
+nameserver answered authoritatively, and `ipv4_prefixes_24` /
+`ipv6_prefixes_48` are null when no nameserver address was examined. A
+check that examined nothing reports unknown rather than a pass, so
+`serials_consistent: true` now means the serials were actually compared.
+Consumers reading these as plain booleans or integers must handle null.
 Per-lookup objects carry `retries: 1` when the first delv attempt timed
 out and the retry answered.
 
@@ -236,7 +248,7 @@ enabled family, reserved addresses in DNS, any certificate chain problem,
 every address 5xx on a port, redirect loops or over-long chains, DMARC
 records that are multiple or unparsable, SPF permerrors (over the lookup
 limit, multiple records), `+all`, unknown SPF mechanisms, MX targets that
-are CNAMEs, IP literals or unresolvable, MTA-STS problems in enforce mode,
+are CNAMEs, IP literals, non-existent or without an address, MTA-STS problems in enforce mode,
 nameservers that are CNAMEs, unresolvable, unreachable or not
 authoritative, fewer than two nameservers, missing glue, a certificate
 issuer the CAA records forbid, and TLSA records matching no served
@@ -255,6 +267,9 @@ under 180 days, broken redirect chains, missing DMARC or `p=none` or
 `pct<100`, SPF `?all` / `ptr` / missing `all` / void lookups / includes
 without SPF, revoked DKIM keys, MTA-STS problems in testing mode,
 nameservers without TCP or EDNS, SOA serial drift, low prefix diversity,
+MX targets and nameserver names whose address lookup did not complete (a
+gap in the check, not a fault in the domain, and marked `unresolved` in
+the report), an audit that reached no nameserver at all,
 glue mismatch, TLSA in an unsigned zone, and www answered by a wildcard.
 The SOA drift warning names each nameserver with the address that answered,
 `ns1.example.(192.0.2.1)=9957`, since which address disagrees is the point.
@@ -290,9 +305,15 @@ Defaults assume a well-connected vantage point such as an AWS host: a
 server that cannot complete a handshake in two seconds is dead or
 misconfigured.
 
-`-t` (default 3 s) bounds all `delv` lookups together and the delegation
+`-t` (default 3 s) bounds each wave of `delv` lookups and the delegation
 trace (which gets twice the budget with half of it per query, so one slow
-root or TLD server does not sink the whole trace).
+root or TLD server does not sink the whole trace). The lookups run in two
+waves, the fixed records first and then the ones those answers name (MX
+targets, nameserver addresses, DKIM selectors, SPF includes), and each
+wave gets its own `-t`. Sharing one allowance made the first wave's
+queueing come out of the second, so a busy host lost every MX and
+nameserver address at once and the report read as a domain with no
+nameservers.
 
 `-tcp-timeout` (default 2 s) bounds each TCP connect to 80 and 443.
 
@@ -305,8 +326,9 @@ within tens of milliseconds.
 (TLS handshake, HTTP request, each redirect hop, the MTA-STS policy fetch)
 and the whole probe phase is capped at three times it.
 
-Worst-case wall time is bounded by the phases: the DNS phase and the
-delegation trace run together for at most `2 × -t`, a DNSSEC bogus probe
+Worst-case wall time is bounded by the phases: the DNS phase (two waves of
+`-t` each) and the delegation trace run together for at most `2 × -t`, a
+DNSSEC bogus probe
 can add `-t`, and the probe phase (TCP, TLS, HTTP, redirects, QUIC,
 nameserver audit, late lookups) is capped at `max(3 × -tcp-timeout,
 -quic-timeout + 1) + 1`. With the defaults (`-t 3 -tcp-timeout 2

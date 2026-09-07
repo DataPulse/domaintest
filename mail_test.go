@@ -145,6 +145,8 @@ func TestCheckMX(t *testing.T) {
 	check(t, "nxdomain", contains(mx[2].Problems, "does not exist"), true)
 	check(t, "no address", contains(mx[3].Problems, "no address"), true)
 
+	check(t, "none of these are gaps", []bool{mx[0].Unresolved, mx[2].Unresolved, mx[3].Unresolved}, []bool{false, false, false})
+
 	null := checkMX(parseDelvYAML(fixture(t, "delv/microsoft_jp_net_null_mx.yaml"), "MX"), lookup)
 	check(t, "lone null MX is fine", len(null[0].Problems), 0)
 	mixed := checkMX(Lookup{Status: StatusOK, Records: []string{"0 .", "10 www.github.com."}}, lookup)
@@ -235,4 +237,34 @@ func TestMailConventions(t *testing.T) {
 	check(t, "pct present", dm.Pct, 100)
 	spf := evaluateSPF("x", Lookup{Status: StatusNXRRSet}, lookup)
 	check(t, "spf lists not null", spf.Includes != nil && spf.Problems != nil, true)
+}
+
+// A target whose lookup never completed is a gap in the check, not a
+// domain without a mail host: it must not be reported as absent, and it
+// must not fail the domain.
+func TestCheckMX_UnansweredIsNotAbsent(t *testing.T) {
+	timedOut := func(name, qtype string) Lookup {
+		l := parseDelvYAML(fixture(t, "delv/timeout.yaml"), qtype)
+		l.Name, l.Status = name, StatusTimeout
+		return l
+	}
+	mx := checkMX(Lookup{Status: StatusOK, Records: []string{"10 mx.example."}}, timedOut)
+	check(t, "marked unresolved", mx[0].Unresolved, true)
+	check(t, "says so plainly", mx[0].Problems, []string{mxUnresolvedProblem})
+	check(t, "not called absent", contains(mx[0].Problems, "no address"), false)
+
+	f := &findings{}
+	f.mailFindings(&MailReport{DMARC: DMARC{}, MX: mx})
+	check(t, "no error", f.errors, []string(nil))
+	check(t, "warned instead", contains(f.warnings, "did not complete"), true)
+
+	// A real denial still fails the domain.
+	denied := checkMX(Lookup{Status: StatusOK, Records: []string{"10 mx.example."}}, fixtureLookup(t, map[string]string{
+		"mx.example/A":    "delv/nxdomain_unsigned.yaml",
+		"mx.example/AAAA": "delv/nxdomain_unsigned.yaml",
+	}))
+	check(t, "denial is not a gap", denied[0].Unresolved, false)
+	g := &findings{}
+	g.mailFindings(&MailReport{DMARC: DMARC{}, MX: denied})
+	check(t, "still an error", contains(g.errors, "does not exist"), true)
 }

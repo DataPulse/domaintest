@@ -227,9 +227,9 @@ func traceFamily(cfg config) string {
 	return familyIPv4
 }
 
-// gatherDNS runs all delv lookups in parallel under one deadline: first
-// the fixed set, then the lookups that depend on those answers (SPF
-// includes, MX targets, DKIM selectors, NS names).
+// gatherDNS runs all delv lookups in parallel in two waves: first the fixed
+// set, then the lookups that depend on those answers (SPF includes, MX
+// targets, DKIM selectors, NS names). Each wave gets its own budget.
 //
 // gatherDNS runs the record lookups through the capped runner. The
 // reachability probe uses the uncapped one: it measures our own resolver,
@@ -253,6 +253,16 @@ func gatherDNS(ctx context.Context, cfg config, r, reachRunner Runner) dnsResult
 		})
 	}
 	parallel(tasks...)
+
+	// The second wave gets its own allowance rather than the remainder of
+	// the first. Sharing one budget charged the first wave's queueing to
+	// the second, so under a concurrency cap every MX target and
+	// nameserver address timed out at once and was then reported as
+	// missing. The waves are sequential, so the run's DNS phase is bounded
+	// by twice the timeout.
+	wctx, wcancel := context.WithTimeout(ctx, cfg.timeout())
+	defer wcancel()
+	res.cache.setContext(wctx)
 	parallel(dependentLookups(&res, cfg, get)...)
 	return res
 }
@@ -544,7 +554,9 @@ func auditNameservers(ctx context.Context, cfg config, r Runner, dns dnsResults,
 	}
 	ns := resolveNS(names, dns.cache.get)
 	auditAll(ctx, r, cfg.DigPath, &ns, cfg.Domain, cfg.Families, cfg.TimeoutSec)
-	if rep.Delegation.ParentServer != "" && rep.Delegation.Status != DelegationSameServers {
+	// Glue can only be compared against addresses the child gave us. With
+	// none, an empty glue report would read as "checked, nothing missing".
+	if len(ns.addrs) > 0 && rep.Delegation.ParentServer != "" && rep.Delegation.Status != DelegationSameServers {
 		msgs := runDig(ctx, r, cfg.DigPath, glueArgs(rep.Delegation.ParentServer, traceFamily(cfg), cfg.TimeoutSec, cfg.Domain)...)
 		ns.Glue = checkGlue(msgs, cfg.Domain, ns.addrs)
 	}
