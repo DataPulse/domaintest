@@ -377,8 +377,18 @@ func TestRun_ReservedAddress(t *testing.T) {
 	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
 	s.trace("trace/jschmidt.txt", t) // any healthy trace shape; delegation is not under test
 	rep := s.run()
-	check(t, "reserved listed", rep.ReservedAddresses, []string{"127.0.0.1 (loopback)", "127.0.0.1 (loopback)"})
-	check(t, "error", contains(rep.Errors, "reserved address published in DNS: 127.0.0.1 (loopback)"), true)
+	// One address published at both apex and www is one reserved address.
+	check(t, "reserved listed once", rep.ReservedAddresses, []string{"127.0.0.1 (loopback)"})
+	reserved := 0
+	for _, e := range rep.Errors {
+		if strings.Contains(e, "reserved address published") {
+			reserved++
+		}
+	}
+	check(t, "one error, not one per host", reserved, 1)
+	// The probe declined to connect; nothing failed to listen.
+	check(t, "says why it was not probed", contains(rep.Warnings, "apex 127.0.0.1: not probed (reserved address)"), true)
+	check(t, "not reported as a dead listener", contains(rep.Warnings, "no listener"), false)
 	check(t, "ports skipped", []PortState{rep.Web.Apex.IPv4[0].HTTP, rep.Web.Apex.IPv4[0].HTTPS}, []PortState{PortSkipped, PortSkipped})
 	check(t, "nothing dialed", len(s.dialer.seen), 0)
 	check(t, "no quic", len(s.r.called("quicprobe")), 0)

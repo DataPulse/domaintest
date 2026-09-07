@@ -16,8 +16,7 @@
         "trust": "insecure",
         "records": [
           "150.95.255.38"
-        ],
-        "retries": 1
+        ]
       },
       "AAAA": {
         "status": "nxrrset",
@@ -36,8 +35,7 @@
         "records": [
           "dns1.onamae.com.",
           "dns2.onamae.com."
-        ],
-        "retries": 1
+        ]
       },
       "TXT": {
         "status": "ok",
@@ -53,7 +51,8 @@
         "trust": "insecure",
         "records": [
           "150.95.255.38"
-        ]
+        ],
+        "retries": 1
       },
       "AAAA": {
         "status": "nxrrset",
@@ -76,13 +75,12 @@
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "parent_server": "ns3.centralnic.net",
+    "parent_server": "ns4.centralnic.net",
     "child_ns": [
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "child_server": "dns1.onamae.com",
-    "error": "communications error to 163.44.76.150#53: timed out"
+    "child_server": "dns1.onamae.com"
   },
   "web": {
     "apex": {
@@ -177,6 +175,7 @@
       }
     ],
     "dkim": {
+      "wildcard": false,
       "selectors_found": [],
       "revoked": []
     },
@@ -242,21 +241,21 @@
     "determined_by": "3 random names all answer",
     "probes": [
       {
-        "label": "ycnuojuqoirm",
+        "label": "tehqerxuwnlk",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "nefgmscxtnlv",
+        "label": "hdauwsrudpvs",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "ecdlippssdaf",
+        "label": "udujsnjoupcs",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
@@ -285,5 +284,5 @@
     "all IPv4 nameserver addresses share one /24"
   ],
   "ok": false,
-  "elapsed_ms": 11884
+  "elapsed_ms": 10620
 }

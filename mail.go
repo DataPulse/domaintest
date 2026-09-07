@@ -327,38 +327,64 @@ func checkMXTarget(c MXCheck, lookup lookupFn) MXCheck {
 // these cover the common providers (Microsoft 365, Google, generic).
 var dkimSelectors = []string{"google", "selector1", "selector2", "default", "k1", "s1", "mail", "dkim"}
 
-// DKIMResult lists selectors that publish a key.
+// DKIMResult lists selectors that publish a key. Wildcard says the zone
+// answers every selector, which makes the found list meaningless: the
+// names were never evidence of anything a sender configured.
 type DKIMResult struct {
+	Wildcard       bool     `json:"wildcard"`
 	SelectorsFound []string `json:"selectors_found"`
 	Revoked        []string `json:"revoked"`
 }
 
 // probeDKIM looks every selector up in parallel (a dead resolver would
-// otherwise cost one timeout per selector, sequentially).
+// otherwise cost one timeout per selector, sequentially), alongside a
+// random selector nobody would configure.
+//
+// The random one is the control. Selectors cannot be enumerated, so the
+// probe is a guess, and a zone that wildcards _domainkey answers every
+// guess: example.com returns a valid revoked key for any name, which
+// reported all eight selectors as found and revoked. Checking that the
+// record parses as DKIM does not help there, only that it is answered for
+// a name chosen at random.
 func probeDKIM(domain string, lookup lookupFn) DKIMResult {
 	res := DKIMResult{SelectorsFound: []string{}, Revoked: []string{}}
 	answers := make([]Lookup, len(dkimSelectors))
-	var tasks []func()
+	var control Lookup
+	tasks := []func(){func() { control = lookup(randomLabel()+"._domainkey."+domain, "TXT") }}
 	for i, sel := range dkimSelectors {
 		tasks = append(tasks, func() { answers[i] = lookup(sel+"._domainkey."+domain, "TXT") })
 	}
 	parallel(tasks...)
+	if _, _, ok := dkimKey(control); ok {
+		// Every selector would "answer", so none of them is a finding.
+		res.Wildcard = true
+		return res
+	}
 	for i, sel := range dkimSelectors {
-		l := answers[i]
-		for _, r := range l.Records {
-			tags := parseTags(r)
-			_, hasP := tags["p"]
-			if !hasP && !strings.HasPrefix(strings.ToLower(r), "v=dkim1") {
-				continue
-			}
-			res.SelectorsFound = append(res.SelectorsFound, sel)
-			if hasP && tags["p"] == "" {
-				res.Revoked = append(res.Revoked, sel)
-			}
-			break
+		revoked, _, ok := dkimKey(answers[i])
+		if !ok {
+			continue
+		}
+		res.SelectorsFound = append(res.SelectorsFound, sel)
+		if revoked {
+			res.Revoked = append(res.Revoked, sel)
 		}
 	}
 	return res
+}
+
+// dkimKey reports whether a lookup carries a DKIM key, and whether that key
+// is revoked (published with an empty p= tag).
+func dkimKey(l Lookup) (revoked bool, record string, ok bool) {
+	for _, r := range l.Records {
+		tags := parseTags(r)
+		p, hasP := tags["p"]
+		if !hasP && !strings.HasPrefix(strings.ToLower(r), "v=dkim1") {
+			continue
+		}
+		return hasP && p == "", r, true
+	}
+	return false, "", false
 }
 
 // -------------------------------------------------------------- MTA-STS

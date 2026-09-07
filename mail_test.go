@@ -292,3 +292,58 @@ func TestCheckMX_UnansweredIsNotAbsent(t *testing.T) {
 	g.mailFindings(&MailReport{DMARC: DMARC{}, MX: denied})
 	check(t, "still an error", contains(g.errors, "does not exist"), true)
 }
+
+// Selectors cannot be enumerated, so the probe is a guess, and a zone that
+// answers every guess makes the guesses worthless. example.com returns a
+// valid revoked key for any selector, which reported all eight as found and
+// revoked; gov.uk returns SPF and DMARC strings for any selector, so
+// checking that the record parses as DKIM catches the second and not the
+// first. Only a random selector catches both.
+func TestProbeDKIM_WildcardControl(t *testing.T) {
+	// Every name under _domainkey answers with a valid revoked key.
+	wild := func(name, qtype string) Lookup {
+		if strings.Contains(name, "_domainkey") {
+			return Lookup{Status: StatusOK, Records: []string{"v=DKIM1; p="}}
+		}
+		return Lookup{Status: StatusNXRRSet}
+	}
+	res := probeDKIM("example.com", wild)
+	check(t, "wildcard detected", res.Wildcard, true)
+	check(t, "no selector claimed", res.SelectorsFound, []string{})
+	check(t, "none called revoked", res.Revoked, []string{})
+
+	f := &findings{}
+	f.mailFindings(&MailReport{DMARC: DMARC{}, MX: []MXCheck{}, DKIM: res})
+	var dkim []string
+	for _, w := range f.warnings {
+		if strings.Contains(w, "DKIM") || strings.Contains(w, "_domainkey") {
+			dkim = append(dkim, w)
+		}
+	}
+	check(t, "one finding, not eight", dkim, []string{"the zone answers every _domainkey selector (wildcard), so no selector could be verified"})
+
+	// A zone that wildcards _domainkey with non-DKIM content is caught by
+	// the same control, where parsing the record would also have worked.
+	spf := func(name, qtype string) Lookup {
+		if strings.Contains(name, "_domainkey") {
+			return Lookup{Status: StatusOK, Records: []string{"v=spf1 ?all"}}
+		}
+		return Lookup{Status: StatusNXRRSet}
+	}
+	check(t, "non-DKIM wildcard is not a selector", probeDKIM("gov.uk", spf).SelectorsFound, []string{})
+
+	// A real deployment: the control is denied, so the selectors count.
+	real := func(name, qtype string) Lookup {
+		switch {
+		case strings.HasPrefix(name, "selector1."):
+			return Lookup{Status: StatusOK, Records: []string{"v=DKIM1; k=rsa; p=MIGf"}}
+		case strings.HasPrefix(name, "selector2."):
+			return Lookup{Status: StatusOK, Records: []string{"v=DKIM1; p="}}
+		}
+		return Lookup{Status: StatusNXDomain}
+	}
+	res = probeDKIM("jschmidt.org", real)
+	check(t, "no wildcard", res.Wildcard, false)
+	check(t, "both selectors found", res.SelectorsFound, []string{"selector1", "selector2"})
+	check(t, "only the empty one is revoked", res.Revoked, []string{"selector2"})
+}

@@ -270,6 +270,12 @@ func (f *findings) webFindings(label string, h *HostWeb) {
 	addrs := h.addrs()
 	for _, a := range addrs {
 		switch {
+		case a.HTTP == PortSkipped && a.HTTPS == PortSkipped:
+			// Not a connectivity failure: the probe declined to connect
+			// because the address is reserved. Reporting it as "no
+			// listener" sends anyone triaging it after a problem that
+			// does not exist.
+			f.warningf("%s %s: not probed (reserved address)", label, a.IP)
 		case a.HTTP != PortOpen && a.HTTPS != PortOpen:
 			f.warningf("%s %s: no listener on 80 or 443 (%s/%s)", label, a.IP, a.HTTP, a.HTTPS)
 		case a.HTTPS != PortOpen:
@@ -642,6 +648,9 @@ func (f *findings) mailFindings(m *MailReport) {
 			}
 			f.errorf("MX %s: %s", mx.Host, p)
 		}
+	}
+	if m.DKIM.Wildcard {
+		f.warningf("the zone answers every _domainkey selector (wildcard), so no selector could be verified")
 	}
 	for _, sel := range m.DKIM.Revoked {
 		f.warningf("DKIM selector %s publishes a revoked (empty) key", sel)

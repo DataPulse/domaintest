@@ -426,7 +426,11 @@ func probeWeb(ctx context.Context, cfg config, r Runner, d dialer, dns dnsResult
 	wwwAll := wantedAddrs(cfg, dns.www["A"], dns.www["AAAA"])
 	apexAddrs, reservedApex := splitReserved(apexAll)
 	wwwAddrs, reservedWWW := splitReserved(wwwAll)
-	rep.ReservedAddresses = append(reservedApex, reservedWWW...)
+	// An address published at both apex and www is one reserved address,
+	// not two: everything else in the report aggregates, and this path
+	// listed 127.0.0.1 twice for localtest.me with nothing to tell the
+	// entries apart.
+	rep.ReservedAddresses = dedupeStrings(append(reservedApex, reservedWWW...))
 
 	apex, www := cfg.Domain, "www."+cfg.Domain
 	hosts := hostAddrsByFamily(map[string][]netip.Addr{apex: apexAddrs, www: wwwAddrs})

@@ -120,9 +120,13 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     a missing `all`, more than two void lookups and includes without SPF
     warn); every MX target must be a resolvable hostname that is not a
     CNAME or IP literal (errors); DKIM is probed at the selectors
-    `google, selector1, selector2, default, k1, s1, mail, dkim` (found
-    selectors are reported, a revoked empty key warns, none found is a
-    fact since selectors cannot be enumerated); MTA-STS `_mta-sts` record
+    `google, selector1, selector2, default, k1, s1, mail, dkim` alongside a
+    random selector as a negative control (found selectors are reported, a
+    revoked empty key warns, none found is a fact since selectors cannot be
+    enumerated). If the control answers, the zone wildcards `_domainkey`
+    and `dkim.wildcard` is set: every guess would answer, so no selector is
+    reported. Checking that the record parses as DKIM is not enough on its
+    own, since a wildcard can serve a valid key for every name; MTA-STS `_mta-sts` record
     and, when present, the policy at
     `https://mta-sts.<domain>/.well-known/mta-sts.txt` fetched with full
     certificate verification, its host resolved through the tool's own
@@ -303,7 +307,8 @@ across a host's addresses, TLS 1.0 or 1.1 accepted, no TLS 1.3, some
 addresses 5xx or all 4xx, clear-text HTTP without redirect, HSTS max-age
 under 180 days, broken redirect chains, missing DMARC or `p=none` or
 `pct<100`, SPF `?all` / `ptr` / missing `all` / void lookups / includes
-without SPF, revoked DKIM keys, MTA-STS problems in testing mode,
+without SPF, revoked DKIM keys, a zone that wildcards `_domainkey` (which makes every
+selector answer, so none can be verified), MTA-STS problems in testing mode,
 nameservers without TCP or EDNS, a nameserver address that never answered
 while the name's other addresses are authoritative, SOA serial drift, low
 prefix diversity,

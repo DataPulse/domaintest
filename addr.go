@@ -48,6 +48,20 @@ func reservedReason(ip netip.Addr) string {
 	return ""
 }
 
+// dedupeStrings keeps the first occurrence of each value, in order.
+func dedupeStrings(in []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range in {
+		if seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
+}
+
 // splitReserved partitions addresses into routable and reserved, returning
 // the reserved ones with their reasons in input order.
 func splitReserved(addrs []netip.Addr) (public []netip.Addr, reserved []string) {
