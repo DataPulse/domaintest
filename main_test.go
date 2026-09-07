@@ -357,3 +357,98 @@ func TestAllDigits(t *testing.T) {
 		check(t, "not all digits: "+s, allDigits(s), false)
 	}
 }
+
+// The full table of what is and is not a domain this tool will accept.
+// Every rule is enforced in one place, so it is checked in one place.
+func TestNormalizeDomain_Table(t *testing.T) {
+	long63 := strings.Repeat("a", 63)
+	for _, c := range []struct {
+		in     string
+		ascii  string // "" means the input must be rejected
+		reason string
+	}{
+		// Accepted, with the normalisation applied.
+		{"example.com", "example.com", "plain"},
+		{"EXAMPLE.COM", "example.com", "lower-cased"},
+		{"example.com.", "example.com", "trailing dot stripped"},
+		{"  example.com  ", "example.com", "surrounding space trimmed"},
+		{"münchen.de", "xn--mnchen-3ya.de", "u-label to A-label"},
+		{"xn--mnchen-3ya.de", "xn--mnchen-3ya.de", "A-label kept"},
+		{"com", "com", "a public suffix is a valid input"},
+		{"co.uk", "co.uk", "multi-label suffix"},
+		{long63 + ".com", long63 + ".com", "63-character label is the maximum"},
+		{"a.b.c.d.e.f.example.com", "a.b.c.d.e.f.example.com", "deep names are fine"},
+		{"_dmarc.example.com", "_dmarc.example.com", "underscore service label"},
+		{"_443._tcp.example.com", "_443._tcp.example.com", "several service labels"},
+		{"1password.com", "1password.com", "leading digit (RFC 1123 §2.1)"},
+		{"333oracle.xyz", "333oracle.xyz", "leading digits, real corpus name"},
+		{"7-eleven.com", "7-eleven.com", "digit and hyphen"},
+		{"x--y.com", "x--y.com", "double hyphen inside a label"},
+
+		// Rejected.
+		{"", "", "empty"},
+		{"   ", "", "only whitespace"},
+		{".", "", "bare dot"},
+		{".com", "", "empty first label"},
+		{"a..b.com", "", "empty middle label"},
+		{"a b.com", "", "space inside a label"},
+		{"-bad.com", "", "label starts with a hyphen"},
+		{"bad-.com", "", "label ends with a hyphen"},
+		{"sub.-bad.com", "", "inner label starts with a hyphen"},
+		{"sub.bad-.com", "", "inner label ends with a hyphen"},
+		{strings.Repeat("a", 64) + ".com", "", "64-character label"},
+		{strings.Repeat("a.", 127) + "com", "", "longer than 253 octets"},
+		{"1.1.1.1", "", "all-numeric TLD is an address"},
+		{"192.168.0.1", "", "all-numeric TLD is an address"},
+		{"3.14", "", "all-numeric TLD"},
+		{"foo._com", "", "underscore in the TLD"},
+		{"example.c om", "", "space in the TLD"},
+		{"2606:4700::1111", "", "IPv6 literal"},
+	} {
+		ascii, _, err := normalizeDomain(c.in)
+		if c.ascii == "" {
+			if err == nil {
+				t.Errorf("%s: %q accepted as %q, want rejected", c.reason, c.in, ascii)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: %q rejected: %v", c.reason, c.in, err)
+			continue
+		}
+		check(t, c.reason+": "+c.in, ascii, c.ascii)
+	}
+}
+
+func TestBadTLD(t *testing.T) {
+	check(t, "all digits", badTLD("1") != "", true)
+	check(t, "all digits, longer", badTLD("4700") != "", true)
+	check(t, "underscore", badTLD("_com") != "", true)
+	check(t, "underscore inside", badTLD("co_uk") != "", true)
+	for _, ok := range []string{"com", "uk", "xn--p1ai", "museum", "co", "a1"} {
+		check(t, "valid TLD: "+ok, badTLD(ok), "")
+	}
+}
+
+// A domain beginning with a hyphen must say so rather than be reported as
+// an unknown flag, and real flags must still parse.
+func TestHyphenDomain(t *testing.T) {
+	var cfg config
+	fs, _, _, _ := newFlagSet(&cfg)
+	for _, bad := range []string{"-badstart.com", "--badstart.com", "-sub.example.com"} {
+		if err := hyphenDomain(fs, []string{bad}); err == nil {
+			t.Errorf("%q: expected a domain error", bad)
+		} else {
+			check(t, "names the real problem: "+bad, strings.Contains(err.Error(), "must not start with a hyphen"), true)
+		}
+	}
+	for _, good := range [][]string{
+		{"-4"}, {"-6"}, {"-t", "3"}, {"-t=3"}, {"-pretty"},
+		{"-quicprobe=/usr/local/bin/quicprobe.bin"}, // a known flag whose value has a dot
+		{"example.com"}, {"-"}, {"--"},
+	} {
+		if err := hyphenDomain(fs, good); err != nil {
+			t.Errorf("%v: unexpected error %v", good, err)
+		}
+	}
+}

@@ -480,11 +480,31 @@ check stops at its first definite answer, so it costs two queries on a zone
 that denies a random name, none at all when www is NXDOMAIN, and six only
 when a wildcard is really there.
 
-An all-numeric top-level domain is rejected as a usage error (exit 2):
-`1.1.1.1` is an address, not a name (RFC 3696 §2). A digit elsewhere,
-including at the start of a label, is valid and common since RFC 1123 §2.1
-relaxed the older letter-first rule, so `1password.com`, `7-eleven.com` and
+## What counts as a domain
+
+Every rule is enforced in one place, `normalizeDomain`, and a violation is
+a usage error (exit 2) with a message naming the actual problem.
+
+The name is trimmed of surrounding space and one trailing dot, lower-cased,
+and converted to A-labels, so `EXAMPLE.COM.` and `münchen.de` are accepted
+and reported as `example.com` and `xn--mnchen-3ya.de`. It must be 253
+octets or fewer. Each label must be 1 to 63 characters of letters, digits,
+hyphen or underscore, and must not begin or end with a hyphen, so
+`_dmarc.example.com` and `_443._tcp.example.com` are valid while
+`-bad.com`, `bad-.com` and `a..b.com` are not. A domain given with a
+leading hyphen reports that a label must not start with one, rather than
+being mistaken for an unknown flag.
+
+The top-level domain is stricter than the labels to its left. It is never
+all digits (RFC 3696 §2), which is what separates a name from a
+dotted-quad address, so `1.1.1.1` and `3.14` are rejected. It never
+contains an underscore, so `foo._com` is rejected while `_dmarc.example.com`
+is not. A digit elsewhere is valid and common, since RFC 1123 §2.1 relaxed
+the older letter-first rule: `1password.com`, `7-eleven.com` and
 `333oracle.xyz` are all accepted.
+
+A single label is a valid input, so `com` and `co.uk` are checked and
+carry `public_suffix: true`.
 
 ## Requirements
 

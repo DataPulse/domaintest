@@ -153,6 +153,24 @@ func splitArgs(args []string) (flagArgs, positional []string, server string, err
 }
 
 // parseArgs builds the config from argv (without the program name).
+// hyphenDomain reports an argument that is a domain attempt beginning with
+// a hyphen. A label must not start with one (RFC 1123 §2.1), but the flag
+// parser sees the argument first and calls it an unknown flag, which sends
+// the reader after the wrong problem.
+func hyphenDomain(fs *flag.FlagSet, args []string) error {
+	for _, a := range args {
+		if len(a) < 2 || a[0] != '-' || a == "--" {
+			continue
+		}
+		name, _, _ := strings.Cut(strings.TrimLeft(a, "-"), "=")
+		if fs.Lookup(name) != nil || !strings.Contains(a, ".") {
+			continue
+		}
+		return fmt.Errorf("invalid domain %q: a label must not start with a hyphen", a)
+	}
+	return nil
+}
+
 func parseArgs(args []string) (config, error) {
 	flagArgs, positional, server, err := splitArgs(args)
 	if err != nil {
@@ -165,6 +183,9 @@ func parseArgs(args []string) (config, error) {
 		}
 	}
 	fs, only4, only6, noPreload := newFlagSet(&cfg)
+	if err := hyphenDomain(fs, flagArgs); err != nil {
+		return config{}, err
+	}
 	if err := fs.Parse(flagArgs); err != nil {
 		return config{}, err
 	}
@@ -285,6 +306,23 @@ var idnaProfile = idna.New(idna.MapForLookup(), idna.StrictDomainName(false), id
 // and returns the canonical A-label form plus the U-label form when the two
 // differ. IDNA 2008 lookup rules are applied, so malformed punycode and
 // disallowed code points are rejected.
+// badTLD explains why a rightmost label cannot be a top-level domain, or
+// returns "" when it can. The TLD is stricter than the labels to its left:
+// it is never all digits (RFC 3696 §2), which is what separates a hostname
+// from a dotted-quad address, and it never contains an underscore, which
+// belongs to service labels such as _dmarc and _tcp. A leading digit is
+// allowed throughout, since RFC 1123 §2.1 relaxed the old letter-first
+// rule and 333oracle.xyz and 7-eleven.com are real names.
+func badTLD(label string) string {
+	switch {
+	case allDigits(label):
+		return "the top-level domain " + strconv.Quote(label) + " is all digits (an address, not a name)"
+	case strings.Contains(label, "_"):
+		return "the top-level domain " + strconv.Quote(label) + " contains an underscore"
+	}
+	return ""
+}
+
 // allDigits reports whether every character is an ASCII digit.
 func allDigits(s string) bool {
 	if s == "" {
@@ -317,13 +355,8 @@ func normalizeDomain(input string) (ascii, unicode string, err error) {
 			return "", "", fmt.Errorf("invalid domain label %q in %q", label, input)
 		}
 	}
-	// A top-level domain is never all digits (RFC 3696 §2), which is what
-	// separates a hostname from a dotted-quad address: 1.1.1.1 is an IP,
-	// not a domain. A leading digit elsewhere is fine and common, since
-	// RFC 1123 §2.1 relaxed the old letter-first rule, so 333oracle.xyz
-	// and 7-eleven.com stay valid.
-	if allDigits(labels[len(labels)-1]) {
-		return "", "", fmt.Errorf("invalid domain %q: the top-level domain %q is all digits (an address, not a name)", input, labels[len(labels)-1])
+	if reason := badTLD(labels[len(labels)-1]); reason != "" {
+		return "", "", fmt.Errorf("invalid domain %q: %s", input, reason)
 	}
 	unicode, err = idnaProfile.ToUnicode(ascii)
 	if err != nil || unicode == ascii {
