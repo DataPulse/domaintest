@@ -262,6 +262,7 @@ type MXCheck struct {
 }
 
 // checkMX validates every MX target: no IP literals, no CNAME, resolvable.
+// Targets are checked in parallel.
 func checkMX(mx Lookup, lookup lookupFn) []MXCheck {
 	out := []MXCheck{}
 	for _, rec := range mx.Records {
@@ -271,15 +272,19 @@ func checkMX(mx Lookup, lookup lookupFn) []MXCheck {
 		}
 		c := MXCheck{Host: strings.ToLower(f[1]), Problems: []string{}}
 		c.Pref, _ = strconv.Atoi(f[0])
-		if c.Host == "." {
-			if len(mx.Records) > 1 {
-				c.Problems = append(c.Problems, "null MX mixed with real MX records")
-			}
-			out = append(out, c)
+		if c.Host == "." && len(mx.Records) > 1 {
+			c.Problems = append(c.Problems, "null MX mixed with real MX records")
+		}
+		out = append(out, c)
+	}
+	var tasks []func()
+	for i := range out {
+		if out[i].Host == "." {
 			continue
 		}
-		out = append(out, checkMXTarget(c, lookup))
+		tasks = append(tasks, func() { out[i] = checkMXTarget(out[i], lookup) })
 	}
+	parallel(tasks...)
 	return out
 }
 
@@ -318,10 +323,18 @@ type DKIMResult struct {
 	Revoked        []string `json:"revoked"`
 }
 
+// probeDKIM looks every selector up in parallel (a dead resolver would
+// otherwise cost one timeout per selector, sequentially).
 func probeDKIM(domain string, lookup lookupFn) DKIMResult {
 	res := DKIMResult{SelectorsFound: []string{}, Revoked: []string{}}
-	for _, sel := range dkimSelectors {
-		l := lookup(sel+"._domainkey."+domain, "TXT")
+	answers := make([]Lookup, len(dkimSelectors))
+	var tasks []func()
+	for i, sel := range dkimSelectors {
+		tasks = append(tasks, func() { answers[i] = lookup(sel+"._domainkey."+domain, "TXT") })
+	}
+	parallel(tasks...)
+	for i, sel := range dkimSelectors {
+		l := answers[i]
 		for _, r := range l.Records {
 			tags := parseTags(r)
 			_, hasP := tags["p"]
