@@ -48,7 +48,11 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    address is asked
    for the zone SOA non-recursively over UDP, over TCP and with EDNS/DNSSEC
    in one `dig` run: not authoritative or unreachable is an error, no TCP
-   or no EDNS a warning, SOA serial drift between servers a warning. Fewer
+   or no EDNS a warning, SOA serial drift between servers a warning. An
+   address that answers nothing is asked once more before it counts as
+   unreachable (`retries: 1` on the server entry), since one dropped UDP
+   query is not a broken nameserver; an address that answered, even to
+   refuse, is taken at its word. Fewer
    than two nameservers is an error; all IPv4 addresses in one /24 or all
    IPv6 in one /48 is a warning. For in-bailiwick nameservers the parent's
    glue is compared with the zone's own addresses (missing glue is an
@@ -239,7 +243,21 @@ check that examined nothing reports unknown rather than a pass, so
 `serials_consistent: true` now means the serials were actually compared.
 Consumers reading these as plain booleans or integers must handle null.
 Per-lookup objects carry `retries: 1` when the first delv attempt timed
-out and the retry answered.
+out and the retry answered, and so do nameserver entries whose first audit
+query went unanswered.
+
+Error and warning text never names the local end of a connection. Go
+reports a network failure as `read tcp4 10.0.0.5:46962->93.184.216.34:443:
+i/o timeout`; findings carry only the cause, `i/o timeout`, because the
+preamble names the vantage point and changes its ephemeral port on every
+run, which would make two identical results differ. The address that was
+probed is already named by the finding.
+
+Findings that can repeat across a host's addresses are reported once with
+a count rather than once per address, in the same shape the nameserver
+audit uses: `apex: certificate handshake failed on 7 of 7 addresses: read:
+connection reset by peer`. Distinct causes stay distinct, and the
+per-address detail remains in the `web` section.
 
 Errors (set `ok` to false): apex NXDOMAIN, missing NS, DNSSEC bogus or
 SERVFAIL, delegation mismatch / not delegated / no child answer / lame
@@ -249,8 +267,8 @@ every address 5xx on a port, redirect loops or over-long chains, DMARC
 records that are multiple or unparsable, SPF permerrors (over the lookup
 limit, multiple records), `+all`, unknown SPF mechanisms, MX targets that
 are CNAMEs, IP literals, non-existent or without an address, MTA-STS problems in enforce mode,
-nameservers that are CNAMEs, unresolvable, unreachable or not
-authoritative, fewer than two nameservers, missing glue, a certificate
+nameservers that are CNAMEs, unresolvable, unreachable across two
+attempts or not authoritative, fewer than two nameservers, missing glue, a certificate
 issuer the CAA records forbid, and TLSA records matching no served
 certificate. A bogus zone yields one DNSSEC error; the per-lookup failures
 it causes are folded into it rather than listed one by one.

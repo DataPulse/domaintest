@@ -233,8 +233,8 @@
   },
   "hsts_preload": "absent",
   "errors": [
-    "apex 104.154.89.105: certificate expired: certificate expired 2015-04-12T23:59:59Z",
-    "www 104.154.89.105: certificate expired: certificate expired 2018-08-08T21:17:05Z"
+    "apex: certificate expired on 1 of 1 addresses: certificate expired 2015-04-12T23:59:59Z",
+    "www: certificate expired on 1 of 1 addresses: certificate expired 2018-08-08T21:17:05Z"
   ],
   "warnings": [
     "expired.badssl.com is not a zone apex (inside zone badssl.com): delegation and DNSSEC zone checks skipped",
@@ -251,5 +251,5 @@
     "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/"
   ],
   "ok": false,
-  "elapsed_ms": 2380
+  "elapsed_ms": 2443
 }

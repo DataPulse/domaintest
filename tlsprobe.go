@@ -91,7 +91,7 @@ func probeTLS(conn net.Conn, host, apex, www string, deadline time.Time) (*tls.C
 	_ = conn.SetDeadline(deadline)
 	tc := tls.Client(conn, tlsConfig(host, 0, 0))
 	if err := tc.Handshake(); err != nil {
-		return nil, TLSResult{Chain: ChainHandshakeFailed, Error: err.Error()}
+		return nil, TLSResult{Chain: ChainHandshakeFailed, Error: scrubProbeError(err.Error())}
 	}
 	state := tc.ConnectionState()
 	res := TLSResult{
@@ -161,16 +161,16 @@ func classifyVerifyError(err error, chain []*x509.Certificate, host string) (str
 	leaf := chain[0]
 	switch {
 	case errors.As(err, &hostErr):
-		return ChainHostnameMismatch, err.Error()
+		return ChainHostnameMismatch, scrubProbeError(err.Error())
 	case errors.As(err, &authErr) && isSelfSigned(leaf):
 		return ChainSelfSigned, "self-signed certificate"
 	case errors.As(err, &authErr):
 		if completed := completeViaAIA(leaf, chain[1:], host); completed {
 			return ChainIncomplete, "server did not send the intermediate certificate (fetched via AIA: " + leaf.IssuingCertificateURL[0] + ")"
 		}
-		return ChainUntrustedRoot, err.Error()
+		return ChainUntrustedRoot, scrubProbeError(err.Error())
 	default:
-		return ChainInvalid, err.Error()
+		return ChainInvalid, scrubProbeError(err.Error())
 	}
 }
 

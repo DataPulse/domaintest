@@ -302,7 +302,7 @@ func TestTLSFindings_Aggregation(t *testing.T) {
 	rep.Web.Apex.IPv4[0].TLS = &TLSResult{Chain: ChainSelfSigned, Error: "self-signed certificate", Cert: valid}
 	buildFindings(rep)
 	check(t, "urgent", contains(rep.Warnings, "certificate expires in 3 days (urgent)"), true)
-	check(t, "chain error", contains(rep.Errors, "apex "+v4.String()+": certificate self signed: self-signed certificate"), true)
+	check(t, "chain error names the count, not the address", contains(rep.Errors, "apex: certificate self signed on 1 of 2 addresses: self-signed certificate"), true)
 	check(t, "not ok", rep.OK, false)
 }
 
@@ -416,4 +416,29 @@ func TestNSFindings_UnansweredIsAGapNotAFault(t *testing.T) {
 	g := &findings{}
 	g.nsFindings(&NSReport{Count: 2, Servers: []NSServer{}, Unresolved: []string{}, Unresolvable: []string{"ns1.example."}})
 	check(t, "denial errors", contains(g.errors, "has no address"), true)
+}
+
+// A CDN fleet failing the same way is one fact, not one per address. The
+// count carries the scale and the web section carries the detail.
+func TestChainFindings_OnePerCondition(t *testing.T) {
+	f := &findings{}
+	fail := func(ip, chain, detail string) AddrWeb {
+		return AddrWeb{IP: ip, TLS: &TLSResult{Chain: chain, Error: detail}}
+	}
+	f.chainFindings("apex", []AddrWeb{
+		fail("3.5.88.34", ChainHandshakeFailed, "read: connection reset by peer"),
+		fail("3.5.88.64", ChainHandshakeFailed, "read: connection reset by peer"),
+		fail("3.5.91.76", ChainHandshakeFailed, "read: connection reset by peer"),
+		fail("3.5.92.124", ChainExpired, "certificate has expired"),
+		{IP: "3.5.99.1", TLS: &TLSResult{Chain: ChainValid}},
+	})
+	check(t, "one finding per distinct cause", f.errors, []string{
+		"apex: certificate handshake failed on 3 of 5 addresses: read: connection reset by peer",
+		"apex: certificate expired on 1 of 5 addresses: certificate has expired",
+	})
+
+	// A clean fleet says nothing.
+	g := &findings{}
+	g.chainFindings("www", []AddrWeb{{IP: "1.2.3.4", TLS: &TLSResult{Chain: ChainValid}}})
+	check(t, "silent when valid", g.errors, []string(nil))
 }

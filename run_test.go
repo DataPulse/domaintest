@@ -237,7 +237,7 @@ func TestRun_WebProblems(t *testing.T) {
 
 	rep := s.run()
 	check(t, "not ok", rep.OK, false)
-	check(t, "expired is an error", contains(rep.Errors, "certificate expired:"), true)
+	check(t, "expired is an error", contains(rep.Errors, "apex: certificate expired on 1 of 2 addresses:"), true)
 	check(t, "5xx on one address is a warning", contains(rep.Warnings, "1 of 2 addresses return a server error on port 443"), true)
 	check(t, "old tls warning aggregated", contains(rep.Warnings, "apex: TLS 1.0/1.1 still accepted on 1 of 2 addresses"), true)
 	check(t, "no tls 1.3 warning", contains(rep.Warnings, "apex: no TLS 1.3 on 1 of 2 addresses"), true)

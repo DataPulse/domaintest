@@ -11,14 +11,15 @@ import (
 
 // NSServer is the audit result for one nameserver address.
 type NSServer struct {
-	Name   string `json:"name"`
-	IP     string `json:"ip"`
-	AA     bool   `json:"aa"`
-	Rcode  string `json:"rcode,omitempty"`
-	Serial int64  `json:"serial,omitempty"`
-	TCP    bool   `json:"tcp"`
-	EDNS   bool   `json:"edns"`
-	Error  string `json:"error,omitempty"`
+	Name    string `json:"name"`
+	IP      string `json:"ip"`
+	AA      bool   `json:"aa"`
+	Rcode   string `json:"rcode,omitempty"`
+	Serial  int64  `json:"serial,omitempty"`
+	TCP     bool   `json:"tcp"`
+	EDNS    bool   `json:"edns"`
+	Retries int    `json:"retries,omitempty"` // attempts that got no answer before this one
+	Error   string `json:"error,omitempty"`
 }
 
 // GlueReport compares the parent's glue with the child's own addresses.
@@ -145,9 +146,23 @@ func nsAuditArgs(ip netip.Addr, domain string, timeoutSec int) []string {
 	return append(args, "@"+ip.String(), domain, "SOA", domain, "SOA", "+tcp", domain, "SOA", "+dnssec")
 }
 
-// auditServer runs the three-query dig against one address and interprets
-// the messages.
+// auditServer runs the three-query dig against one address, retrying once
+// when the first attempt got no answer at all. A single dropped UDP query
+// is not a broken nameserver, and it would otherwise be an error that
+// fails an entirely healthy domain; the record lookups already retry the
+// same way. A server that answered, even to refuse, is not retried.
 func auditServer(ctx context.Context, r Runner, digPath, name string, ip netip.Addr, domain string, timeoutSec int) NSServer {
+	first, cancel := firstAttemptContext(ctx)
+	s := auditOnce(first, r, digPath, name, ip, domain, timeoutSec)
+	cancel()
+	if unanswered(s.Error) && ctx.Err() == nil {
+		s = auditOnce(ctx, r, digPath, name, ip, domain, timeoutSec)
+		s.Retries = 1
+	}
+	return s
+}
+
+func auditOnce(ctx context.Context, r Runner, digPath, name string, ip netip.Addr, domain string, timeoutSec int) NSServer {
 	s := NSServer{Name: name, IP: ip.String()}
 	msgs := runDig(ctx, r, digPath, nsAuditArgs(ip, domain, timeoutSec)...)
 	if len(msgs) == 0 || msgs[0].Error != "" {
@@ -156,6 +171,20 @@ func auditServer(ctx context.Context, r Runner, digPath, name string, ip netip.A
 	}
 	interpretAudit(&s, msgs)
 	return s
+}
+
+// unanswered reports whether an audit failure means no answer arrived, as
+// opposed to an answer we did not like: only the former is worth a retry.
+func unanswered(errText string) bool {
+	if errText == "" {
+		return false
+	}
+	for _, s := range []string{"timed out", "no servers could be reached", "no response", "communications error", "unreachable", "connection refused"} {
+		if strings.Contains(errText, s) {
+			return true
+		}
+	}
+	return false
 }
 
 // interpretAudit fills the server verdict from the UDP, TCP and EDNS

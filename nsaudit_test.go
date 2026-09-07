@@ -105,6 +105,42 @@ func TestAuditServer(t *testing.T) {
 
 	s = auditServer(context.Background(), r, "dig", "dead.", dead, "jschmidt.org", 3)
 	check(t, "unreachable", s.Error, "no servers could be reached")
+	check(t, "a dead address is retried once", s.Retries, 1)
+}
+
+// One dropped UDP query must not fail an otherwise healthy nameserver: the
+// audit retries, exactly as the record lookups do. An answer we did not
+// like is not retried, because asking again would return the same answer.
+func TestAuditServer_RetriesOnlyWhenNothingAnswered(t *testing.T) {
+	ip := netip.MustParseAddr("205.251.193.251")
+	args := nsAuditArgs(ip, "jschmidt.org", 3)
+
+	r := newFakeRunner()
+	r.onSeq("dig", args,
+		fakeCall{stdout: fixture(t, "dig/ns/unreachable.yaml"), err: errFake},
+		fakeCall{stdout: fixture(t, "dig/ns/jschmidt_at_ns-507.yaml")})
+	s := auditServer(context.Background(), r, "dig", "ns-507.awsdns-63.com.", ip, "jschmidt.org", 3)
+	check(t, "recovered", s.AA, true)
+	check(t, "no error left", s.Error, "")
+	check(t, "retry recorded", s.Retries, 1)
+	check(t, "two attempts", len(r.called("dig")), 2)
+
+	// REFUSED is an answer, so it stands after a single attempt.
+	lame := newFakeRunner()
+	lame.on("dig", args, fakeCall{stdout: fixture(t, "dig/ns/jschmidt_at_ns1_google_refused.yaml")})
+	s = auditServer(context.Background(), lame, "dig", "ns1.google.com.", ip, "jschmidt.org", 3)
+	check(t, "refused stands", s.Error, "not authoritative (REFUSED)")
+	check(t, "not retried", s.Retries, 0)
+	check(t, "one attempt", len(lame.called("dig")), 1)
+}
+
+func TestUnanswered(t *testing.T) {
+	for _, s := range []string{"dig timed out", "no servers could be reached", "no response", "communications error to 192.0.2.1#53: timed out", "network is unreachable", "connection refused"} {
+		check(t, "retryable: "+s, unanswered(s), true)
+	}
+	for _, s := range []string{"", "not authoritative (REFUSED)", "not authoritative (NOERROR)", "not authoritative (SERVFAIL)"} {
+		check(t, "not retryable: "+s, unanswered(s), false)
+	}
 }
 
 func TestAuditAllAndSerials(t *testing.T) {

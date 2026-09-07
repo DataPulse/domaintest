@@ -226,6 +226,30 @@ func TestScrubResolver(t *testing.T) {
 	check(t, "untouched", scrubResolver("connection refused"), "connection refused")
 }
 
+// Real error text captured from batch runs. The socket preamble names our
+// own address and a fresh ephemeral port every run, which would publish
+// the vantage point and make identical findings differ between runs.
+func TestScrubProbeError(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"read tcp4 10.12.60.35:46962->80.245.156.34:443: i/o timeout", "i/o timeout"},
+		{"read tcp4 10.12.60.35:37028->91.195.240.94:443: read: connection reset by peer", "read: connection reset by peer"},
+		{"dial tcp 3.5.88.34:443: connect: connection refused", "connect: connection refused"},
+		{"dial tcp [2606:4700:4700::1111]:1: i/o timeout", "i/o timeout"},
+		{"read tcp [2001:db8::1]:5->[2001:db8::2]:443: i/o timeout", "i/o timeout"},
+		{"remote error: tls: handshake failure", "remote error: tls: handshake failure"},
+		{"x509: certificate is valid for example.net, not example.com", "x509: certificate is valid for example.net, not example.com"},
+		{"Get \"https://mta-sts.x/\": lookup mta-sts.x on 10.0.0.2:53: no such host", "Get \"https://mta-sts.x/\": lookup mta-sts.x: no such host"},
+	} {
+		check(t, "scrubbed: "+c.in, scrubProbeError(c.in), c.want)
+	}
+
+	// The same failure on two addresses must produce the same text, so
+	// that findings can be compared between runs and grouped within one.
+	a := scrubProbeError("read tcp4 10.12.60.35:46962->80.245.156.34:443: i/o timeout")
+	b := scrubProbeError("read tcp4 10.12.60.35:50696->80.245.156.34:443: i/o timeout")
+	check(t, "stable across runs", a, b)
+}
+
 func TestMailConventions(t *testing.T) {
 	lookup := indexLookup(t)
 	none := checkMX(Lookup{Status: StatusNXRRSet}, lookup)

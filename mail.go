@@ -489,7 +489,7 @@ func checkMTASTS(ctx context.Context, domain string, rec Lookup, mxHosts []strin
 	}
 	body, err := policyFetcher(ctx, domain, timeout, lookup)
 	if err != nil {
-		m.Error = "policy fetch failed: " + scrubResolver(err.Error())
+		m.Error = "policy fetch failed: " + scrubProbeError(err.Error())
 		return &m
 	}
 	parseMTASTSPolicy(body, &m)
@@ -508,6 +508,19 @@ var resolverAddrRe = regexp.MustCompile(` on [0-9a-fA-F.:\[\]]+:\d+`)
 // finding reveals which resolver the probe used.
 func scrubResolver(msg string) string {
 	return resolverAddrRe.ReplaceAllString(msg, "")
+}
+
+// netOpRe matches the socket preamble Go puts on network errors,
+// "read tcp4 10.0.0.5:46962->93.184.216.34:443: ".
+var netOpRe = regexp.MustCompile(`\b(?:read|write|dial|readfrom|writeto|accept|set)\s+(?:tcp|udp|ip)[46]?\s+\S+:\s+`)
+
+// scrubProbeError reduces a network error to its operational cause. The
+// preamble names our own source address and a fresh ephemeral port on
+// every run, which publishes the vantage point and makes otherwise
+// identical findings differ from run to run; the finding already names
+// the address that was probed.
+func scrubProbeError(msg string) string {
+	return strings.TrimSpace(netOpRe.ReplaceAllString(scrubResolver(msg), ""))
 }
 
 // ----------------------------------------------------------------- Mail

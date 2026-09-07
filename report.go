@@ -382,16 +382,41 @@ func (f *findings) tlsFindings(label string, h *HostWeb, sibling *HostWeb) {
 	if len(addrs) == 0 {
 		return
 	}
-	for _, a := range addrs {
-		if a.TLS.Chain != ChainValid {
-			f.errorf("%s %s: certificate %s: %s", label, a.IP, strings.ReplaceAll(a.TLS.Chain, "_", " "), a.TLS.Error)
-		}
-	}
+	f.chainFindings(label, addrs)
 	f.expiryFindings(label, addrs)
 	f.coverageFindings(label, addrs, sibling)
 	f.versionFindings(label, addrs)
 	if h.CertConsistent != nil && !*h.CertConsistent {
 		f.warningf("%s: addresses serve different certificates", label)
+	}
+}
+
+// chainFindings reports each distinct chain problem once for the host,
+// with the count of addresses it affected, the way the nameserver audit
+// reports a failing name. A CDN fleet that all fails the same way is one
+// fact, not fourteen; the per-address detail stays in the web section.
+func (f *findings) chainFindings(label string, addrs []AddrWeb) {
+	type tally struct {
+		chain, detail string
+		count         int
+	}
+	byCause := map[string]*tally{}
+	var order []string
+	for _, a := range addrs {
+		if a.TLS.Chain == ChainValid {
+			continue
+		}
+		key := a.TLS.Chain + "\x00" + a.TLS.Error
+		if byCause[key] == nil {
+			byCause[key] = &tally{chain: a.TLS.Chain, detail: a.TLS.Error}
+			order = append(order, key)
+		}
+		byCause[key].count++
+	}
+	for _, key := range order {
+		t := byCause[key]
+		f.errorf("%s: certificate %s on %d of %d addresses: %s", label,
+			strings.ReplaceAll(t.chain, "_", " "), t.count, len(addrs), t.detail)
 	}
 }
 

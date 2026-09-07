@@ -41,12 +41,12 @@ func httpRequest(conn net.Conn, host, path string, deadline time.Time) HTTPResul
 	_ = conn.SetDeadline(deadline)
 	req := fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: domaintest/1 (+https://github.com/DataPulse/domaintest)\r\nAccept: */*\r\nConnection: close\r\n\r\n", path, host)
 	if _, err := io.WriteString(conn, req); err != nil {
-		return HTTPResult{Error: "write: " + err.Error()}
+		return HTTPResult{Error: "write: " + scrubProbeError(err.Error())}
 	}
 	br := bufio.NewReaderSize(io.LimitReader(conn, maxHeaderBytes), 4096)
 	resp, err := http.ReadResponse(br, nil)
 	if err != nil {
-		return HTTPResult{Error: "read: " + err.Error()}
+		return HTTPResult{Error: "read: " + scrubProbeError(err.Error())}
 	}
 	defer resp.Body.Close()
 	res := HTTPResult{Status: resp.StatusCode, Location: resp.Header.Get("Location"), Server: resp.Header.Get("Server")}
@@ -168,7 +168,7 @@ func fetchHead(ctx context.Context, d dialer, u *url.URL, ip netip.Addr, timeout
 		_ = conn.SetDeadline(deadline)
 		tc := tls.Client(conn, tlsConfig(u.Hostname(), 0, 0))
 		if err := tc.Handshake(); err != nil {
-			return HTTPResult{Error: "tls: " + err.Error()}
+			return HTTPResult{Error: "tls: " + scrubProbeError(err.Error())}
 		}
 		conn = tc
 	}
@@ -180,5 +180,5 @@ func fetchHead(ctx context.Context, d dialer, u *url.URL, ip netip.Addr, timeout
 }
 
 func classifyDialErrorText(err error) string {
-	return string(classifyDialError(err)) + ": " + err.Error()
+	return string(classifyDialError(err)) + ": " + scrubProbeError(err.Error())
 }
