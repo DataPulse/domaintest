@@ -103,7 +103,9 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 		func() { rep.Web = probeWeb(probeCtx, cfg, r, d, dns, rep) },
 		func() { rep.Nameservers = auditNameservers(probeCtx, cfg, r, dns, rep) },
 		func() { rep.Mail = assessMail(probeCtx, cfg, dns, rep.NotAZone) },
-		func() { rep.HSTSPreload, rep.HSTSPreloadError = checkPreload(probeCtx, cfg) },
+		func() {
+			rep.HSTSPreload, rep.HSTSPreloadCoveredBy, rep.HSTSPreloadError = checkPreload(probeCtx, cfg)
+		},
 	)
 	rep.Wildcard = wildcardSection(dns, rep.Web)
 	rep.CAA, rep.TLSA = assessCertPolicies(dns, rep)
@@ -558,30 +560,22 @@ func assessMail(ctx context.Context, cfg config, dns dnsResults, notAZone bool) 
 	return m
 }
 
-// Preload-list statuses as reported by the tool.
-const (
-	PreloadPreloaded = "preloaded"
-	PreloadAbsent    = "absent"  // the list was consulted and the domain is not on it
-	PreloadUnknown   = "unknown" // the list could not be consulted; see hsts_preload_error
-)
-
-// checkPreload consults the HSTS preload list unless disabled. The API's
-// own "unknown" means "not on the list" and is reported as absent; a
-// failed lookup is reported as unknown with the reason (resolver
-// addresses scrubbed) in hsts_preload_error.
-func checkPreload(ctx context.Context, cfg config) (status, problem string) {
+// checkPreload answers from the cached Chromium preload list, fetching it
+// once per host when the cache is cold. The wait and the fetch share the
+// probe budget, so a cold or contended start costs this run its preload
+// value rather than delaying or failing the run.
+func checkPreload(ctx context.Context, cfg config) (status, coveredBy, problem string) {
 	if !cfg.HSTSPreload {
-		return "", ""
+		return "", "", ""
 	}
-	status, err := preloadFetcher(ctx, cfg.Domain, cfg.tcpTimeout())
-	switch {
-	case err != nil:
-		return PreloadUnknown, scrubResolver(err.Error())
-	case status == "unknown":
-		return PreloadAbsent, ""
-	default:
-		return status, ""
+	// Zero timeout: the probe context is the only bound, so the download is
+	// not held to the per-connection budget.
+	list, err := loadPreloadList(ctx, cfg.HSTSCache, 0)
+	if err != nil {
+		return PreloadUnknown, "", scrubResolver(err.Error())
 	}
+	status, coveredBy = list.status(cfg.Domain)
+	return status, coveredBy, ""
 }
 
 // wildcardSection evaluates the nonce probe and stamps www when its

@@ -61,7 +61,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "b0.org.afilias-nst.org",
+    "parent_server": "a2.org.afilias-nst.info",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -69,7 +69,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns101.comcast.net"
+    "child_server": "dns103.comcast.net"
   },
   "web": {},
   "mail": {
@@ -239,5 +239,5 @@
     "no DMARC record"
   ],
   "ok": false,
-  "elapsed_ms": 940
+  "elapsed_ms": 936
 }

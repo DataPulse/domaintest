@@ -33,29 +33,30 @@ type Report struct {
 	UnicodeDomain string `json:"unicode_domain,omitempty"`
 	// NotAZone is set when the name is a host inside a zone rather than a
 	// zone apex; EnclosingZone names that zone when a SOA revealed it.
-	NotAZone          bool            `json:"not_a_zone,omitempty"`
-	EnclosingZone     string          `json:"enclosing_zone,omitempty"`
-	Resolver          string          `json:"resolver"`
-	Families          []string        `json:"families"`
-	TimeoutSec        int             `json:"timeout_sec"`
-	TCPTimeoutSec     int             `json:"tcp_timeout_sec"`
-	QuicTimeoutSec    int             `json:"quic_timeout_sec"`
-	DNS               DNSSection      `json:"dns"`
-	DNSSEC            DNSSECReport    `json:"dnssec"`
-	Delegation        Delegation      `json:"delegation"`
-	Web               WebSection      `json:"web"`
-	Mail              *MailReport     `json:"mail,omitempty"`
-	Nameservers       *NSReport       `json:"nameservers,omitempty"`
-	CAA               *CAAReport      `json:"caa,omitempty"`
-	TLSA              *TLSAReport     `json:"tlsa,omitempty"`
-	Wildcard          *WildcardReport `json:"wildcard,omitempty"`
-	ReservedAddresses []string        `json:"reserved_addresses,omitempty"`
-	HSTSPreload       string          `json:"hsts_preload,omitempty"`
-	HSTSPreloadError  string          `json:"hsts_preload_error,omitempty"`
-	Errors            []string        `json:"errors"`
-	Warnings          []string        `json:"warnings"`
-	OK                bool            `json:"ok"`
-	ElapsedMs         int64           `json:"elapsed_ms"`
+	NotAZone             bool            `json:"not_a_zone,omitempty"`
+	EnclosingZone        string          `json:"enclosing_zone,omitempty"`
+	Resolver             string          `json:"resolver"`
+	Families             []string        `json:"families"`
+	TimeoutSec           int             `json:"timeout_sec"`
+	TCPTimeoutSec        int             `json:"tcp_timeout_sec"`
+	QuicTimeoutSec       int             `json:"quic_timeout_sec"`
+	DNS                  DNSSection      `json:"dns"`
+	DNSSEC               DNSSECReport    `json:"dnssec"`
+	Delegation           Delegation      `json:"delegation"`
+	Web                  WebSection      `json:"web"`
+	Mail                 *MailReport     `json:"mail,omitempty"`
+	Nameservers          *NSReport       `json:"nameservers,omitempty"`
+	CAA                  *CAAReport      `json:"caa,omitempty"`
+	TLSA                 *TLSAReport     `json:"tlsa,omitempty"`
+	Wildcard             *WildcardReport `json:"wildcard,omitempty"`
+	ReservedAddresses    []string        `json:"reserved_addresses,omitempty"`
+	HSTSPreload          string          `json:"hsts_preload,omitempty"`
+	HSTSPreloadCoveredBy string          `json:"hsts_preload_covered_by,omitempty"`
+	HSTSPreloadError     string          `json:"hsts_preload_error,omitempty"`
+	Errors               []string        `json:"errors"`
+	Warnings             []string        `json:"warnings"`
+	OK                   bool            `json:"ok"`
+	ElapsedMs            int64           `json:"elapsed_ms"`
 }
 
 // DNSSection holds the record lookups.

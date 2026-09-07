@@ -253,5 +253,5 @@
     "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/"
   ],
   "ok": false,
-  "elapsed_ms": 2364
+  "elapsed_ms": 2464
 }

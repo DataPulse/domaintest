@@ -1,0 +1,1284 @@
+// Slice of Chromium transport_security_state_static.json captured live.
+// Keeps the comment form of the original so the parser is exercised.
+{
+ "entries": [
+  {
+   "name": "app",
+   "policy": "public-suffix",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "bank",
+   "policy": "public-suffix",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "dev",
+   "policy": "public-suffix",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "page",
+   "policy": "public-suffix",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "github.com",
+   "policy": "bulk-18-weeks",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "cloudflare.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "paypal.com",
+   "policy": "custom",
+   "mode": "force-https"
+  },
+  {
+   "name": "wikipedia.org",
+   "policy": "bulk-18-weeks",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "torproject.org",
+   "policy": "custom",
+   "mode": "force-https"
+  },
+  {
+   "name": "youtube.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "gmail.com",
+   "policy": "google",
+   "mode": "force-https"
+  },
+  {
+   "name": "g.co",
+   "policy": "google",
+   "mode": "force-https"
+  },
+  {
+   "name": "www.g.co",
+   "policy": "google",
+   "mode": "force-https"
+  },
+  {
+   "name": "gmail.com",
+   "policy": "google",
+   "mode": "force-https"
+  },
+  {
+   "name": "gentapps.com",
+   "policy": "public-suffix",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "mail.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "plus.sandbox.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "remotedesktop.corp.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "accounts.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "admin.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "apis.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "appengine.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "calendar.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "checkout.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "chrome.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "classroom.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "cloud.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "code.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "contributor.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "datastudio.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "dl.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "docs.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "domains.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "drive.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "encrypted.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "fi.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "glass.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "goto.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "groups.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "hangouts.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "history.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "hostedtalkgadget.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "inbox.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "lens.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "login.corp.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "mail-settings.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "meet.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "myaccount.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "myactivity.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "passwords.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "pixel.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "play.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "plus.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "profiles.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "script.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "security.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "sites.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "spreadsheets.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "talkgadget.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "talk.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wallet.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "payments.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "xn--7xa.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "dns.google.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "chrome.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "chrome-devtools-frontend.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "chromereporting-pa.googleapis.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "chromiumcodereview.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "codereview.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "crbug.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "crosbug.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "crrev.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "firebaseio.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "googleplex.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "googlesource.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "gvt2.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "gvt3.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "developer.android.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "market.android.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "oauthaccountmanager.googleapis.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "passwordsleakcheck-pa.googleapis.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "translate.googleapis.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "withgoogle.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "withyoutube.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "google-analytics.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "chromiumbugs.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "youtube.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "ua5v.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "webfilings.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "webfilings-eu.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "webfilings-eu-mirror.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "webfilings-mirror-hrd.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-bigsky-master.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-demo-eu.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-demo-hrd.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-dogfood-hrd.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-pentest.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-staging-hr.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-training-hrd.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-training-master.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "wf-trial-hrd.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "w-spotlight.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "xbrlsuccess.appspot.com",
+   "policy": "google",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "login.yahoo.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "edit.yahoo.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "m.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "tablet.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "secure.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "pixel.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "apps.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "upload.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "developers.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "touch.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "mbasic.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "code.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "t.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "mtouch.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "business.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "research.facebook.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.messenger.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.twitter.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "dropbox.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.dropbox.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "spideroak.com",
+   "policy": "custom",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "jottit.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "keyerror.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "romab.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "stripe.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "square.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.moneybookers.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "luneta.nearbuysystems.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "grepular.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "braintreegateway.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.apollo-auto.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.cueup.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.neonisi.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "shops.neonisi.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "iop.intuit.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "dm.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "business.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "blog.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "faq.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "platform.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "email.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "app.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "api.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "keymaster.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "mygadgetguardian.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "discovery.lookout.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "itriskltd.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "openshift.redhat.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "silentcircle.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "my.alfresco.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "paymill.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "gocardless.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "espra.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "lockify.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "bank.simple.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "inertianetworks.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "conformal.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "cyphertite.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "bccx.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "launchkey.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.cyveillance.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "blog.cyveillance.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "securityheaders.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "oplop.appspot.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "crowdcurity.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "strongest-privacy.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "id.atlassian.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "cybozu.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "davidlyness.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "medium.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "skydrive.live.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "lifeguard.aecom.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "go.xero.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "login.xero.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "my.xero.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "payroll.xero.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "in.xero.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "api.xero.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.opsmate.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "blacklane.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "boxcryptor.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "prodpad.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "fairbill.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "passwordbox.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "encircleapp.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "keepersecurity.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "keeperapp.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "dillonkorman.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "edmodo.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "app.manilla.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "harvestapp.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "manageprojects.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "accounts.firefox.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "hackerone.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "hackerone-user-content.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "ub3rk1tten.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "mykolab.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "semenkovich.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "dlc.viasinc.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.viasinc.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.etsy.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "etsysecure.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "login.ubuntu.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "pay.ubuntu.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "landscape.canonical.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "resources.flowfinity.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "preloaded-hsts.badssl.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "hana.ondemand.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "www.fastmail.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  },
+  {
+   "name": "reporturi.com",
+   "policy": "bulk-legacy",
+   "mode": "force-https",
+   "include_subdomains": true
+  }
+ ]
+}

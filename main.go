@@ -35,7 +35,7 @@ const (
 	defaultTimeoutSec     = 3
 	defaultTCPTimeoutSec  = 2
 	defaultQuicTimeoutSec = 2
-	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-no-hsts-preload] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]"
+	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache"
 )
 
 // config is the parsed command line.
@@ -50,7 +50,9 @@ type config struct {
 	// in full by every non-QUIC site.
 	QuicTimeoutSec int
 	TCPTimeoutSec  int
-	HSTSPreload    bool // consult hstspreload.org (on by default; -no-hsts-preload disables)
+	HSTSPreload    bool   // consult the HSTS preload list (on by default; -no-hsts-preload disables)
+	HSTSCache      string // path to the cached preload list; "-" disables caching
+	WarmHSTSCache  bool   // populate the cache and exit
 	Pretty         bool
 	DelvPath       string
 	DigPath        string
@@ -120,7 +122,7 @@ func (r resolver) String() string {
 }
 
 // valueFlags take an argument, so the token after them is not positional.
-var valueFlags = map[string]bool{"-t": true, "-tcp-timeout": true, "-quic-timeout": true, "-quicprobe": true, "-delv": true, "-dig": true}
+var valueFlags = map[string]bool{"-t": true, "-tcp-timeout": true, "-quic-timeout": true, "-quicprobe": true, "-delv": true, "-dig": true, "-hsts-cache": true}
 
 // splitArgs separates argv into flag tokens, the @server and positionals so
 // that, like dig, the domain and @server may appear anywhere.
@@ -154,47 +156,84 @@ func parseArgs(args []string) (config, error) {
 	if err != nil {
 		return config{}, err
 	}
-	fs := flag.NewFlagSet("domaintest", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	only4 := fs.Bool("4", false, "IPv4 only")
-	only6 := fs.Bool("6", false, "IPv6 only")
 	cfg := config{}
 	if server != "" {
 		if cfg.Resolver, err = parseResolver(server); err != nil {
 			return config{}, err
 		}
 	}
-	fs.IntVar(&cfg.TimeoutSec, "t", defaultTimeoutSec, "per-probe timeout in seconds")
-	fs.IntVar(&cfg.QuicTimeoutSec, "quic-timeout", defaultQuicTimeoutSec, "QUIC handshake timeout in seconds")
-	fs.IntVar(&cfg.TCPTimeoutSec, "tcp-timeout", defaultTCPTimeoutSec, "TCP connect timeout in seconds")
-	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
-	noPreload := fs.Bool("no-hsts-preload", false, "do not consult the HSTS preload list (hstspreload.org)")
-	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")
-	fs.StringVar(&cfg.DelvPath, "delv", "", "path to delv")
-	fs.StringVar(&cfg.DigPath, "dig", "", "path to dig")
+	fs, only4, only6, noPreload := newFlagSet(&cfg)
 	if err := fs.Parse(flagArgs); err != nil {
 		return config{}, err
 	}
-	if len(positional) != 1 {
-		return config{}, errors.New("exactly one domain is required")
-	}
-	if cfg.TimeoutSec <= 0 {
-		return config{}, errors.New("-t must be a positive number of seconds")
-	}
-	if cfg.QuicTimeoutSec <= 0 {
-		return config{}, errors.New("-quic-timeout must be a positive number of seconds")
-	}
-	if cfg.TCPTimeoutSec <= 0 {
-		return config{}, errors.New("-tcp-timeout must be a positive number of seconds")
-	}
-	cfg.Domain, cfg.UnicodeDomain, err = normalizeDomain(positional[0])
-	if err != nil {
-		return config{}, err
+	if cfg.HSTSCache == "" {
+		cfg.HSTSCache = defaultPreloadCachePath()
 	}
 	cfg.Families = chooseFamilies(*only4, *only6)
 	cfg.HSTSPreload = !*noPreload
 	cfg.dnsFamily = serverFamily(cfg.Resolver.Host)
+	if cfg.WarmHSTSCache {
+		return warmConfig(cfg, positional)
+	}
+	return domainConfig(cfg, positional)
+}
+
+// warmConfig finishes a `-warm-hsts-cache` invocation, which takes no
+// domain and needs no probe budgets.
+func warmConfig(cfg config, positional []string) (config, error) {
+	if len(positional) > 0 {
+		return config{}, errors.New("-warm-hsts-cache takes no domain")
+	}
 	return cfg, nil
+}
+
+// domainConfig finishes an ordinary invocation: one domain, valid budgets.
+func domainConfig(cfg config, positional []string) (config, error) {
+	if len(positional) != 1 {
+		return config{}, errors.New("exactly one domain is required")
+	}
+	if err := validateTimeouts(cfg); err != nil {
+		return config{}, err
+	}
+	var err error
+	cfg.Domain, cfg.UnicodeDomain, err = normalizeDomain(positional[0])
+	if err != nil {
+		return config{}, err
+	}
+	return cfg, nil
+}
+
+// newFlagSet defines every flag against cfg, returning the three whose
+// values are not fields of config.
+func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
+	fs = flag.NewFlagSet("domaintest", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	only4 = fs.Bool("4", false, "IPv4 only")
+	only6 = fs.Bool("6", false, "IPv6 only")
+	noPreload = fs.Bool("no-hsts-preload", false, "do not consult the HSTS preload list")
+	fs.IntVar(&cfg.TimeoutSec, "t", defaultTimeoutSec, "per-probe timeout in seconds")
+	fs.IntVar(&cfg.QuicTimeoutSec, "quic-timeout", defaultQuicTimeoutSec, "QUIC handshake timeout in seconds")
+	fs.IntVar(&cfg.TCPTimeoutSec, "tcp-timeout", defaultTCPTimeoutSec, "TCP connect timeout in seconds")
+	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
+	fs.StringVar(&cfg.HSTSCache, "hsts-cache", "", "path to the cached HSTS preload list (default: user cache dir; \"-\" disables caching)")
+	fs.BoolVar(&cfg.WarmHSTSCache, "warm-hsts-cache", false, "populate the HSTS preload cache and exit")
+	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")
+	fs.StringVar(&cfg.DelvPath, "delv", "", "path to delv")
+	fs.StringVar(&cfg.DigPath, "dig", "", "path to dig")
+	return fs, only4, only6, noPreload
+}
+
+// validateTimeouts rejects non-positive budgets.
+func validateTimeouts(cfg config) error {
+	for _, c := range []struct {
+		flag string
+		secs int
+	}{{"-t", cfg.TimeoutSec}, {"-tcp-timeout", cfg.TCPTimeoutSec}, {"-quic-timeout", cfg.QuicTimeoutSec}} {
+		if c.secs <= 0 {
+			return fmt.Errorf("%s must be a positive number of seconds", c.flag)
+		}
+	}
+	return nil
 }
 
 func chooseFamilies(only4, only6 bool) []string {
@@ -287,6 +326,9 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "domaintest: %v\n%s\n", err, usage)
 		return 2
 	}
+	if cfg.WarmHSTSCache {
+		return warmMain(cfg, stderr)
+	}
 	if err := resolveTools(&cfg); err != nil {
 		fmt.Fprintf(stderr, "domaintest: %v\n", err)
 		return 2
@@ -300,6 +342,19 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	return 1
+}
+
+// warmMain populates the preload cache for `-warm-hsts-cache`. It names the
+// cache and lock paths on stderr so a container log records which lock the
+// fallback chose, and exits 2 with the reason when the fetch or write fails.
+func warmMain(cfg config, stderr io.Writer) int {
+	note, err := warmPreloadCache(context.Background(), cfg.HSTSCache)
+	if err != nil {
+		fmt.Fprintf(stderr, "domaintest: warming the HSTS preload cache: %v\n", scrubResolver(err.Error()))
+		return 2
+	}
+	fmt.Fprintf(stderr, "domaintest: %s\n", note)
+	return 0
 }
 
 func resolveTools(cfg *config) error {

@@ -4,7 +4,8 @@ Checks the technical configuration of a domain name and prints one compact
 JSON report.
 
 ```
-domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-no-hsts-preload] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
+domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
+domaintest -warm-hsts-cache
 ```
 
 Like `dig`, the optional `@dnsserver` may appear anywhere on the command
@@ -75,14 +76,17 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    5xx on a port is an error, some of them a warning, every address 4xx a
    warning. Port 80 serving content instead of redirecting to https is a
    warning, as is an HSTS max-age under 180 days. HSTS absence is a fact,
-   not a warning. `hsts_preload` carries the domain's status on the
-   Chromium preload list (hstspreload.org): `preloaded`, `pending`,
-   `rejected`, `absent` (consulted, not on the list) or `unknown` (the list
-   could not be consulted; `hsts_preload_error` says why, with resolver
-   addresses removed). A preloaded domain whose served header no longer
-   meets the preload bar (max-age of a year, includeSubDomains, preload),
-   or a header that carries `preload` without meeting it, is a warning.
-   `-no-hsts-preload` skips that third-party call.
+   not a warning. `hsts_preload` says whether browsers enforce HSTS for the
+   name regardless of the header, read from Chromium's preload list (see
+   **HSTS preload list** below): `preloaded`, `absent` or `unknown` (the
+   list could not be obtained; `hsts_preload_error` says why, with resolver
+   addresses removed). When an ancestor entry rather than the name itself
+   makes it preloaded, `hsts_preload_covered_by` names that ancestor, so a
+   name under `app`, `bank`, `dev` or `page` reads preloaded with the TLD
+   as the cover. A preloaded domain whose served header no longer meets the
+   preload bar (max-age of a year, includeSubDomains, preload), or a header
+   that carries `preload` without meeting it, is a warning.
+   `-no-hsts-preload` skips the check entirely.
 8. **Redirect chains** (`redirects`, per name and address family): from
    `http://<name>/` on the first address of the family, following
    Location headers up to three hops while the target stays apex or www.
@@ -146,6 +150,40 @@ DNS record data is fetched once; a literal `@server` address fixes the DNS
 transport family. Every DNS lookup goes through `delv`, so all answers are
 independently DNSSEC-validated.
 
+## HSTS preload list
+
+The preload answer comes from Chromium's `transport_security_state_static.json`,
+not from a per-domain API call, so **the network is touched at most once per
+host**. The list is fetched once (about 1.1 MB on the wire, gzipped by the
+transport), reduced to the two fields a lookup needs and cached as roughly
+1.65 MB of TSV. Every later run on that host, for any domain, reads the
+cache.
+
+- **Path**: `-hsts-cache`, defaulting to
+  `<user cache dir>/domaintest/hsts-preload.tsv`, i.e. `$XDG_CACHE_HOME` or
+  `$HOME/.cache`. `-hsts-cache -` disables caching and fetches every run.
+- **Lifetime**: none. There is no expiry, because the intended deployment
+  replaces its hosts every few hours; the cache dies with the host. Delete
+  the file to force a refresh.
+- **Concurrency**: population is serialised with an exclusive `flock` on
+  `/run/lock/domaintest-hsts.lock`, falling back to `<cache>.lock` when that
+  directory is missing or unwritable, as in a container. Parallel runs on a
+  cold host therefore cause exactly one download.
+- **Transient failures**: a 5xx from googlesource is retried up to three
+  times with a short backoff, still inside the caller's budget, because
+  bursts of requests do occasionally get a 503.
+- **Cold start never delays a run**: the wait for the lock and the fetch
+  both sit inside the probe budget and run concurrently with the web, mail
+  and nameserver checks, so the worst case is unchanged and a contended cold
+  start costs that run its preload value (`unknown`), nothing more.
+- **Warm at start**: `domaintest -warm-hsts-cache` populates the cache and
+  exits, taking no domain, with its own 60 s budget. It prints the cache and
+  lock paths to stderr and exits 2 with the reason if it fails. Run it once
+  when a machine or container starts and no later run pays for a cold cache.
+- **Semantics**: the list records enforcement, so there is no equivalent of
+  the submission states `pending` and `rejected` that hstspreload.org
+  reports; such domains read `absent`, which is what browsers do.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -161,8 +199,8 @@ Single-line JSON on stdout (`-pretty` indents). Top-level keys: `domain`,
 `tcp_timeout_sec`, `quic_timeout_sec`, `not_a_zone` and `enclosing_zone`
 (hosts only), `dns`, `dnssec`, `delegation`, `web`, `mail`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
-`reserved_addresses` (when any), `hsts_preload` and `hsts_preload_error`
-(unless disabled),
+`reserved_addresses` (when any), `hsts_preload`,
+`hsts_preload_covered_by` and `hsts_preload_error` (unless disabled),
 `errors`, `warnings`, `ok`, `elapsed_ms`.
 
 Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has

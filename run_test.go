@@ -63,9 +63,8 @@ func (s *scenario) digCalls(subs ...string) []string {
 func newScenario(t *testing.T, domain, server string) *scenario {
 	t.Helper()
 	withResolvConf(t, "nameserver 10.12.60.1\n")
-	old := preloadFetcher
-	preloadFetcher = func(context.Context, string, time.Duration) (string, error) { return "unknown", nil }
-	t.Cleanup(func() { preloadFetcher = old })
+	// Not on the list, and no filesystem cache in unit tests.
+	stubList(t, &preloadList{entries: map[string]bool{"example.net": true}}, nil)
 	r := newFakeRunner()
 	r.fallback = fixtureFallback(t)
 	cfg := baseConfig(domain, server)
@@ -97,8 +96,9 @@ func TestRun_SignedDomainWithoutWeb(t *testing.T) {
 	check(t, "no quic", len(s.r.called("quicprobe")), 0)
 	check(t, "no dials", len(s.dialer.seen), 0)
 	check(t, "no bogus probe", len(s.digCalls("+cd")), 0)
-	check(t, "API unknown is reported as absent", rep.HSTSPreload, PreloadAbsent)
+	check(t, "not on the list", rep.HSTSPreload, PreloadAbsent)
 	check(t, "no preload error", rep.HSTSPreloadError, "")
+	check(t, "no covered-by", rep.HSTSPreloadCoveredBy, "")
 }
 
 func TestRun_MailAndNameserverSections(t *testing.T) {
@@ -487,15 +487,24 @@ func TestRun_TXTOnlyNameInSignedZone(t *testing.T) {
 }
 
 func TestRun_PreloadStatuses(t *testing.T) {
+	// google.com itself listed: preloaded, no covered-by.
 	g := googleScenario(t) // header: max-age 1y, includeSubDomains, preload
-	preloadFetcher = func(context.Context, string, time.Duration) (string, error) { return "preloaded", nil }
+	stubList(t, &preloadList{entries: map[string]bool{"google.com": true}}, nil)
 	rep := g.s.run()
 	check(t, "preloaded", rep.HSTSPreload, PreloadPreloaded)
+	check(t, "no covered-by for an exact entry", rep.HSTSPreloadCoveredBy, "")
 	check(t, "header meets requirements", contains(rep.Warnings, "preload"), false)
+
+	// Covered by an ancestor with include_subdomains.
+	g = googleScenario(t)
+	stubList(t, &preloadList{entries: map[string]bool{"com": true}}, nil)
+	rep = g.s.run()
+	check(t, "preloaded via ancestor", rep.HSTSPreload, PreloadPreloaded)
+	check(t, "covered by", rep.HSTSPreloadCoveredBy, "com")
 
 	// Preloaded but the served header has decayed (cloudflare.com's case).
 	g = googleScenario(t)
-	preloadFetcher = func(context.Context, string, time.Duration) (string, error) { return "preloaded", nil }
+	stubList(t, &preloadList{entries: map[string]bool{"google.com": true}}, nil)
 	weak := tlsServer(t, okHandler(map[string]string{"Strict-Transport-Security": "max-age=15780000"}), []*x509.Certificate{g.leaf, g.ca.cert}, g.key, tls.VersionTLS12, tls.VersionTLS13)
 	g.s.dialer.mapTarget(g.v4.String(), 443, weak)
 	g.s.dialer.mapTarget(g.v6.String(), 443, weak)
@@ -504,7 +513,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 
 	// Not on the list but the header claims preload without meeting the bar.
 	g = googleScenario(t)
-	preloadFetcher = func(context.Context, string, time.Duration) (string, error) { return "unknown", nil }
+	stubList(t, &preloadList{entries: map[string]bool{"example.net": true}}, nil)
 	claim := tlsServer(t, okHandler(map[string]string{"Strict-Transport-Security": "max-age=300; preload"}), []*x509.Certificate{g.leaf, g.ca.cert}, g.key, tls.VersionTLS12, tls.VersionTLS13)
 	g.s.dialer.mapTarget(g.v4.String(), 443, claim)
 	g.s.dialer.mapTarget(g.v6.String(), 443, claim)
@@ -512,22 +521,37 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	check(t, "absent", rep.HSTSPreload, PreloadAbsent)
 	check(t, "directive without requirements warned", contains(rep.Warnings, "carries the preload directive but does not meet"), true)
 
-	// Lookup failure: unknown plus a scrubbed reason, and a warning.
+	// The list could not be obtained: unknown plus a scrubbed reason.
 	g = googleScenario(t)
-	preloadFetcher = func(context.Context, string, time.Duration) (string, error) {
-		return "", errors.New("Get \"https://hstspreload.org\": dial tcp: lookup hstspreload.org on 10.0.0.2:53: server misbehaving")
-	}
+	stubList(t, nil, errors.New("Get \"https://chromium.googlesource.com\": dial tcp: lookup chromium.googlesource.com on 10.0.0.2:53: server misbehaving"))
 	rep = g.s.run()
 	check(t, "unknown", rep.HSTSPreload, PreloadUnknown)
 	check(t, "reason kept", strings.Contains(rep.HSTSPreloadError, "server misbehaving"), true)
 	check(t, "resolver scrubbed", strings.Contains(rep.HSTSPreloadError, "10.0.0.2"), false)
 	check(t, "warned", contains(rep.Warnings, "HSTS preload list could not be consulted"), true)
 
-	// Disabled: no status, no error, no warning.
+	// Disabled: no status, no error, no warning, and no fetch.
 	g = googleScenario(t)
+	calls := stubList(t, fixtureList(t), nil)
 	g.s.cfg.HSTSPreload = false
 	rep = g.s.run()
-	check(t, "disabled", rep.HSTSPreload+rep.HSTSPreloadError, "")
+	check(t, "disabled", rep.HSTSPreload+rep.HSTSPreloadError+rep.HSTSPreloadCoveredBy, "")
+	check(t, "no fetch when disabled", calls.Load(), int32(0))
+}
+
+// The cache is read once per run and shared by every domain checked on the
+// host: a populated cache means no fetch at all.
+func TestRun_UsesPopulatedCache(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hsts-preload.tsv")
+	if err := writePreloadCache(path, &preloadList{entries: map[string]bool{"google.com": true}}); err != nil {
+		t.Fatal(err)
+	}
+	g := googleScenario(t)
+	g.s.cfg.HSTSCache = path
+	calls := stubList(t, fixtureList(t), nil)
+	rep := g.s.run()
+	check(t, "answered from the cache", rep.HSTSPreload, PreloadPreloaded)
+	check(t, "no network", calls.Load(), int32(0))
 }
 
 func TestRun_ResolverWithPort(t *testing.T) {

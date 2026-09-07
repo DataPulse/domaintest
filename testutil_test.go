@@ -154,6 +154,7 @@ func baseConfig(domain, server string) config {
 		TimeoutSec:     5,
 		TCPTimeoutSec:  defaultTCPTimeoutSec,
 		QuicTimeoutSec: defaultQuicTimeoutSec,
+		HSTSCache:      noCachePath,
 		DelvPath:       "delv",
 		DigPath:        "dig",
 		QuicPath:       "quicprobe",

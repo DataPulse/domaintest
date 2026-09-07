@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -251,4 +253,54 @@ func TestWriteReport(t *testing.T) {
 	if err := json.Unmarshal(compact.Bytes(), &back); err != nil || back.Domain != "x.org" {
 		t.Errorf("round trip failed: %v", err)
 	}
+}
+
+func TestParseArgs_HSTSCacheAndWarm(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", "/tmp/example-cache")
+	cfg, err := parseArgs([]string{"example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "default cache path", cfg.HSTSCache, "/tmp/example-cache/domaintest/hsts-preload.tsv")
+	check(t, "warm off", cfg.WarmHSTSCache, false)
+	check(t, "preload on", cfg.HSTSPreload, true)
+
+	cfg, err = parseArgs([]string{"-hsts-cache", "/var/tmp/x.tsv", "example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "explicit cache path", cfg.HSTSCache, "/var/tmp/x.tsv")
+
+	cfg, err = parseArgs([]string{"-warm-hsts-cache"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "warm needs no domain", cfg.WarmHSTSCache, true)
+	check(t, "warm still resolves the cache path", cfg.HSTSCache, "/tmp/example-cache/domaintest/hsts-preload.tsv")
+
+	for _, args := range [][]string{{"-warm-hsts-cache", "example.com"}, {"-hsts-cache"}} {
+		if _, err := parseArgs(args); err == nil {
+			t.Errorf("expected an error for %v", args)
+		}
+	}
+}
+
+func TestRealMain_WarmMode(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "hsts-preload.tsv")
+	stubList(t, &preloadList{entries: map[string]bool{"app": true}}, nil)
+	var out, errBuf bytes.Buffer
+	rc := realMain([]string{"-warm-hsts-cache", "-hsts-cache", path}, &out, &errBuf)
+	check(t, "exit 0", rc, 0)
+	check(t, "nothing on stdout", out.String(), "")
+	check(t, "cache written", fileExists(path), true)
+	check(t, "stderr names the cache", strings.Contains(errBuf.String(), path), true)
+	check(t, "stderr names the lock", strings.Contains(errBuf.String(), "lock"), true)
+
+	stubList(t, nil, errors.New("fetch failed on 10.0.0.2:53"))
+	errBuf.Reset()
+	rc = realMain([]string{"-warm-hsts-cache", "-hsts-cache", filepath.Join(dir, "other.tsv")}, &out, &errBuf)
+	check(t, "exit 2 on failure", rc, 2)
+	check(t, "reason on stderr", strings.Contains(errBuf.String(), "fetch failed"), true)
+	check(t, "resolver scrubbed", strings.Contains(errBuf.String(), "10.0.0.2"), false)
 }
