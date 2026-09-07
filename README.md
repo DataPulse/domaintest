@@ -70,10 +70,35 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    deliberately not probed.
 6. **TLS on 443**, on every address that answered (`tls`): the served
    chain is classified as `valid`, `expired`, `not_yet_valid`,
-   `hostname_mismatch`, `self_signed`, `incomplete_chain` (the missing
-   intermediate is fetched via the certificate's AIA URL to prove it),
+   `hostname_mismatch`, `self_signed`, `incomplete_chain`,
    `untrusted_root`, `invalid` or `handshake_failed`; anything but `valid`
-   is an error. The certificate's subject, issuer, validity, days
+   is an error.
+
+   `valid` means the chain **as served** verified against the trust store
+   at probe time. It is not a statement about revocation, which is not
+   checked, and the key and signature algorithm are reported but not
+   judged.
+
+   `incomplete_chain` and `untrusted_root` are the same x509 error to Go
+   and are separated by evidence, never by the issuer's name. When the
+   chain does not verify as served, the intermediate named by the leaf's
+   AIA URL is fetched and the chain retried: if it then verifies, the
+   server merely omitted the intermediate and the result is
+   `incomplete_chain`, with the URL that was fetched named in `error`.
+   If it still does not verify, or there is no AIA URL, or the fetch
+   fails, the result is `untrusted_root`. A CA's name cannot distinguish
+   these: `incomplete-chain.badssl.com` is issued by something calling
+   itself Let's Encrypt and chains to a root in no trust store, so it is
+   correctly `untrusted_root`. The AIA URL appears only in `tls.error` on
+   an address classified `incomplete_chain`; there is no AIA field in
+   `tls.cert`, and the CAA issuer table is a name lookup that says nothing
+   about whether a chain validates.
+
+   Because `incomplete_chain` verifies only after that repair, a caller
+   distinguishing "correct as served" from "correct once repaired" should
+   treat `valid` as the former and `incomplete_chain` as the latter:
+   browsers usually repair it themselves, while curl, Java and some mobile
+   clients do not. The certificate's subject, issuer, validity, days
    remaining (warning under 30, with sharper wording under 14 and 7), SANs,
    whether it covers the apex and www, key type and SHA-256 fingerprint are
    reported. A valid certificate on one name that does not cover the other
