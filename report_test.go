@@ -561,3 +561,53 @@ func TestPreloadFindings_NoHeaderVersusWeakHeader(t *testing.T) {
 	good.preloadFindings(withHSTS(&HSTS{MaxAge: preloadMinAge, IncludeSubdomains: true, Preload: true}))
 	check(t, "a compliant header is silent", good.warnings, []string(nil))
 }
+
+// A name that does not exist must get the same verdict however its parent
+// zone chooses to deny it. Signed zones using compact denial of existence
+// answer NODATA rather than admitting a name is absent, so the verdict
+// would otherwise follow the phrasing of the denial rather than the fact.
+func TestDNSFindings_ComparableDenials(t *testing.T) {
+	section := func(st LookupStatus) DNSSection {
+		apex := map[string]Lookup{}
+		for _, ty := range apexTypes {
+			apex[ty] = Lookup{Status: st}
+		}
+		return DNSSection{Apex: apex, WWW: map[string]Lookup{}}
+	}
+
+	nx := &Report{Domain: "nosuchhost.example.com", DNS: section(StatusNXDomain)}
+	buildFindings(nx)
+	check(t, "nxdomain fails", nx.OK, false)
+	check(t, "one fact", nx.Errors, []string{"apex nosuchhost.example.com does not exist (NXDOMAIN)"})
+
+	// The same name behind a zone that answers NODATA for everything.
+	nodata := &Report{Domain: "nosuchhost.example.com", NotAZone: true, EnclosingZone: "example.com", DNS: section(StatusNXRRSet)}
+	buildFindings(nodata)
+	check(t, "compact denial fails too", nodata.OK, false)
+	check(t, "and says what it found", nodata.Errors, []string{"apex nosuchhost.example.com has no records of any type"})
+	check(t, "without restating it per type", nodata.Warnings, []string{})
+
+	// One record of any type means the name exists and is judged normally.
+	live := &Report{Domain: "mail.example.com", NotAZone: true, DNS: section(StatusNXRRSet)}
+	live.DNS.Apex["MX"] = Lookup{Status: StatusOK, Records: []string{"10 mx.example.com."}}
+	buildFindings(live)
+	check(t, "a mail-only host is not empty", contains(live.Errors, "no records of any type"), false)
+
+	// A lookup that never answered must not be read as an empty name.
+	unresolved := &Report{Domain: "x.example.com", DNS: section(StatusTimeout)}
+	buildFindings(unresolved)
+	check(t, "silence is not emptiness", contains(unresolved.Errors, "no records of any type"), false)
+}
+
+// A host that served no response on 443 cannot be said to serve no HSTS
+// header: there was no response to carry one.
+func TestPreloadFindings_NoResponseIsNotAMissingHeader(t *testing.T) {
+	var f findings
+	f.preloadFindings(&Report{HSTSPreload: PreloadPreloaded, Web: WebSection{}})
+	check(t, "silent when nothing answered", f.warnings, []string(nil))
+
+	var g findings
+	g.preloadFindings(&Report{HSTSPreload: PreloadPreloaded,
+		Web: WebSection{Apex: &HostWeb{IPv4: []AddrWeb{{IP: "192.0.2.1", HTTPSRes: &HTTPResult{Status: 200}}}}}})
+	check(t, "reported when a response carried none", contains(g.warnings, "serves no HSTS header"), true)
+}

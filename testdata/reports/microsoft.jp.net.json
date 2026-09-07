@@ -16,21 +16,18 @@
         "trust": "insecure",
         "records": [
           "150.95.255.38"
-        ],
-        "retries": 1
+        ]
       },
       "AAAA": {
         "status": "nxrrset",
-        "trust": "insecure",
-        "retries": 1
+        "trust": "insecure"
       },
       "MX": {
         "status": "ok",
         "trust": "insecure",
         "records": [
           "0 ."
-        ],
-        "retries": 1
+        ]
       },
       "NS": {
         "status": "ok",
@@ -45,8 +42,7 @@
         "trust": "insecure",
         "records": [
           "v=spf1 -all"
-        ],
-        "retries": 1
+        ]
       }
     },
     "www": {
@@ -59,8 +55,7 @@
       },
       "AAAA": {
         "status": "nxrrset",
-        "trust": "insecure",
-        "retries": 1
+        "trust": "insecure"
       }
     },
     "resolver_reachable": {
@@ -79,13 +74,12 @@
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "parent_server": "ns3.centralnic.net",
+    "parent_server": "ns1.centralnic.net",
     "child_ns": [
       "dns1.onamae.com.",
       "dns2.onamae.com."
     ],
-    "child_server": "dns2.onamae.com",
-    "error": "communications error to 163.44.76.136#53: timed out"
+    "child_server": "dns1.onamae.com"
   },
   "web": {
     "apex": {
@@ -121,6 +115,7 @@
     },
     "www": {
       "same_as_apex": true,
+      "via_wildcard": true,
       "ipv4": [
         {
           "ip": "150.95.255.38",
@@ -132,7 +127,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2000,
+            "handshake_ms": 2001,
             "error": "context deadline exceeded"
           }
         }
@@ -209,16 +204,21 @@
       {
         "name": "dns2.onamae.com.",
         "ip": "163.44.76.150",
-        "aa": false,
-        "tcp": false,
-        "edns": false,
-        "retries": 1,
-        "error": "dig timed out"
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 16777216,
+        "tcp": true,
+        "edns": true
       }
     ],
     "serials_consistent": true,
     "ipv4_prefixes_24": 1,
     "ipv6_prefixes_48": 0,
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
     "ns_cname": [],
     "unresolvable": [],
     "unresolved": []
@@ -241,51 +241,53 @@
     "apex": [],
     "www": [],
     "signed": false,
-    "result": "unknown"
+    "result": "none"
   },
   "wildcard": {
-    "status": "unknown",
-    "determined_by": "the lookup for the random name iqupodpupjfe did not complete",
+    "status": "present",
+    "determined_by": "3 random names all answer",
     "probes": [
       {
-        "label": "zcpokuddgaue",
+        "label": "vzkkncqmitsp",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "ecuhpexfaxsn",
+        "label": "otgbgzzyukpv",
         "status": "answered",
         "addresses": [
           "150.95.255.38"
         ]
       },
       {
-        "label": "iqupodpupjfe",
-        "status": "unresolved",
-        "addresses": []
+        "label": "upfwckyookaq",
+        "status": "answered",
+        "addresses": [
+          "150.95.255.38"
+        ]
       }
     ],
-    "addresses": [],
-    "consistent": null,
-    "www_via_wildcard": false
+    "addresses": [
+      "150.95.255.38"
+    ],
+    "consistent": true,
+    "www_via_wildcard": true
   },
   "hsts_preload": "absent",
-  "errors": [
-    "nameserver dns2.onamae.com.: no answer on 1 of 1 addresses"
-  ],
+  "errors": [],
   "warnings": [
     "apex has no AAAA record",
     "www has no AAAA record",
     "apex publishes a null MX (RFC 7505): accepts no mail",
     "apex 150.95.255.38: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
     "www 150.95.255.38: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
+    "www is answered by a wildcard record, not a real host",
     "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
     "www: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
-    "all IPv4 nameserver addresses share one /24",
-    "TLSA records are published in an unsigned zone (DANE clients ignore them)"
+    "all IPv4 nameserver addresses share one /24"
   ],
-  "ok": false,
-  "elapsed_ms": 13008
+  "ok": true,
+  "elapsed_ms": 3902
 }

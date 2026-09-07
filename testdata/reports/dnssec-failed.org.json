@@ -62,7 +62,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "b2.org.afilias-nst.org",
+    "parent_server": "a2.org.afilias-nst.info",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -70,7 +70,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns104.comcast.net"
+    "child_server": "dns101.comcast.net"
   },
   "web": {},
   "mail": {
@@ -231,10 +231,10 @@
   },
   "wildcard": {
     "status": "unknown",
-    "determined_by": "the lookup for the random name lkklsjkidzhq did not complete",
+    "determined_by": "the lookup for the random name zqwbeaptanii did not complete",
     "probes": [
       {
-        "label": "lkklsjkidzhq",
+        "label": "zqwbeaptanii",
         "status": "unresolved",
         "addresses": []
       }
@@ -252,5 +252,5 @@
     "TLSA records are published in an unsigned zone (DANE clients ignore them)"
   ],
   "ok": false,
-  "elapsed_ms": 964
+  "elapsed_ms": 1009
 }

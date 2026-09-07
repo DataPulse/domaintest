@@ -291,6 +291,18 @@ empty, and an object is omitted only when the whole check did not apply
 known to compare it against, `tls` when 443 did not answer, `quic` when
 quicprobe was not run).
 
+A name with no records at all gets the same verdict however its parent
+zone denies it. A signed zone using compact denial of existence answers
+NOERROR/NODATA rather than admitting a name is absent, so `nosuchhost` under
+one provider returned NXDOMAIN and failed while the same name under another
+returned NODATA and passed. When every apex lookup answered and none
+returned a record, the report says the name has no records of any type and
+fails, matching the NXDOMAIN case: a name someone created has at least one
+record of some type, since a mail-only host still has an MX and a
+verification host still has a TXT. Requiring every lookup to have answered
+keeps a failed probe from being read as an empty name, and the per-type
+presence warnings are folded into the one error.
+
 The same rule governs three checks whose absence is only meaningful once
 observed. A `_dmarc` lookup that did not complete sets `mail.dmarc.unresolved`
 and warns that the lookup did not complete, rather than reporting no DMARC

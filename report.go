@@ -145,11 +145,24 @@ func buildFindings(rep *Report) {
 
 func (f *findings) dnsFindings(rep *Report) {
 	apex := rep.DNS.Apex
-	// A reserved name not existing in the global DNS is the definition of
-	// the name, not a fault in it.
-	if rep.ReservedName == "" && (apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain) {
-		f.errorf("apex %s does not exist (NXDOMAIN)", rep.Domain)
-		return
+	// A name with nothing at it is one fact, and the rest of the checks
+	// only restate it. A reserved name is excluded: not existing in the
+	// global DNS is the definition of the name, not a fault in it.
+	if rep.ReservedName == "" {
+		switch {
+		case apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain:
+			f.errorf("apex %s does not exist (NXDOMAIN)", rep.Domain)
+			return
+		case noRecordsAtAll(apex):
+			// The zone denied every type without saying NXDOMAIN, which
+			// is what compact denial of existence looks like: Cloudflare
+			// and other signed zones answer NODATA rather than admit a
+			// name is absent. The name has nothing either way, and the
+			// verdict must follow that fact rather than the phrasing of
+			// the denial.
+			f.errorf("apex %s has no records of any type", rep.Domain)
+			return
+		}
 	}
 	// A bogus or SERVFAIL verdict already explains every failed lookup.
 	// A reserved name folds its lookup failures the way a bogus zone does:
@@ -172,6 +185,21 @@ func (f *findings) dnsFindings(rep *Report) {
 		f.errorf("apex has no NS records")
 	}
 	f.presenceWarnings(rep)
+}
+
+// noRecordsAtAll reports whether every apex lookup answered and none of
+// them returned a record. A name someone created has at least one record
+// of some type: a mail-only host still has an MX, a verification host
+// still has a TXT. Requiring every lookup to have answered keeps a failed
+// probe from being read as an empty name.
+func noRecordsAtAll(apex map[string]Lookup) bool {
+	for _, t := range apexTypes {
+		l := apex[t]
+		if !l.Answered() || l.HasRecords() {
+			return false
+		}
+	}
+	return true
 }
 
 func enclosing(zone string) string {
@@ -901,6 +929,9 @@ const preloadMinAge = 31536000
 func (f *findings) preloadFindings(rep *Report) {
 	h := servedHSTS(rep.Web.Apex)
 	switch {
+	case rep.HSTSPreload == PreloadPreloaded && h == nil && !anyHTTPSResponse(rep.Web.Apex):
+		// Nothing answered on 443, so there is no response to have carried
+		// a header and nothing to report either way.
 	case rep.HSTSPreload == PreloadPreloaded && h == nil:
 		// "No longer meets" implies a header we could measure. Saying so
 		// when none was served points at the wrong fix.
@@ -922,6 +953,19 @@ func servedHSTS(h *HostWeb) *HSTS {
 		}
 	}
 	return nil
+}
+
+// anyHTTPSResponse reports whether any address of the host answered on 443.
+func anyHTTPSResponse(h *HostWeb) bool {
+	if h == nil {
+		return false
+	}
+	for _, a := range h.addrs() {
+		if a.HTTPSRes != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func meetsPreload(h *HSTS) bool {
