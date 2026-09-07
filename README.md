@@ -279,7 +279,10 @@ itself, so a saturated host degrades to ordinary timeouts.
 
 The cap covers `delv` and `dig` only. `quicprobe` waits on the network
 rather than competing for CPU, and queueing it behind DNS work would cost
-QUIC answers for nothing.
+QUIC answers for nothing. The resolver-reachability probe is also exempt:
+it measures the configured resolver rather than the domain, so letting a
+target's hung lookups starve it would turn a slow domain into a false
+claim that the resolver is down.
 
 ## Timeouts
 

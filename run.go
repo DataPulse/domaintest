@@ -96,7 +96,7 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	var dns dnsResults
 	parallel(
 		func() { rep.Delegation = runTrace(ctx, cfg, dnsRunner) },
-		func() { dns = gatherDNS(ctx, cfg, dnsRunner) },
+		func() { dns = gatherDNS(ctx, cfg, dnsRunner, r) },
 	)
 	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach}
 	classifyZone(rep, cfg, dns, dnsRunner)
@@ -230,7 +230,12 @@ func traceFamily(cfg config) string {
 // gatherDNS runs all delv lookups in parallel under one deadline: first
 // the fixed set, then the lookups that depend on those answers (SPF
 // includes, MX targets, DKIM selectors, NS names).
-func gatherDNS(ctx context.Context, cfg config, r Runner) dnsResults {
+//
+// gatherDNS runs the record lookups through the capped runner. The
+// reachability probe uses the uncapped one: it measures our own resolver,
+// so letting the target's hung lookups starve it would turn a slow domain
+// into a false claim that the resolver is down.
+func gatherDNS(ctx context.Context, cfg config, r, reachRunner Runner) dnsResults {
 	dctx, cancel := context.WithTimeout(ctx, cfg.timeout())
 	defer cancel()
 	res := dnsResults{
@@ -244,7 +249,7 @@ func gatherDNS(ctx context.Context, cfg config, r Runner) dnsResults {
 	tasks := fixedLookups(&res, &mu, cfg, get)
 	for _, fam := range cfg.Families {
 		tasks = append(tasks, func() {
-			store(&mu, res.reach, fam, checkReachability(dctx, cfg, r, fam))
+			store(&mu, res.reach, fam, checkReachability(dctx, cfg, reachRunner, fam))
 		})
 	}
 	parallel(tasks...)

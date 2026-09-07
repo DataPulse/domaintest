@@ -648,3 +648,28 @@ func TestRun_DNSConcurrencyCap(t *testing.T) {
 	check(t, "same warnings", rep.Warnings, full.Warnings)
 	check(t, "same NS verdicts", len(rep.Nameservers.Servers), len(full.Nameservers.Servers))
 }
+
+// A cap must never starve the resolver-reachability probe: it measures our
+// own resolver, and queueing it behind a target's hung lookups would turn
+// a slow domain into a false claim that the resolver is down.
+func TestRun_CapDoesNotStarveReachabilityProbe(t *testing.T) {
+	s := jschmidtScenario(t)
+	s.cfg.DNSConcurrency = 1
+	s.cfg.TimeoutSec = 2
+	// Every record lookup hangs for the whole budget; the root NS probe is
+	// instant, as a healthy resolver would be.
+	inner := s.r.fallback
+	s.r.fallback = func(tool string, args []string) (fakeCall, bool) {
+		joined := strings.Join(args, " ")
+		if tool == "delv" && !strings.HasSuffix(joined, " . NS") {
+			return fakeCall{delay: 5 * time.Second}, true
+		}
+		return inner(tool, args)
+	}
+	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+
+	rep := s.run()
+	check(t, "resolver still measured as reachable", rep.DNS.ResolverReachable[familyIPv4], ReachYes)
+	check(t, "no false resolver error", contains(rep.Errors, "resolver not reachable"), false)
+	check(t, "the domain's own lookups did time out", rep.DNS.Apex["A"].Status, StatusTimeout)
+}
