@@ -278,7 +278,11 @@ chain_length, error), `tlsa` (match / mismatch / none, only when TLSA records ex
 
 `web` is an empty object when the name has no usable addresses (no
 A/AAAA, NXDOMAIN, bogus zone): callers must not assume `web.apex` exists.
-`mail` and `nameservers` are absent for a name that is not a zone apex.
+`mail`, `nameservers` and `web.www` are absent for a name that is not a
+zone apex. `www` is a convention at an apex; prefixing it to a name that is
+already a host invents a name nobody configured, and a catch-all answers it
+with a certificate that cannot cover the extra label, so
+`www.old.reddit.com` was reported as a hostname mismatch on a healthy site.
 `mail` is also absent for a name that cannot receive mail at all: one
 outside the global DNS (`reserved_name`) or one that does not exist
 (NXDOMAIN). There is nothing to configure, so a missing DMARC record is

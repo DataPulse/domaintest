@@ -865,3 +865,25 @@ func TestDetectNotAZone_CNAMEIsNeverAnApex(t *testing.T) {
 	got, _ = detectNotAZone("www.example.com", host, Delegation{})
 	check(t, "host inside a zone", got, true)
 }
+
+// www is a convention at a zone apex. Prefixing it to a name that is
+// already a host invents a name nobody configured, and a catch-all answers
+// it with a certificate that cannot cover the extra label, which read as a
+// hostname mismatch on a healthy site.
+func TestProbeWeb_NoWWWForAHostInsideAZone(t *testing.T) {
+	host := "aelcs-com.mail.protection.outlook.com"
+	s := newScenario(t, host, "")
+	s.delv(host, "TXT", "delv/outlook_host_txt_failure.yaml", t)
+	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.r.on("dig", traceArgs(familyIPv4, 5, host), fakeCall{stdout: fixture(t, "trace/nxdomain.txt")})
+	rep := s.run()
+	check(t, "detected as a host", rep.NotAZone, true)
+	check(t, "no www section", rep.Web.WWW, (*HostWeb)(nil))
+	check(t, "no www warnings", contains(rep.Warnings, "www "), false)
+
+	// An apex still gets the full www treatment.
+	apex := jschmidtScenario(t)
+	rep = apex.run()
+	check(t, "apex is a zone", rep.NotAZone, false)
+	check(t, "www still warned about", contains(rep.Warnings, "www has no A or AAAA records"), true)
+}

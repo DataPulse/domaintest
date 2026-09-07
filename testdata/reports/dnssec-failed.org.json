@@ -62,7 +62,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "a0.org.afilias-nst.info",
+    "parent_server": "b2.org.afilias-nst.org",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -70,8 +70,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns103.comcast.net",
-    "error": "communications error to 192.36.148.17#53: timed out"
+    "child_server": "dns104.comcast.net"
   },
   "web": {},
   "mail": {
@@ -232,10 +231,10 @@
   },
   "wildcard": {
     "status": "unknown",
-    "determined_by": "the lookup for the random name jdtwibxggnyl did not complete",
+    "determined_by": "the lookup for the random name nwgarlcsemao did not complete",
     "probes": [
       {
-        "label": "jdtwibxggnyl",
+        "label": "nwgarlcsemao",
         "status": "unresolved",
         "addresses": []
       }
@@ -253,5 +252,5 @@
     "TLSA records are published in an unsigned zone (DANE clients ignore them)"
   ],
   "ok": false,
-  "elapsed_ms": 1659
+  "elapsed_ms": 1019
 }

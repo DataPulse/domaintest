@@ -112,7 +112,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2000,
+            "handshake_ms": 2001,
             "error": "context deadline exceeded"
           }
         }
@@ -135,78 +135,6 @@
         }
       },
       "cert_consistent": true
-    },
-    "www": {
-      "same_as_apex": true,
-      "via_wildcard": true,
-      "ipv4": [
-        {
-          "ip": "104.154.89.105",
-          "80": "open",
-          "443": "open",
-          "http": {
-            "status": 302,
-            "location": "https://www.expired.badssl.com/",
-            "server": "nginx/1.10.3 (Ubuntu)"
-          },
-          "https": {
-            "status": 421,
-            "server": "nginx/1.10.3 (Ubuntu)"
-          },
-          "tls": {
-            "chain": "expired",
-            "chain_problems": [
-              "expired",
-              "hostname_mismatch"
-            ],
-            "version": "TLS 1.2",
-            "alpn": "http/1.1",
-            "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-            "tls10": true,
-            "tls11": true,
-            "cert": {
-              "subject": "badssl-fallback-unknown-subdomain-or-no-sni",
-              "issuer": "BadSSL Intermediate Certificate Authority",
-              "not_before": "2016-08-08T21:17:05Z",
-              "not_after": "2018-08-08T21:17:05Z",
-              "days_remaining": -2951,
-              "sans": [
-                "badssl-fallback-unknown-subdomain-or-no-sni"
-              ],
-              "covers_apex": false,
-              "covers_www": false,
-              "wildcard": false,
-              "key": "RSA 2048",
-              "fingerprint_sha256": "d073b38943b36bd970ec8f61b3a1aea66e58eff160daee143bcb9d9967867813"
-            },
-            "chain_length": 1,
-            "error": "certificate expired 2018-08-08T21:17:05Z"
-          },
-          "quic": {
-            "supported": false,
-            "handshake_ms": 2000,
-            "error": "context deadline exceeded"
-          }
-        }
-      ],
-      "redirects": {
-        "ipv4": {
-          "hops": [
-            {
-              "url": "http://www.expired.badssl.com/",
-              "status": 302
-            },
-            {
-              "url": "https://www.expired.badssl.com/",
-              "status": 421
-            }
-          ],
-          "ended": "final",
-          "final_url": "https://www.expired.badssl.com/",
-          "loop": false
-        }
-      },
-      "cert_consistent": true
     }
   },
   "caa": {
@@ -221,9 +149,7 @@
       "www": {
         "published": [],
         "effective": [],
-        "issuer": "BadSSL",
-        "permitted": true,
-        "note": "no CAA records; any CA may issue"
+        "note": "no certificate observed"
       }
     }
   },
@@ -238,21 +164,21 @@
     "determined_by": "3 random names all answer",
     "probes": [
       {
-        "label": "xqukrouhlsub",
+        "label": "zgnnhklaglev",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
         ]
       },
       {
-        "label": "dkdfixnjterr",
+        "label": "edlwbogmtvdu",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
         ]
       },
       {
-        "label": "tpvrhtfmqcss",
+        "label": "aqzmyeqzgkza",
         "status": "answered",
         "addresses": [
           "104.154.89.105"
@@ -267,23 +193,17 @@
   },
   "hsts_preload": "absent",
   "errors": [
-    "apex: certificate expired on 1 of 1 addresses: certificate expired 2015-04-12T23:59:59Z",
-    "www: certificate expired and hostname mismatch on 1 of 1 addresses: certificate expired 2018-08-08T21:17:05Z"
+    "apex: certificate expired on 1 of 1 addresses: certificate expired 2015-04-12T23:59:59Z"
   ],
   "warnings": [
     "expired.badssl.com is not a zone apex (inside zone badssl.com): delegation and DNSSEC zone checks skipped",
     "apex has no AAAA record",
-    "www has no AAAA record",
     "apex has no MX records",
     "no SPF (v=spf1) record in apex TXT",
     "www is answered by a wildcard record, not a real host",
     "apex: TLS 1.0/1.1 still accepted on 1 of 1 addresses",
-    "apex: no TLS 1.3 on 1 of 1 addresses",
-    "www: TLS 1.0/1.1 still accepted on 1 of 1 addresses",
-    "www: no TLS 1.3 on 1 of 1 addresses",
-    "www: every address returns a client error on port 443",
-    "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/"
+    "apex: no TLS 1.3 on 1 of 1 addresses"
   ],
   "ok": false,
-  "elapsed_ms": 2822
+  "elapsed_ms": 2722
 }
