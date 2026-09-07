@@ -74,8 +74,8 @@ type dnsResults struct {
 	dmarc    Lookup
 	mtaSTS   Lookup
 	tlsRPT   Lookup
-	wildA    Lookup
-	wildAAAA Lookup
+	wild     []wildProbe // the random-name probes, in the order issued
+	wildSkip string      // why no probe was issued: an answer already in hand
 	caaApex  Lookup
 	caaWWW   Lookup
 	tlsaApex Lookup
@@ -270,7 +270,6 @@ func gatherDNS(ctx context.Context, cfg config, r, reachRunner Runner) dnsResult
 // fixedLookups are the lookups known before any answer arrives.
 func fixedLookups(res *dnsResults, mu *sync.Mutex, cfg config, get lookupFn) []func() {
 	d, www := cfg.Domain, "www."+cfg.Domain
-	wild := wildcardName(d)
 	set := func(dst *Lookup, name, qtype string) func() {
 		return func() {
 			l := get(name, qtype)
@@ -289,7 +288,6 @@ func fixedLookups(res *dnsResults, mu *sync.Mutex, cfg config, get lookupFn) []f
 	tasks = append(tasks,
 		set(&res.ds, d, "DS"), set(&res.dnskey, d, "DNSKEY"),
 		set(&res.dmarc, "_dmarc."+d, "TXT"), set(&res.mtaSTS, "_mta-sts."+d, "TXT"), set(&res.tlsRPT, "_smtp._tls."+d, "TXT"),
-		set(&res.wildA, wild, "A"), set(&res.wildAAAA, wild, "AAAA"),
 		set(&res.caaApex, d, "CAA"), set(&res.caaWWW, www, "CAA"),
 		set(&res.tlsaApex, "_443._tcp."+d, "TLSA"), set(&res.tlsaWWW, "_443._tcp."+www, "TLSA"),
 	)
@@ -310,8 +308,50 @@ func dependentLookups(res *dnsResults, cfg config, get lookupFn) []func() {
 	for _, ns := range nsNames(res.apex["NS"]) {
 		tasks = append(tasks, func() { get(ns, "A") }, func() { get(ns, "AAAA") })
 	}
-	tasks = append(tasks, func() { evaluateSPF(cfg.Domain, res.apex["TXT"], get) })
+	tasks = append(tasks,
+		func() { evaluateSPF(cfg.Domain, res.apex["TXT"], get) },
+		func() { probeWildcard(res, cfg, get) },
+	)
 	return tasks
+}
+
+// probeWildcard asks whether the zone answers names that cannot exist. It
+// belongs in the second wave because its cheapest answer comes from www,
+// which the first wave looks up, and because a wildcard needs three
+// agreeing probes: one sample is not evidence.
+//
+// The stages stop at the first definite answer, so the common case where no
+// wildcard exists costs the same two queries as the single probe it
+// replaces, and a domain whose www is NXDOMAIN costs none at all.
+func probeWildcard(res *dnsResults, cfg config, get lookupFn) {
+	if res.wildSkip = wildcardSkipReason(res.apex, res.www); res.wildSkip != "" {
+		return
+	}
+	labels := wildcardLabels(wildcardProbeCount)
+	res.wild = []wildProbe{runWildProbe(labels[0], cfg.Domain, get)}
+	if classifyProbe(res.wild[0]) != probeAnswered {
+		// Denied settles it, and a probe that never answered will not be
+		// helped by asking two more names of the same resolver.
+		return
+	}
+	rest := make([]wildProbe, len(labels)-1)
+	var tasks []func()
+	for i, label := range labels[1:] {
+		tasks = append(tasks, func() { rest[i] = runWildProbe(label, cfg.Domain, get) })
+	}
+	parallel(tasks...)
+	res.wild = append(res.wild, rest...)
+}
+
+// runWildProbe looks up one random name over both address types at once.
+func runWildProbe(label, domain string, get lookupFn) wildProbe {
+	p := wildProbe{label: label}
+	name := label + "." + domain
+	parallel(
+		func() { p.a = get(name, "A") },
+		func() { p.aaaa = get(name, "AAAA") },
+	)
+	return p
 }
 
 func store[V any](mu *sync.Mutex, m map[string]V, k string, v V) {
@@ -601,10 +641,10 @@ func checkPreload(ctx context.Context, cfg config) (status, coveredBy, problem s
 	return status, coveredBy, ""
 }
 
-// wildcardSection evaluates the nonce probe and stamps www when its
+// wildcardSection evaluates the random-name probes and stamps www when its
 // addresses are just the wildcard's.
 func wildcardSection(dns dnsResults, web WebSection) *WildcardReport {
-	w := assessWildcard(dns.wildA, dns.wildAAAA, dns.www["A"], dns.www["AAAA"])
+	w := assessWildcard(dns.wild, dns.wildSkip, dns.www["A"], dns.www["AAAA"])
 	if w.WWWViaWildcard && web.WWW != nil {
 		web.WWW.ViaWildcard = true
 	}

@@ -1,0 +1,8 @@
+type: DELV_RESULT
+query_name: tzwnpcdfjyeu.wordpress.com
+status: success
+records:
+  - unsigned_answer:
+    - 'tzwnpcdfjyeu.wordpress.com. 14400 IN CNAME lb.wordpress.com.'
+    - 'lb.wordpress.com. 299 IN A 192.0.78.12'
+    - 'lb.wordpress.com. 299 IN A 192.0.78.13'

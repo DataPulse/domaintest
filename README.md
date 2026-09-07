@@ -146,10 +146,22 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     whether the TLSA answers, positive or negative, were DNSSEC-validated:
     in a signed zone the denial of a missing TLSA set is itself signed, so
     `signed` is true there even with `result: none`.
-13. **Wildcard** (`wildcard`): a random label under the domain is looked
-    up; if it answers, the zone has a wildcard, and when www resolves to
-    exactly the wildcard's addresses the report says `www_via_wildcard`
-    (and www carries `via_wildcard`) with a warning.
+13. **Wildcard** (`wildcard`): three unique random 12-letter labels under
+    the domain are looked up for A and AAAA. `status` is `present` when
+    every one of them answers, `absent` on the first definite denial, and
+    `unknown` when a probe never came back, so a silent lookup can never
+    read as a clean zone. `determined_by` says what settled it. A probe is
+    judged from both of its lookups together, because a wildcard CNAME
+    answers A with the CNAME while returning NXRRSET for AAAA. The denial
+    that ends the check is any definite answer with nothing in it, NODATA
+    as well as NXDOMAIN: signed zones behind synthesised NSEC (Cloudflare's
+    "black lies", among others) never say NXDOMAIN at all. `consistent`
+    says whether the probes answered alike; a catch-all that varies its
+    answers is still a catch-all, so the variance qualifies the verdict
+    rather than deciding it, and `consistent` is null unless the status is
+    `present`. When www resolves to exactly what one probe answered the
+    report says `www_via_wildcard` (and www carries `via_wildcard`) with a
+    warning; a wildcard on its own is reported without a finding.
 14. **Resolver reachability** over IPv4 and IPv6 (a root NS query per
     family). A family whose transport the resolver cannot use reads
     `skipped: resolver has no ipv6 address` (or ipv4): with
@@ -241,6 +253,8 @@ nameserver answered authoritatively, and `ipv4_prefixes_24` /
 `ipv6_prefixes_48` are null when no nameserver address was examined. A
 check that examined nothing reports unknown rather than a pass, so
 `serials_consistent: true` now means the serials were actually compared.
+The wildcard section's `consistent` is null the same way, whenever the
+status is not `present` and there was therefore nothing to compare.
 Consumers reading these as plain booleans or integers must handle null.
 Per-lookup objects carry `retries: 1` when the first delv attempt timed
 out and the retry answered, and so do nameserver entries whose first audit
@@ -359,7 +373,10 @@ once (`"retries": 1` in the record), so one dropped UDP query does not cost
 the whole run. A run against a healthy domain takes about one second
 when QUIC answers and about `-quic-timeout` when it does not; the extra
 DNS lookups (DMARC, DKIM selectors, MX and NS targets, SPF includes, CAA,
-TLSA, wildcard probe) are all cache hits on a warm resolver.
+TLSA, wildcard probes) are all cache hits on a warm resolver. The wildcard
+check stops at its first definite answer, so it costs two queries on a zone
+that denies a random name, none at all when www is NXDOMAIN, and six only
+when a wildcard is really there.
 
 ## Requirements
 

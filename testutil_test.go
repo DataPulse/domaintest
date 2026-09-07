@@ -285,9 +285,6 @@ func fixtureFallback(t *testing.T) func(tool string, args []string) (fakeCall, b
 		switch tool {
 		case "delv":
 			name, qtype := args[len(args)-2], args[len(args)-1]
-			if strings.HasPrefix(name, "domaintest-") { // random wildcard probe label
-				name = "domaintest-a1b2c3d4." + strings.SplitN(name, ".", 2)[1]
-			}
 			return fakeCall{stdout: idx.answer(t, name, qtype)}, true
 		case "dig":
 			joined := strings.Join(args, " ")

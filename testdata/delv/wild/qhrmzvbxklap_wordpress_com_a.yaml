@@ -1,0 +1,8 @@
+type: DELV_RESULT
+query_name: qhrmzvbxklap.wordpress.com
+status: success
+records:
+  - unsigned_answer:
+    - 'qhrmzvbxklap.wordpress.com. 14400 IN CNAME lb.wordpress.com.'
+    - 'lb.wordpress.com. 300 IN A 192.0.78.12'
+    - 'lb.wordpress.com. 300 IN A 192.0.78.13'

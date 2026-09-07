@@ -62,7 +62,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "parent_server": "b0.org.afilias-nst.org",
+    "parent_server": "b2.org.afilias-nst.org",
     "child_ns": [
       "dns101.comcast.net.",
       "dns102.comcast.net.",
@@ -70,7 +70,7 @@
       "dns104.comcast.net.",
       "dns105.comcast.net."
     ],
-    "child_server": "dns102.comcast.net"
+    "child_server": "dns104.comcast.net"
   },
   "web": {},
   "mail": {
@@ -228,8 +228,17 @@
     "result": "none"
   },
   "wildcard": {
-    "present": false,
+    "status": "unknown",
+    "determined_by": "the lookup for the random name khgythngcstq did not complete",
+    "probes": [
+      {
+        "label": "khgythngcstq",
+        "status": "unresolved",
+        "addresses": []
+      }
+    ],
     "addresses": [],
+    "consistent": null,
     "www_via_wildcard": false
   },
   "hsts_preload": "absent",
@@ -240,5 +249,5 @@
     "no DMARC record"
   ],
   "ok": false,
-  "elapsed_ms": 917
+  "elapsed_ms": 1020
 }

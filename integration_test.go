@@ -334,8 +334,22 @@ func TestIntegration_DANE(t *testing.T) {
 func TestIntegration_Wildcard(t *testing.T) {
 	cfg := integrationConfig(t, "github.io")
 	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
-	check(t, "wildcard", rep.Wildcard.Present, true)
+	check(t, "wildcard", rep.Wildcard.Status, WildcardPresent)
 	check(t, "addresses", len(rep.Wildcard.Addresses) > 0, true)
+	check(t, "three probes", len(rep.Wildcard.Probes), 3)
+	check(t, "verdict qualified", rep.Wildcard.Consistent != nil, true)
+}
+
+// A signed zone behind synthesised NSEC answers NODATA rather than NXDOMAIN
+// for a name that does not exist. That is still a definite denial, and the
+// check must not spend all three probes discovering it.
+func TestIntegration_WildcardAbsent(t *testing.T) {
+	cfg := integrationConfig(t, "cloudflare.com")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "absent", rep.Wildcard.Status, WildcardAbsent)
+	check(t, "one probe was enough", len(rep.Wildcard.Probes), 1)
+	check(t, "denied", rep.Wildcard.Probes[0].Status, probeDenied)
+	check(t, "no verdict to qualify", rep.Wildcard.Consistent == nil, true)
 }
 
 func TestIntegration_PreloadOptOut(t *testing.T) {

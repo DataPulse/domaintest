@@ -357,7 +357,7 @@ func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
 	lookup := indexLookup(t)
 	rep := healthyReport(t)
 	rep.Mail = &MailReport{DMARC: parseDMARC(Lookup{}), SPF: evaluateSPF("x", Lookup{}, lookup), MX: checkMX(Lookup{}, lookup), DKIM: probeDKIM("x", lookup), MTASTS: checkMTASTS(context.Background(), "x", Lookup{}, nil, time.Second, lookup)}
-	w := assessWildcard(Lookup{}, Lookup{}, Lookup{}, Lookup{})
+	w := assessWildcard(nil, "", Lookup{}, Lookup{})
 	rep.Wildcard = &w
 	rep.TLSA = assessTLSA(Lookup{}, Lookup{}, rep.Web)
 	c := assessCAA(Lookup{}, Lookup{}, servedCert{}, servedCert{})
@@ -375,7 +375,7 @@ func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
 	// only keys allowed to be null are the aggregates computed over a set
 	// of examined servers: with nothing examined they are unknown, and
 	// null is how they say so rather than reporting a vacuous pass.
-	unknownable := map[string]bool{"serials_consistent": true, "ipv4_prefixes_24": true, "ipv6_prefixes_48": true}
+	unknownable := map[string]bool{"serials_consistent": true, "ipv4_prefixes_24": true, "ipv6_prefixes_48": true, "consistent": true}
 	var seen []string
 	for _, m := range regexp.MustCompile(`"([a-z_0-9]+)":null`).FindAllStringSubmatch(out, -1) {
 		if !unknownable[m[1]] {
@@ -384,8 +384,8 @@ func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
 		seen = append(seen, m[1])
 	}
 	sort.Strings(seen)
-	check(t, "empty aggregates report unknown", seen, []string{"ipv4_prefixes_24", "ipv6_prefixes_48", "serials_consistent"})
-	for _, want := range []string{`"selectors_found":[]`, `"revoked":[]`, `"includes":[]`, `"problems":[]`, `"mx":[]`, `"addresses":[]`, `"www_via_wildcard":false`, `"signed":false`, `"hosts":{`, `"published":[]`, `"effective":[]`, `"servers":[]`, `"ns_cname":[]`, `"unresolvable":[]`, `"unresolved":[]`, `"pct":100`} {
+	check(t, "empty aggregates report unknown", seen, []string{"consistent", "ipv4_prefixes_24", "ipv6_prefixes_48", "serials_consistent"})
+	for _, want := range []string{`"selectors_found":[]`, `"revoked":[]`, `"includes":[]`, `"problems":[]`, `"mx":[]`, `"addresses":[]`, `"www_via_wildcard":false`, `"signed":false`, `"hosts":{`, `"published":[]`, `"effective":[]`, `"servers":[]`, `"ns_cname":[]`, `"unresolvable":[]`, `"unresolved":[]`, `"probes":[]`, `"pct":100`} {
 		check(t, "present: "+want, strings.Contains(out, want), true)
 	}
 	check(t, "glue absent when nothing was checkable", strings.Contains(out, `"glue"`), false)

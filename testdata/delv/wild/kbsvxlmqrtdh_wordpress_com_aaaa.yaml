@@ -1,0 +1,8 @@
+type: DELV_RESULT
+query_name: kbsvxlmqrtdh.wordpress.com
+status: ncache nxrrset
+records:
+  - unsigned_answer:
+    - 'kbsvxlmqrtdh.wordpress.com. 14400 IN CNAME lb.wordpress.com.'
+    - 'lb.wordpress.com. 299 IN \-AAAA ;-$NXRRSET'
+    - 'wordpress.com. SOA ns1.wordpress.com. mmmmmm.gmail.com. 2005071886 14400 7200 604800 60'

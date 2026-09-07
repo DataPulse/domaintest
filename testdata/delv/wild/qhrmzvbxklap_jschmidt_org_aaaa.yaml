@@ -1,0 +1,10 @@
+type: DELV_RESULT
+query_name: qhrmzvbxklap.jschmidt.org
+status: ncache nxrrset
+records:
+  - negative_response_fully_validated:
+    - 'qhrmzvbxklap.jschmidt.org. 3102 IN \-AAAA ;-$NXRRSET'
+    - 'jschmidt.org. SOA ns-2001.awsdns-58.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400'
+    - 'jschmidt.org. RRSIG SOA ...'
+    - 'qhrmzvbxklap.jschmidt.org. RRSIG NSEC ...'
+    - 'qhrmzvbxklap.jschmidt.org. NSEC \000.qhrmzvbxklap.jschmidt.org. RRSIG NSEC'

@@ -109,7 +109,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2000,
+            "handshake_ms": 2001,
             "error": "context deadline exceeded"
           }
         }
@@ -176,7 +176,7 @@
           },
           "quic": {
             "supported": false,
-            "handshake_ms": 2001,
+            "handshake_ms": 2000,
             "error": "context deadline exceeded"
           }
         }
@@ -225,10 +225,35 @@
     "result": "none"
   },
   "wildcard": {
-    "present": true,
+    "status": "present",
+    "determined_by": "3 random names all answer",
+    "probes": [
+      {
+        "label": "ygsxmlzfcgow",
+        "status": "answered",
+        "addresses": [
+          "104.154.89.105"
+        ]
+      },
+      {
+        "label": "eazdmxumtaib",
+        "status": "answered",
+        "addresses": [
+          "104.154.89.105"
+        ]
+      },
+      {
+        "label": "qpjvnqaxasml",
+        "status": "answered",
+        "addresses": [
+          "104.154.89.105"
+        ]
+      }
+    ],
     "addresses": [
       "104.154.89.105"
     ],
+    "consistent": true,
     "www_via_wildcard": true
   },
   "hsts_preload": "absent",
@@ -251,5 +276,5 @@
     "www (ipv4): redirect chain ends in HTTP 421 at https://www.expired.badssl.com/"
   ],
   "ok": false,
-  "elapsed_ms": 2443
+  "elapsed_ms": 2513
 }

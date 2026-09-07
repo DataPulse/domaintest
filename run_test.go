@@ -62,9 +62,31 @@ func (s *scenario) digCalls(subs ...string) []string {
 	return out
 }
 
+// testWildcardLabels are the labels every scenario probes with. The
+// fixtures under testdata/delv/wild are captured for exactly these names.
+var testWildcardLabels = []string{"qhrmzvbxklap", "tzwnpcdfjyeu", "kbsvxlmqrtdh"}
+
+// stubWildcardLabels pins the random probe labels so a run is reproducible
+// and its queries match captured fixtures.
+func stubWildcardLabels(t *testing.T, labels ...string) {
+	t.Helper()
+	if len(labels) == 0 {
+		labels = testWildcardLabels
+	}
+	prev := wildcardLabels
+	wildcardLabels = func(n int) []string {
+		if n > len(labels) {
+			n = len(labels)
+		}
+		return labels[:n]
+	}
+	t.Cleanup(func() { wildcardLabels = prev })
+}
+
 func newScenario(t *testing.T, domain, server string) *scenario {
 	t.Helper()
 	withResolvConf(t, "nameserver 10.12.60.1\n")
+	stubWildcardLabels(t)
 	// Not on the list, and no filesystem cache in unit tests.
 	stubList(t, &preloadList{entries: map[string]bool{"example.net": true}}, nil)
 	r := newFakeRunner()
@@ -138,7 +160,10 @@ func TestRun_MailAndNameserverSections(t *testing.T) {
 	check(t, "tlsa", rep.TLSA.Result, TLSANone)
 	check(t, "tlsa absence is signed in a signed zone", rep.TLSA.Signed, true)
 	check(t, "tlsa lists present", rep.TLSA.Apex != nil && rep.TLSA.WWW != nil, true)
-	check(t, "wildcard", rep.Wildcard.Present, false)
+	check(t, "wildcard", rep.Wildcard.Status, WildcardAbsent)
+	check(t, "denied by a random name, not a vacuous false", rep.Wildcard.DeterminedBy, "the random name qhrmzvbxklap is denied")
+	check(t, "nothing to compare", rep.Wildcard.Consistent == nil, true)
+	check(t, "stopped after one probe", len(rep.Wildcard.Probes), 1)
 	check(t, "audit digs", len(s.digCalls("+norecurse", "SOA")), 8)
 }
 
@@ -364,11 +389,46 @@ func TestRun_WildcardZone(t *testing.T) {
 	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
 	s.trace("trace/jschmidt.txt", t)
 	rep := s.run()
-	check(t, "wildcard present", rep.Wildcard.Present, true)
+	check(t, "wildcard present", rep.Wildcard.Status, WildcardPresent)
+	check(t, "three names agreed", rep.Wildcard.DeterminedBy, "3 random names all answer")
 	check(t, "wildcard addresses", len(rep.Wildcard.Addresses), 8)
+	check(t, "all three probed", len(rep.Wildcard.Probes), 3)
+	check(t, "and they agree", *rep.Wildcard.Consistent, true)
 	// www.github.io has A records only while the wildcard answers A and AAAA,
 	// so the address sets differ and www is not marked as wildcard-only.
 	check(t, "www not via wildcard", rep.Wildcard.WWWViaWildcard, false)
+	check(t, "six probe queries", probeQueries(s), 6)
+}
+
+// probeQueries counts the delv calls made for the random wildcard names.
+func probeQueries(s *scenario) int {
+	n := 0
+	for _, c := range s.r.called("delv") {
+		for _, l := range testWildcardLabels {
+			if strings.Contains(c, " "+l+".") {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// A zone that denies a random name costs the same two queries as the single
+// probe this check replaces, and one whose www does not exist costs none.
+func TestRun_WildcardQueryBudget(t *testing.T) {
+	s := jschmidtScenario(t)
+	s.run()
+	check(t, "one probe, both types", probeQueries(s), 2)
+
+	// www NXDOMAIN is an answer already in hand: no probe is worth issuing.
+	gone := newScenario(t, "jschmidt.org", "")
+	gone.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	gone.trace("trace/jschmidt.txt", t)
+	gone.delv("www.jschmidt.org", "A", "delv/nxdomain_unsigned.yaml", t)
+	rep := gone.run()
+	check(t, "no probe issued", probeQueries(gone), 0)
+	check(t, "still a definite answer", rep.Wildcard.Status, WildcardAbsent)
+	check(t, "and it says why", rep.Wildcard.DeterminedBy, "www is NXDOMAIN, so no wildcard could have answered for it")
 }
 
 func TestRun_ReportSerialises(t *testing.T) {

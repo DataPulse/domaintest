@@ -1,0 +1,10 @@
+type: DELV_RESULT
+query_name: qhrmzvbxklap.cloudflare.com
+status: ncache nxrrset
+records:
+  - negative_response_fully_validated:
+    - 'qhrmzvbxklap.cloudflare.com. 300 IN \-AAAA ;-$NXRRSET'
+    - 'cloudflare.com. SOA ns3.cloudflare.com. dns.cloudflare.com. 2414136692 10000 2400 604800 300'
+    - 'cloudflare.com. RRSIG SOA ...'
+    - 'qhrmzvbxklap.cloudflare.com. RRSIG NSEC ...'
+    - 'qhrmzvbxklap.cloudflare.com. NSEC \000.qhrmzvbxklap.cloudflare.com. RRSIG NSEC TYPE128'

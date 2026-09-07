@@ -1,0 +1,9 @@
+type: DELV_RESULT
+query_name: tzwnpcdfjyeu.github.io
+status: success
+records:
+  - unsigned_answer:
+    - 'tzwnpcdfjyeu.github.io. 3117 IN AAAA 2606:50c0:8000::153'
+    - 'tzwnpcdfjyeu.github.io. 3117 IN AAAA 2606:50c0:8001::153'
+    - 'tzwnpcdfjyeu.github.io. 3117 IN AAAA 2606:50c0:8002::153'
+    - 'tzwnpcdfjyeu.github.io. 3117 IN AAAA 2606:50c0:8003::153'
