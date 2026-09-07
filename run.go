@@ -173,7 +173,19 @@ func classifyZone(rep *Report, cfg config, dns dnsResults, r Runner) {
 // found by the trace overrides the heuristic. The enclosing zone is
 // reported when a SOA revealed it.
 func detectNotAZone(domain string, dns dnsResults, deleg Delegation) (bool, string) {
-	if dns.apex["NS"].Status != StatusNXRRSet || len(deleg.ParentNS) > 0 {
+	if len(deleg.ParentNS) > 0 {
+		return false, "" // the parent delegates it, so it is a zone
+	}
+	// A name with a CNAME cannot be a zone apex: RFC 1034 forbids a CNAME
+	// coexisting with other data, and an apex must carry NS and SOA. The
+	// NS query follows the CNAME, so any records that come back describe
+	// the target's zone. Without this, gist.github.com looks like a zone
+	// served by github.com's nameservers, and auditing them for a zone
+	// they do not have produces a REFUSED from every one.
+	if len(dns.apex["NS"].CNAME) > 0 {
+		return true, enclosingZone(domain, dns)
+	}
+	if dns.apex["NS"].Status != StatusNXRRSet {
 		return false, ""
 	}
 	zone := enclosingZone(domain, dns)

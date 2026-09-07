@@ -833,3 +833,35 @@ func TestNoMailPossible(t *testing.T) {
 	// One NXDOMAIN is a name-level denial, so either lookup settles it.
 	check(t, "nxdomain on NS alone", noMailPossible(&Report{}, dnsResults{apex: map[string]Lookup{"A": ok, "NS": nx}}), true)
 }
+
+// A name with a CNAME cannot be a zone apex: RFC 1034 forbids a CNAME
+// coexisting with other data, and an apex must carry NS and SOA. The NS
+// query follows the CNAME, so records that come back describe the
+// target's zone. gist.github.com is a CNAME to github.com, so its NS
+// query returns github.com's nameservers; without this the audit asks
+// them for a zone they do not have and every one answers REFUSED.
+func TestDetectNotAZone_CNAMEIsNeverAnApex(t *testing.T) {
+	cnamed := dnsResults{apex: map[string]Lookup{
+		"NS":  {Status: StatusOK, CNAME: []string{"github.com."}, Records: []string{"ns-1283.awsdns-32.org."}},
+		"SOA": {Status: StatusNXRRSet},
+	}}
+	got, _ := detectNotAZone("gist.github.com", cnamed, Delegation{})
+	check(t, "a CNAME is not an apex", got, true)
+
+	// A real apex answers NS without a CNAME.
+	apex := dnsResults{apex: map[string]Lookup{"NS": {Status: StatusOK, Records: []string{"ns1.github.com."}}}}
+	got, _ = detectNotAZone("github.com", apex, Delegation{})
+	check(t, "a real apex is a zone", got, false)
+
+	// A name the parent actually delegates is a zone whatever else we saw.
+	delegated, _ := detectNotAZone("blog.example.com", cnamed, Delegation{ParentNS: []string{"ns1.example.net."}})
+	check(t, "parent delegation wins", delegated, false)
+
+	// The existing NXRRSET path still works.
+	host := dnsResults{apex: map[string]Lookup{
+		"NS": {Status: StatusNXRRSet},
+		"A":  {Status: StatusOK, Records: []string{"192.0.2.1"}},
+	}}
+	got, _ = detectNotAZone("www.example.com", host, Delegation{})
+	check(t, "host inside a zone", got, true)
+}

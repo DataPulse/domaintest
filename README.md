@@ -291,6 +291,15 @@ empty, and an object is omitted only when the whole check did not apply
 known to compare it against, `tls` when 443 did not answer, `quic` when
 quicprobe was not run).
 
+A name whose NS answer traversed a CNAME is never treated as a zone apex.
+RFC 1034 forbids a CNAME coexisting with other data and an apex must carry
+NS and SOA, so the records an NS query returns for such a name describe the
+CNAME target's zone instead. `gist.github.com` is a CNAME to `github.com`,
+so its NS query returns github.com's nameservers; auditing those for a zone
+they do not serve produced a REFUSED from every one. Over half the
+subdomains in a typical sample are CNAMEs, so this only shows up once a
+test set contains them.
+
 A name with no records at all gets the same verdict however its parent
 zone denies it. A signed zone using compact denial of existence answers
 NOERROR/NODATA rather than admitting a name is absent, so `nosuchhost` under
