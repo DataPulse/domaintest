@@ -816,3 +816,20 @@ func TestRun_DependentWaveHasItsOwnBudget(t *testing.T) {
 	check(t, "mx resolved", rep.Mail.MX[0].Addresses, 8)
 	check(t, "no 'has no address' errors", contains(rep.Errors, "has no address"), false)
 }
+
+// A name that cannot receive mail has nothing to configure, so a "no DMARC
+// record" warning would be advice nobody could act on. Mail is already
+// skipped for a host inside a zone; the same applies to a name outside the
+// global DNS and to one that does not exist.
+func TestNoMailPossible(t *testing.T) {
+	nx := Lookup{Status: StatusNXDomain}
+	ok := Lookup{Status: StatusOK, Records: []string{"192.0.2.1"}}
+	live := dnsResults{apex: map[string]Lookup{"A": ok, "NS": ok}}
+
+	check(t, "healthy zone keeps mail", noMailPossible(&Report{}, live), false)
+	check(t, "host inside a zone", noMailPossible(&Report{NotAZone: true}, live), true)
+	check(t, "outside the global DNS", noMailPossible(&Report{ReservedName: "RFC 6761"}, live), true)
+	check(t, "name does not exist", noMailPossible(&Report{}, dnsResults{apex: map[string]Lookup{"A": nx, "NS": nx}}), true)
+	// One NXDOMAIN is a name-level denial, so either lookup settles it.
+	check(t, "nxdomain on NS alone", noMailPossible(&Report{}, dnsResults{apex: map[string]Lookup{"A": ok, "NS": nx}}), true)
+}

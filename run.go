@@ -107,7 +107,7 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	parallel(
 		func() { rep.Web = probeWeb(probeCtx, cfg, r, d, dns, rep) },
 		func() { rep.Nameservers = auditNameservers(probeCtx, cfg, dnsRunner, dns, rep) },
-		func() { rep.Mail = assessMail(probeCtx, cfg, dns, rep.NotAZone) },
+		func() { rep.Mail = assessMail(probeCtx, cfg, dns, noMailPossible(rep, dns)) },
 		func() {
 			rep.HSTSPreload, rep.HSTSPreloadCoveredBy, rep.HSTSPreloadError = checkPreload(probeCtx, cfg)
 		},
@@ -618,8 +618,20 @@ func auditNameservers(ctx context.Context, cfg config, r Runner, dns dnsResults,
 // zone apex. Hosts inside a zone get no mail section, like the nameserver
 // audit: mail policy lives at the zone, and looking up _dmarc under a
 // _dmarc name only produces noise.
-func assessMail(ctx context.Context, cfg config, dns dnsResults, notAZone bool) *MailReport {
-	if notAZone {
+// noMailPossible reports whether the name can have no mail configuration
+// at all: a host inside a zone, a name outside the global DNS, or a name
+// that does not exist. None of them has anything to configure, so "no
+// DMARC record" would be a warning nobody could act on.
+func noMailPossible(rep *Report, dns dnsResults) bool {
+	if rep.NotAZone || rep.ReservedName != "" {
+		return true
+	}
+	apex := dns.apex
+	return apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain
+}
+
+func assessMail(ctx context.Context, cfg config, dns dnsResults, skip bool) *MailReport {
+	if skip {
 		return nil
 	}
 	get := dns.cache.get

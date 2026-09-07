@@ -73,7 +73,7 @@
       "ns-2001.awsdns-58.co.uk.",
       "ns-507.awsdns-63.com."
     ],
-    "parent_server": "a2.org.afilias-nst.info",
+    "parent_server": "c0.org.afilias-nst.info",
     "child_ns": [
       "ns-1013.awsdns-62.net.",
       "ns-1034.awsdns-01.org.",
@@ -250,10 +250,10 @@
   },
   "wildcard": {
     "status": "absent",
-    "determined_by": "the random name pgxaraehtvcy is denied",
+    "determined_by": "the random name faxlrjgftggs is denied",
     "probes": [
       {
-        "label": "pgxaraehtvcy",
+        "label": "faxlrjgftggs",
         "status": "denied",
         "addresses": []
       }
@@ -269,5 +269,5 @@
     "www has no A or AAAA records"
   ],
   "ok": true,
-  "elapsed_ms": 613
+  "elapsed_ms": 601
 }
