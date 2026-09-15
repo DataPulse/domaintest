@@ -1,0 +1,1 @@
+{"supported":false,"family":"ipv4","target_ip":"192.0.2.1","handshake_ms":1001,"reason":"timeout","error":"context deadline exceeded"}

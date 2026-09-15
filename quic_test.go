@@ -16,18 +16,28 @@ func TestParseQUIC_Fixtures(t *testing.T) {
 		file      string
 		supported bool
 		alpn      string
+		reason    string
+		alert     string
+		alertCode int
 		errPrefix string
 	}{
-		{"quicprobe/google_supported.json", true, "h3", ""},
-		{"quicprobe/example_unsupported.json", false, "", "CRYPTO_ERROR"},
-		{"quicprobe/nxdomain_error.json", false, "", "lookup nxdomain-quictest.invalid"},
-		{"quicprobe/usage_error.json", false, "", "usage:"},
+		{"quicprobe/google_supported.json", true, "h3", "", "", 0, ""},
+		{"quicprobe/cloudfront_h3_enabled.json", true, "h3", "", "", 0, ""},
+		// Captured before quicprobe learned to classify failures: no reason.
+		{"quicprobe/example_unsupported.json", false, "", "", "", 0, "CRYPTO_ERROR"},
+		{"quicprobe/cloudfront_h3_disabled.json", false, "", "tls_rejected", "handshake failure", 40, "CRYPTO_ERROR 0x128"},
+		{"quicprobe/blackhole_timeout.json", false, "", "timeout", "", 0, "context deadline exceeded"},
+		{"quicprobe/nxdomain_error.json", false, "", "resolve_failed", "", 0, "lookup nxdomain-quictest.invalid"},
+		{"quicprobe/usage_error.json", false, "", "invalid_args", "", 0, "usage:"},
 	}
 	for _, c := range cases {
 		t.Run(c.file, func(t *testing.T) {
 			q := parseQUIC([]byte(fixture(t, c.file)))
 			check(t, "supported", q.Supported, c.supported)
 			check(t, "alpn", q.ALPN, c.alpn)
+			check(t, "reason", q.Reason, c.reason)
+			check(t, "tls_alert", q.TLSAlert, c.alert)
+			check(t, "tls_alert_code", q.TLSAlertCode, c.alertCode)
 			check(t, "error prefix", strings.HasPrefix(q.Error, c.errPrefix), true)
 			if c.supported {
 				check(t, "tls", q.TLSVersion, "TLS 1.3")
@@ -35,6 +45,29 @@ func TestParseQUIC_Fixtures(t *testing.T) {
 				check(t, "handshake_ms positive", q.HandshakeMs > 0, true)
 			}
 		})
+	}
+}
+
+func TestQUICResult_ReportJSON(t *testing.T) {
+	// The classification survives into the report, and the fields stay out
+	// of a successful or legacy entry.
+	q := parseQUIC([]byte(fixture(t, "quicprobe/cloudfront_h3_disabled.json")))
+	out, err := json.Marshal(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"reason":"tls_rejected"`, `"tls_alert":"handshake failure"`, `"tls_alert_code":40`} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("report JSON lacks %s: %s", want, out)
+		}
+	}
+	for _, f := range []string{"quicprobe/google_supported.json", "quicprobe/example_unsupported.json"} {
+		out, _ := json.Marshal(parseQUIC([]byte(fixture(t, f))))
+		for _, absent := range []string{"reason", "tls_alert"} {
+			if strings.Contains(string(out), absent) {
+				t.Errorf("%s: %s must be omitted when empty: %s", f, absent, out)
+			}
+		}
 	}
 }
 

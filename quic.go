@@ -14,29 +14,41 @@ import (
 
 // QUICResult mirrors quicprobe's JSON output. Family and target IP are
 // dropped from the report because the enclosing address entry carries them.
+//
+// Reason classifies a failure (timeout, tls_rejected, resolve_failed, ...)
+// so callers need not parse Error. TLSAlert and TLSAlertCode are set for
+// tls_rejected: a QUIC endpoint answered but refused the handshake, which
+// on a CDN usually means HTTP/3 is not enabled for this hostname. Older
+// quicprobe builds omit all three; they then stay empty.
 type QUICResult struct {
-	Supported   bool   `json:"supported"`
-	ALPN        string `json:"alpn,omitempty"`
-	TLSVersion  string `json:"tls_version,omitempty"`
-	ServerAddr  string `json:"server_addr,omitempty"`
-	Family      string `json:"-"`
-	TargetIP    string `json:"-"`
-	HandshakeMs int64  `json:"handshake_ms"`
-	Error       string `json:"error,omitempty"`
+	Supported    bool   `json:"supported"`
+	ALPN         string `json:"alpn,omitempty"`
+	TLSVersion   string `json:"tls_version,omitempty"`
+	ServerAddr   string `json:"server_addr,omitempty"`
+	Family       string `json:"-"`
+	TargetIP     string `json:"-"`
+	HandshakeMs  int64  `json:"handshake_ms"`
+	Reason       string `json:"reason,omitempty"`
+	TLSAlert     string `json:"tls_alert,omitempty"`
+	TLSAlertCode int    `json:"tls_alert_code,omitempty"`
+	Error        string `json:"error,omitempty"`
 }
 
 // UnmarshalJSON accepts the full quicprobe object (including the fields we
 // hide on output).
 func (q *QUICResult) UnmarshalJSON(b []byte) error {
 	var raw struct {
-		Supported   bool   `json:"supported"`
-		ALPN        string `json:"alpn"`
-		TLSVersion  string `json:"tls_version"`
-		ServerAddr  string `json:"server_addr"`
-		Family      string `json:"family"`
-		TargetIP    string `json:"target_ip"`
-		HandshakeMs int64  `json:"handshake_ms"`
-		Error       string `json:"error"`
+		Supported    bool   `json:"supported"`
+		ALPN         string `json:"alpn"`
+		TLSVersion   string `json:"tls_version"`
+		ServerAddr   string `json:"server_addr"`
+		Family       string `json:"family"`
+		TargetIP     string `json:"target_ip"`
+		HandshakeMs  int64  `json:"handshake_ms"`
+		Reason       string `json:"reason"`
+		TLSAlert     string `json:"tls_alert"`
+		TLSAlertCode int    `json:"tls_alert_code"`
+		Error        string `json:"error"`
 	}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err

@@ -1,1 +1,1 @@
-{"supported":false,"handshake_ms":0,"error":"usage: quicprobe \u003chostname\u003e [timeout_seconds]"}
+{"supported":false,"handshake_ms":0,"reason":"invalid_args","error":"usage: quicprobe [-4|-6] [-ip addr] [-p port] [-t seconds] [-altsvc] \u003chostname\u003e [timeout_seconds]"}

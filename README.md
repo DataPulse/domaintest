@@ -148,7 +148,12 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     DNS-querying terms counted (more than 10 is a permerror and an error,
     as are multiple records, `+all` and unknown mechanisms; `?all`, `ptr`,
     a missing `all`, more than two void lookups and includes without SPF
-    warn); every MX target must be a resolvable hostname that is not a
+    warn). Answer size is checked against RFC 7208 §3.4: the apex TXT
+    reply a resolver without EDNS would get (header, question and every
+    TXT record at the name, since verification tokens ride along) is
+    reported as `txt_answer_octets` and warns above 450 octets and again
+    above the 512-octet limit; an include whose own TXT reply exceeds 512
+    octets warns too. Every MX target must be a resolvable hostname that is not a
     CNAME or IP literal (errors); DKIM is probed at the selectors
     `google, selector1, selector2, default, k1, s1, mail, dkim` alongside a
     random selector as a negative control (found selectors are reported, a
@@ -272,7 +277,14 @@ Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has
 skipped), `http` and `https` (status, location, server, hsts, error),
 `tls` (chain, chain_problems, version, alpn, cipher, tls10, tls11, cert,
 chain_length, error), `tlsa` (match / mismatch / none, only when TLSA records exist) and
-`quic` (every address). Each host has `same_as_apex`, `via_wildcard`,
+`quic` (every address: supported, alpn, tls_version, server_addr,
+handshake_ms, and on failure `reason`, `error` and, for `tls_rejected`,
+`tls_alert` / `tls_alert_code`). `reason` is one of `timeout` (nothing
+answered on UDP 443), `tls_rejected` (a QUIC endpoint answered but refused
+the handshake; on a CDN this usually means HTTP/3 is not enabled for the
+hostname, CloudFront sends alert 40 `handshake failure`), `resolve_failed`,
+`version_negotiation`, `stateless_reset`, `transport_error`,
+`application_error`, `listen_failed`, `invalid_args` or `other`. Each host has `same_as_apex`, `via_wildcard`,
 `redirects` (per family: hops, ended, final_url, external, loop, error) and
 `cert_consistent`.
 
@@ -396,7 +408,7 @@ addresses 5xx or all 4xx, clear-text HTTP without redirect, HSTS max-age
 under 180 days, broken redirect chains, a chain still redirecting at the
 hop limit, missing DMARC or `p=none` or
 `pct<100`, SPF `?all` / `ptr` / missing `all` / void lookups / includes
-without SPF, revoked DKIM keys, a zone that wildcards `_domainkey` (which makes every
+without SPF / a TXT answer near or over 512 octets, revoked DKIM keys, a zone that wildcards `_domainkey` (which makes every
 selector answer, so none can be verified), MTA-STS problems in testing mode,
 nameservers without TCP or EDNS, a nameserver address that never answered
 while the name's other addresses are authoritative, SOA serial drift, low

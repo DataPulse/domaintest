@@ -1,0 +1,1 @@
+{"supported":false,"family":"ipv4","target_ip":"108.156.184.64","handshake_ms":52,"reason":"tls_rejected","tls_alert":"handshake failure","tls_alert_code":40,"error":"CRYPTO_ERROR 0x128 (remote): tls: handshake failure"}
