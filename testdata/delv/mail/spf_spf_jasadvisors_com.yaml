@@ -1,0 +1,7 @@
+type: DELV_RESULT
+query_name: spf.jasadvisors.com
+status: success
+records:
+  - fully_validated:
+    - 'spf.jasadvisors.com. 2494 IN TXT "v=spf1 ip4:72.28.99.64/27 ip6:2607:fb58:c001::/48 ip4:18.223.112.142 ip4:52.32.14.77 ip4:3.15.115.71 -all"'
+    - 'spf.jasadvisors.com. 2494 IN RRSIG TXT 13 3 3600 20260915165047 20260915135047 11232 jasadvisors.com. xYWgklVUWFWeHwX7Xo1XSAqJ0udVnK5Fzi/K4JZsItVTJ+m9Qm9LYRUL GRxOtRgxLSWMDs+7CMB9tCJYtGFf2w=='

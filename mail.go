@@ -88,14 +88,23 @@ const spfLookupLimit = 10
 // spfVoidLimit is the RFC 7208 limit on lookups that return no records.
 const spfVoidLimit = 2
 
+// spfAnswerLimit is the UDP payload RFC 7208 §3.4 requires every SPF-related
+// TXT answer to fit within; spfAnswerWarn is where headroom gets thin (one
+// more verification token at the apex is typically 60-90 octets).
+const (
+	spfAnswerLimit = 512
+	spfAnswerWarn  = 450
+)
+
 // SPFResult is the evaluation of the apex SPF policy.
 type SPFResult struct {
-	Records     int      `json:"records"`
-	Lookups     int      `json:"lookups"`
-	VoidLookups int      `json:"void_lookups"`
-	All         string   `json:"all,omitempty"`
-	Includes    []string `json:"includes"`
-	Problems    []string `json:"problems"`
+	Records      int      `json:"records"`
+	Lookups      int      `json:"lookups"`
+	VoidLookups  int      `json:"void_lookups"`
+	AnswerOctets int      `json:"txt_answer_octets,omitempty"` // apex TXT reply size without EDNS
+	All          string   `json:"all,omitempty"`
+	Includes     []string `json:"includes"`
+	Problems     []string `json:"problems"`
 }
 
 // spfEvaluator walks include/redirect chains counting DNS-querying terms.
@@ -119,6 +128,8 @@ func evaluateSPF(domain string, txt Lookup, lookup lookupFn) SPFResult {
 	if len(spf) > 1 {
 		e.problems = append(e.problems, "multiple SPF records (permerror: SPF fails entirely)")
 	}
+	res.AnswerOctets = txt.udpAnswerOctets()
+	e.apexSize(res.AnswerOctets)
 	res.All = e.walk(spf[0], domain, 0)
 	res.Lookups, res.VoidLookups = e.lookups, e.void
 	res.Includes = nonNil(e.includes)
@@ -226,6 +237,27 @@ func (e *spfEvaluator) noteAll(qualifier string, depth int) {
 	}
 }
 
+// apexSize applies RFC 7208 §3.4 to the apex TXT answer. Every TXT record
+// at the name counts, not just the SPF one, because a TXT query returns
+// them all.
+func (e *spfEvaluator) apexSize(octets int) {
+	switch {
+	case octets > spfAnswerLimit:
+		e.problems = append(e.problems, fmt.Sprintf("apex TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP", octets, spfAnswerLimit))
+	case octets > spfAnswerWarn:
+		e.problems = append(e.problems, fmt.Sprintf("apex TXT answer is %d octets, close to the %d-octet UDP limit (RFC 7208 §3.4): one more TXT record may push it over", octets, spfAnswerLimit))
+	}
+}
+
+// includeSize applies the same limit to an included domain's TXT answer;
+// only an outright breach is reported since the record is not the
+// domain owner's to trim.
+func (e *spfEvaluator) includeSize(target string, l Lookup) {
+	if octets := l.udpAnswerOctets(); octets > spfAnswerLimit {
+		e.problems = append(e.problems, fmt.Sprintf("include:%s TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4)", target, octets, spfAnswerLimit))
+	}
+}
+
 // descend fetches an included domain's SPF and walks it. Macro targets
 // cannot be expanded and count as one lookup only.
 func (e *spfEvaluator) descend(target string, depth int) {
@@ -247,6 +279,7 @@ func (e *spfEvaluator) descend(target string, depth int) {
 		}
 		return
 	}
+	e.includeSize(target, l)
 	e.walk(recs[0], target, depth+1)
 }
 

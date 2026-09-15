@@ -1,0 +1,11 @@
+type: DELV_RESULT
+query_name: datapulse.global
+status: success
+records:
+  - fully_validated:
+    - 'datapulse.global. 2493 IN TXT "MS=ms80652266"'
+    - 'datapulse.global. 2493 IN TXT "amazonses:bU0g8zQgh7t2HnE2cWhUKSEhZsHJQG2SGaTwj2/yRQ4="'
+    - 'datapulse.global. 2493 IN TXT "amazonses:s2BJS9Ke+1LtMXiLvhfASO7yQLMFw4X2jdQKdeNlAds="'
+    - 'datapulse.global. 2493 IN TXT "google-site-verification=TMnwtcFOUeiwbANcG2vo6m1ygMHRF0JLv_9Wq5ABKvA"'
+    - 'datapulse.global. 2493 IN TXT "v=spf1 include:spf.jasadvisors.com include:spf.protection.outlook.com include:amazonses.com include:datapulse.jitbit.com -all"'
+    - 'datapulse.global. 2493 IN RRSIG TXT 13 2 3600 20260915165046 20260915135046 53646 datapulse.global. MsD6NtUuX5twTJau7Q8td9ju3aMYFmtSaujGrIaeQBUE1cJ8IlI5ooKx 8BVCthgf83XtJDFW1tZcxGtQbTvrJw=='

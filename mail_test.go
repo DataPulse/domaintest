@@ -75,7 +75,11 @@ func TestEvaluateSPF_Fixtures(t *testing.T) {
 	check(t, "outlook chain followed", contains(j.Includes, "spf2.outlook.com"), true)
 	check(t, "amazonses included", contains(j.Includes, "amazonses.com"), true)
 	check(t, "lookups within limit", j.Lookups <= spfLookupLimit && j.Lookups >= 3, true)
-	check(t, "no problems", j.Problems, []string{})
+	// The only problem is inherited from amazonses.com, whose TXT answer
+	// (four records, one of them split) is 523 octets on the wire.
+	check(t, "amazonses size warning only", j.Problems, []string{"include:amazonses.com TXT answer is 523 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"})
+	// jschmidt.org: 12 header + 18 question + 26 (MS=...) + 66 (SPF).
+	check(t, "apex answer octets", j.AnswerOctets, 122)
 
 	// Google now inlines its netblocks: one include, one lookup.
 	g := evaluateSPF("google.com", lookup("google.com", "TXT"), lookup)
@@ -120,6 +124,43 @@ func TestEvaluateSPF_Problems(t *testing.T) {
 	loopy := fixtureLookup(t, map[string]string{})
 	r = evaluateSPF("loop.example", Lookup{Status: StatusOK, Records: []string{"v=spf1 include:loop.example -all"}}, loopy)
 	check(t, "self include ignored", r.Lookups, 1)
+}
+
+func TestEvaluateSPF_AnswerSize(t *testing.T) {
+	lookup := indexLookup(t)
+
+	// datapulse.global: five TXT records, 413 octets (dig +noedns agrees),
+	// under the 450 warning line; amazonses.com is over the limit.
+	d := evaluateSPF("datapulse.global", lookup("datapulse.global", "TXT"), lookup)
+	check(t, "datapulse octets", d.AnswerOctets, 413)
+	check(t, "datapulse lookups", d.Lookups, 9)
+	check(t, "datapulse problems", d.Problems, []string{"include:amazonses.com TXT answer is 523 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"})
+
+	// jasadvisors.com: three TXT records, 250 octets.
+	j := evaluateSPF("jasadvisors.com", lookup("jasadvisors.com", "TXT"), lookup)
+	check(t, "jasadvisors octets", j.AnswerOctets, 250)
+	check(t, "jasadvisors problems", j.Problems, []string{"include:amazonses.com TXT answer is 523 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"})
+
+	// amazonses.com as the domain under test: its own apex is over the limit.
+	a := evaluateSPF("amazonses.com", lookup("amazonses.com", "TXT"), lookup)
+	check(t, "amazonses octets", a.AnswerOctets, 523)
+	check(t, "amazonses apex problem", contains(a.Problems, "apex TXT answer is 523 octets, over the 512-octet UDP limit"), true)
+
+	// datapulse.global with one more verification token (a real 81-octet
+	// google-site-verification record) lands at 494: close to the limit.
+	extra := strings.Replace(fixture(t, "delv/mail/spf_datapulse_global.yaml"),
+		"    - 'datapulse.global. 2493 IN TXT \"MS=ms80652266\"'\n",
+		"    - 'datapulse.global. 2493 IN TXT \"MS=ms80652266\"'\n    - 'datapulse.global. 2493 IN TXT \"google-site-verification=aOJq8aXEtCO23r176f6iOTGt-RVuPv81XPtBuIzRTx0\"'\n", 1)
+	near := parseDelvYAML(extra, "TXT")
+	near.Name = "datapulse.global"
+	check(t, "six records", len(near.Records), 6)
+	n := evaluateSPF("datapulse.global", near, lookup)
+	check(t, "near octets", n.AnswerOctets, 494)
+	check(t, "near problem", contains(n.Problems, "apex TXT answer is 494 octets, close to the 512-octet UDP limit"), true)
+
+	// No SPF record: nothing to size.
+	none := evaluateSPF("x.org", Lookup{Status: StatusNXRRSet}, lookup)
+	check(t, "no spf, no octets", none.AnswerOctets, 0)
 }
 
 func TestCheckMX(t *testing.T) {

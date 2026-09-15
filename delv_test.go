@@ -130,7 +130,7 @@ func TestParseRR(t *testing.T) {
 		{"org. RRSIG SOA ...", RR{Owner: "org.", Type: "RRSIG", RData: "SOA ..."}, true},
 		{"jschmidt.org. SOA ns1. host. 1 2 3 4 5", RR{Owner: "jschmidt.org.", Type: "SOA", RData: "ns1. host. 1 2 3 4 5"}, true},
 		{`jschmidt.org. 3600 IN \-AAAA ;-$NXRRSET`, RR{Owner: "jschmidt.org.", TTL: 3600, Type: "AAAA", RData: ";-$NXRRSET", Negative: true}, true},
-		{`Example.COM. 60 IN TXT "v=spf1" " -all"`, RR{Owner: "example.com.", TTL: 60, Type: "TXT", RData: "v=spf1 -all"}, true},
+		{`Example.COM. 60 IN TXT "v=spf1" " -all"`, RR{Owner: "example.com.", TTL: 60, Type: "TXT", RData: "v=spf1 -all", RDLen: 13}, true}, // 1+6 and 1+5
 		{"x.", RR{}, false},
 		{"", RR{}, false},
 		{"x. 300 IN", RR{}, false},
@@ -148,6 +148,7 @@ func TestJoinTXT(t *testing.T) {
 		`"v=spf1 include:outlook.com ~all"`: "v=spf1 include:outlook.com ~all",
 		`"abc" "def"`:                       "abcdef",
 		`"say \"hi\" \\ done"`:              `say "hi" \ done`,
+		`"tab\009here" "\195\169"`:          "tab\there\u00e9", // dig's \DDD escapes are single octets
 		`unquoted`:                          "unquoted",
 		`""`:                                "",
 	}
@@ -156,6 +157,60 @@ func TestJoinTXT(t *testing.T) {
 			t.Errorf("joinTXT(%q) = %q, want %q", in, got, want)
 		}
 	}
+}
+
+func TestTXTStrings(t *testing.T) {
+	// amazonses.com's SPF as delv prints it: two character-strings.
+	rd := `"v=spf1 ip4:199.255.192.0/22 " "ip4:98.77.0.0/16 -all"`
+	strs := txtStrings(rd)
+	check(t, "two strings", len(strs), 2)
+	check(t, "second", strs[1], "ip4:98.77.0.0/16 -all")
+	rr, _ := parseRR(`amazonses.com. 900 IN TXT ` + rd)
+	check(t, "rdlen counts a length octet per string", rr.RDLen, 1+len(strs[0])+1+len(strs[1]))
+	check(t, "joined", rr.RData, strs[0]+strs[1])
+	c, _ := parseRR(`a.example. 60 IN CNAME b.example.`)
+	check(t, "cname rdlen", c.RDLen, 11)
+	check(t, "unquoted single string", txtStrings("plain"), []string{"plain"})
+}
+
+func TestWireNameLen(t *testing.T) {
+	check(t, "root", wireNameLen("."), 1)
+	check(t, "empty", wireNameLen(""), 1)
+	check(t, "apex", wireNameLen("datapulse.global."), 18)
+	check(t, "no dot", wireNameLen("datapulse.global"), 18)
+}
+
+func TestUDPAnswerOctets(t *testing.T) {
+	// Expected sizes are what dig +noedns reported for the live answers the
+	// fixtures were captured from.
+	cases := []struct {
+		file string
+		name string
+		want int
+	}{
+		{"delv/mail/spf_datapulse_global.yaml", "datapulse.global", 413},
+		{"delv/mail/spf_jasadvisors_com.yaml", "jasadvisors.com", 250},
+		{"delv/mail/spf_spf_jasadvisors_com.yaml", "spf.jasadvisors.com", 155},
+		{"delv/mail/spf_datapulse_jitbit_com.yaml", "datapulse.jitbit.com", 128},
+		{"delv/mail/spf_amazonses_com.yaml", "amazonses.com", 523},
+	}
+	for _, c := range cases {
+		l := parseDelvYAML(fixture(t, c.file), "TXT")
+		l.Name = c.name
+		check(t, c.file, l.udpAnswerOctets(), c.want)
+		l.Name = "" // falls back to the first record's owner
+		check(t, c.file+" (owner fallback)", l.udpAnswerOctets(), c.want)
+	}
+	// A CNAME chain counts: 12 + question (9+2+4) + CNAME (12+11) + TXT (12+2).
+	chain := parseDelvYAML("type: DELV_RESULT\nquery_name: a.example\nstatus: success\nrecords:\n  - unsigned_answer:\n    - 'a.example. 60 IN CNAME b.example.'\n    - 'b.example. 60 IN TXT \"x\"'\n", "TXT")
+	chain.Name = "a.example"
+	check(t, "cname chain", chain.udpAnswerOctets(), 64)
+	// Negative answers and other types size to nothing useful.
+	neg := parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "TXT")
+	neg.Name = "jschmidt.org"
+	check(t, "nxrrset", neg.udpAnswerOctets(), 12+18)
+	a := parseDelvYAML(fixture(t, "delv/google_a_unsigned.yaml"), "A")
+	check(t, "non-TXT", a.udpAnswerOctets(), 0)
 }
 
 func TestUnquoteYAML(t *testing.T) {

@@ -116,7 +116,9 @@ func TestRun_SignedDomainWithoutWeb(t *testing.T) {
 	check(t, "delegation", rep.Delegation.Status, DelegationMatch)
 	check(t, "reachability", rep.DNS.ResolverReachable, map[string]string{familyIPv4: ReachYes, familyIPv6: "skipped: resolver has no ipv6 address"})
 	check(t, "web", rep.Web, WebSection{})
-	check(t, "warnings", rep.Warnings, []string{"apex has no A or AAAA records", "www has no A or AAAA records"})
+	// jschmidt.org's SPF includes amazonses.com, whose TXT answer is 523
+	// octets on the wire.
+	check(t, "warnings", rep.Warnings, []string{"apex has no A or AAAA records", "www has no A or AAAA records", "SPF: include:amazonses.com TXT answer is 523 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"})
 	check(t, "no quic", len(s.r.called("quicprobe")), 0)
 	check(t, "no dials", len(s.dialer.seen), 0)
 	check(t, "no bogus probe", len(s.digCalls("+cd")), 0)
@@ -212,8 +214,13 @@ func TestRun_WebDomainFullProbe(t *testing.T) {
 	g := googleScenario(t)
 	rep := g.s.run()
 	check(t, "errors", rep.Errors, []string{})
-	// Google's four nameservers really do share 2001:4860:4802::/48.
-	check(t, "warnings", rep.Warnings, []string{"all IPv6 nameserver addresses share one /48"})
+	// google.com publishes 17 apex TXT records (1176 octets without EDNS;
+	// a live dig +noedns really is truncated), and Google's four
+	// nameservers really do share 2001:4860:4802::/48.
+	check(t, "warnings", rep.Warnings, []string{
+		"SPF: apex TXT answer is 1176 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP",
+		"all IPv6 nameserver addresses share one /48",
+	})
 	check(t, "dnssec", rep.DNSSEC.State, DNSSECInsecure)
 	check(t, "delegation", rep.Delegation.Status, DelegationMatch)
 	apex := rep.Web.Apex

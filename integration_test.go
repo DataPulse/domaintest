@@ -278,7 +278,12 @@ func TestIntegration_MailPosture(t *testing.T) {
 	check(t, "dmarc", m.DMARC.Policy, "quarantine")
 	check(t, "spf softfail", m.SPF.All, "~all")
 	check(t, "spf within limit", m.SPF.Lookups <= spfLookupLimit, true)
-	check(t, "spf problems", m.SPF.Problems, []string{})
+	// amazonses.com's TXT answer is over 512 octets, which every domain
+	// including it inherits as a warning; nothing else may be flagged.
+	check(t, "spf problems", len(m.SPF.Problems) <= 1, true)
+	for _, p := range m.SPF.Problems {
+		check(t, "only the amazonses size warning", strings.HasPrefix(p, "include:amazonses.com TXT answer is"), true)
+	}
 	check(t, "mx resolves", m.MX[0].Addresses > 0, true)
 	check(t, "dkim selectors", m.DKIM.SelectorsFound, []string{"selector1", "selector2"})
 	check(t, "errors", rep.Errors, []string{})

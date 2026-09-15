@@ -35,6 +35,7 @@ type RR struct {
 	TTL      int64
 	Type     string
 	RData    string
+	RDLen    int  // wire length of the rdata; computed for TXT and CNAME only
 	Negative bool // a "\-TYPE ;-$NXRRSET" / ";-$NXDOMAIN" marker line
 }
 
@@ -280,8 +281,15 @@ func parseRR(text string) (RR, bool) {
 		rr.Type = strings.TrimPrefix(rr.Type, `\-`)
 	}
 	rr.RData = strings.Join(f[i:], " ")
-	if rr.Type == "TXT" {
-		rr.RData = joinTXT(rr.RData)
+	switch rr.Type {
+	case "TXT":
+		strs := txtStrings(rr.RData)
+		rr.RData = strings.Join(strs, "")
+		for _, str := range strs {
+			rr.RDLen += 1 + len(str)
+		}
+	case "CNAME":
+		rr.RDLen = wireNameLen(rr.RData)
 	}
 	return rr, true
 }
@@ -289,25 +297,86 @@ func parseRR(text string) (RR, bool) {
 // joinTXT concatenates the quoted character-strings of a TXT rdata into one
 // unquoted string, honouring backslash escapes.
 func joinTXT(rdata string) string {
+	return strings.Join(txtStrings(rdata), "")
+}
+
+// txtStrings splits a TXT rdata in presentation format into its
+// character-strings, decoding \" \\ and \DDD escapes so each element is the
+// exact byte sequence carried on the wire. An unquoted rdata (dig prints a
+// single token without quotes) is one string.
+func txtStrings(rdata string) []string {
+	if !strings.Contains(rdata, `"`) {
+		return []string{rdata}
+	}
+	var out []string
 	var b strings.Builder
-	inQuote, escaped := false, false
-	for _, c := range rdata {
+	inQuote := false
+	for i := 0; i < len(rdata); i++ {
+		c := rdata[i]
 		switch {
-		case escaped:
-			b.WriteRune(c)
-			escaped = false
-		case c == '\\' && inQuote:
-			escaped = true
 		case c == '"':
+			if inQuote {
+				out = append(out, b.String())
+				b.Reset()
+			}
 			inQuote = !inQuote
-		case inQuote:
-			b.WriteRune(c)
+		case !inQuote:
+		case c == '\\' && i+3 < len(rdata) && isDigits(rdata[i+1:i+4]):
+			n, _ := strconv.Atoi(rdata[i+1 : i+4])
+			b.WriteByte(byte(n))
+			i += 3
+		case c == '\\' && i+1 < len(rdata):
+			i++
+			b.WriteByte(rdata[i])
+		default:
+			b.WriteByte(c)
 		}
 	}
-	if b.Len() == 0 && !strings.Contains(rdata, `"`) {
-		return rdata
+	return out
+}
+
+func isDigits(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
 	}
-	return b.String()
+	return len(s) > 0
+}
+
+// wireNameLen is the uncompressed wire length of a domain name: one length
+// octet per label plus the terminating root octet.
+func wireNameLen(name string) int {
+	name = strings.TrimSuffix(name, ".")
+	if name == "" {
+		return 1
+	}
+	return len(name) + 2
+}
+
+// udpAnswerOctets estimates the size of the DNS response a resolver without
+// EDNS would receive for this lookup: header, question, and every positive
+// record of the queried type plus any CNAME chain, with owner names
+// compressed to a pointer. RRSIGs are excluded because a non-EDNS query
+// cannot set DO. This is the quantity RFC 7208 §3.4 bounds at 512 octets;
+// it is exact for TXT and CNAME answers and 0 for other types.
+func (l Lookup) udpAnswerOctets() int {
+	if l.Type != "TXT" {
+		return 0
+	}
+	name := l.Name
+	if name == "" && len(l.rrs) > 0 {
+		name = l.rrs[0].Owner
+	}
+	const header, rrFixed = 12, 12 // rrFixed: 2-octet name pointer + type, class, ttl, rdlength
+	size := header + wireNameLen(name) + 4
+	for _, rr := range l.rrs {
+		if rr.Negative || (rr.Type != l.Type && rr.Type != "CNAME") {
+			continue
+		}
+		size += rrFixed + rr.RDLen
+	}
+	return size
 }
 
 func firstLine(s string) string {
