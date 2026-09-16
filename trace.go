@@ -47,7 +47,9 @@ func (b traceBlock) nsFor(fqdn string) []string {
 	var out []string
 	for _, rr := range b.RRs {
 		if rr.Type == "NS" && rr.Owner == fqdn {
-			out = append(out, strings.ToLower(rr.RData))
+			if f := fqdnOf(rr.RData); f != "" {
+				out = append(out, f)
+			}
 		}
 	}
 	sort.Strings(out)
@@ -111,7 +113,7 @@ func parseTrace(out string) (blocks []traceBlock, diags []string) {
 // compareDelegation finds the parent referral and the child's own NS answer
 // for domain and reports how they differ.
 func compareDelegation(blocks []traceBlock, diags []string, domain string) Delegation {
-	fqdn := strings.ToLower(strings.TrimSuffix(domain, ".")) + "."
+	fqdn := fqdnOf(domain)
 	var withNS []traceBlock
 	lastNS := -1
 	for i, b := range blocks {
@@ -177,7 +179,7 @@ func classifyChildNoNS(d Delegation, parent, child traceBlock, fqdn string) Dele
 // Otherwise the referral was received but no child server answered.
 func classifySingleBlock(d Delegation, b traceBlock, fqdn string) Delegation {
 	ns := b.nsFor(fqdn)
-	server := strings.ToLower(strings.TrimSuffix(b.Server, ".")) + "."
+	server := fqdnOf(b.Server)
 	for _, n := range ns {
 		if n == server {
 			d.Status = DelegationSameServers

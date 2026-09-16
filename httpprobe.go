@@ -133,7 +133,7 @@ func followRedirects(ctx context.Context, d dialer, scheme, host string, hosts h
 			chain.Error, chain.Ended = "bad URL "+current, RedirectFailed
 			return chain
 		}
-		ip, ok := hosts[strings.ToLower(u.Hostname())]
+		ip, ok := hosts[bareName(u.Hostname())]
 		if !ok {
 			chain.External, chain.Ended = current, RedirectExternal
 			return chain

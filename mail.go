@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/DataPulse/dpdomain"
 )
 
 // lookupFn resolves name/qtype through the run's memoised delv cache.
@@ -261,8 +263,16 @@ func (e *spfEvaluator) includeSize(target string, l Lookup) {
 // descend fetches an included domain's SPF and walks it. Macro targets
 // cannot be expanded and count as one lookup only.
 func (e *spfEvaluator) descend(target string, depth int) {
-	target = strings.ToLower(strings.TrimSuffix(target, "."))
-	if strings.Contains(target, "%") || target == "" || e.visited[target] || depth > 20 {
+	if strings.Contains(target, "%") || target == "" {
+		return
+	}
+	n, err := dnsName(target)
+	if err != nil {
+		e.problems = append(e.problems, fmt.Sprintf("include:%s is not a valid domain name (%v)", target, err))
+		return
+	}
+	target = n.ASCII
+	if e.visited[target] || depth > 20 {
 		return
 	}
 	e.visited[target] = true
@@ -330,7 +340,12 @@ func checkMX(mx Lookup, lookup lookupFn) []MXCheck {
 }
 
 func checkMXTarget(c MXCheck, lookup lookupFn) MXCheck {
-	if _, err := netip.ParseAddr(strings.TrimSuffix(c.Host, ".")); err == nil {
+	n, err := hostOrIP(c.Host)
+	if err != nil {
+		c.Problems = append(c.Problems, "MX target is not a valid hostname: "+err.Error())
+		return c
+	}
+	if n.Kind == dpdomain.KindIP {
 		c.IPLiteral = true
 		c.Problems = append(c.Problems, "MX target is an IP literal (invalid, RFC 2181 §10.3)")
 		return c
@@ -474,25 +489,31 @@ func parseMTASTSPolicy(body string, m *MTASTS) {
 // ("*.example.com" matches one label).
 func mtaSTSCovers(patterns []string, mxHosts []string) bool {
 	for _, h := range mxHosts {
-		h = strings.ToLower(strings.TrimSuffix(h, "."))
 		if h == "" || h == "." {
 			continue
 		}
-		if !matchesAny(patterns, h) {
+		n, err := dnsName(h)
+		if err != nil || !matchesAny(patterns, n.ASCII) {
 			return false
 		}
 	}
 	return true
 }
 
+// matchesAny reports whether host equals a pattern or, for a "*." pattern,
+// is exactly one label below it. A pattern that is not a name never matches.
 func matchesAny(patterns []string, host string) bool {
 	for _, p := range patterns {
-		p = strings.TrimSuffix(p, ".")
-		if p == host {
+		wild := strings.HasPrefix(p, "*.")
+		n, err := dnsName(strings.TrimPrefix(p, "*."))
+		if err != nil {
+			continue
+		}
+		if !wild && n.ASCII == host {
 			return true
 		}
-		if strings.HasPrefix(p, "*.") {
-			if rest, ok := strings.CutPrefix(host, host[:strings.IndexByte(host+".", '.')]+"."); ok && rest == p[2:] {
+		if wild {
+			if rest, ok := strings.CutPrefix(host, host[:strings.IndexByte(host+".", '.')]+"."); ok && rest == n.ASCII {
 				return true
 			}
 		}

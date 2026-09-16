@@ -138,8 +138,8 @@ func probeAddrs(p wildProbe) []netip.Addr {
 // probeCNAME returns the CNAME target a probe answered with, if any.
 func probeCNAME(p wildProbe) string {
 	for _, c := range append(append([]string{}, p.a.CNAME...), p.aaaa.CNAME...) {
-		if c != "" {
-			return strings.ToLower(c)
+		if f := fqdnOf(c); f != "" {
+			return f
 		}
 	}
 	return ""

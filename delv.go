@@ -347,7 +347,7 @@ func isDigits(s string) bool {
 // wireNameLen is the uncompressed wire length of a domain name: one length
 // octet per label plus the terminating root octet.
 func wireNameLen(name string) int {
-	name = strings.TrimSuffix(name, ".")
+	name = strings.TrimSuffix(name, ".") // dpdomain: not normalisation — wire-length arithmetic on an owner name as delv printed it (may be a wildcard)
 	if name == "" {
 		return 1
 	}

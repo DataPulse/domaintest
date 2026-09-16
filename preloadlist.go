@@ -58,7 +58,10 @@ func (l *preloadList) status(domain string) (status, coveredBy string) {
 	if l == nil || len(l.entries) == 0 {
 		return PreloadUnknown, ""
 	}
-	name := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), "."))
+	name := bareName(domain)
+	if name == "" {
+		return PreloadUnknown, ""
+	}
 	if _, ok := l.entries[name]; ok {
 		return PreloadPreloaded, ""
 	}

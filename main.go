@@ -25,8 +25,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/net/idna"
 )
 
 // Default timeouts assume a well-connected vantage point: a server that
@@ -41,7 +39,7 @@ const (
 
 // config is the parsed command line.
 type config struct {
-	Domain        string   // A-label (punycode) form, lower case, no trailing dot
+	Domain        string   // a-label form, lower case, no trailing dot (dpdomain.Name.ASCII)
 	UnicodeDomain string   // U-label form when Domain is an IDN, else ""
 	Resolver      resolver // zero value means the system resolver
 	Families      []string
@@ -296,93 +294,25 @@ func serverFamily(server string) string {
 	return familyIPv6
 }
 
-// idnaProfile applies IDNA 2008 lookup mapping and validation but, unlike
-// idna.Lookup, tolerates underscores so that names such as _dmarc.example
-// can be checked. Other non-hostname ASCII is still rejected by validLabel.
-var idnaProfile = idna.New(idna.MapForLookup(), idna.StrictDomainName(false), idna.BidiRule())
-
 // normalizeDomain accepts a domain in U-label (münchen.de) or A-label
 // (xn--mnchen-3ya.de) form, in any case and with or without a trailing dot,
 // and returns the canonical A-label form plus the U-label form when the two
-// differ. IDNA 2008 lookup rules are applied, so malformed punycode and
-// disallowed code points are rejected.
-// badTLD explains why a rightmost label cannot be a top-level domain, or
-// returns "" when it can. The TLD is stricter than the labels to its left:
-// it is never all digits (RFC 3696 §2), which is what separates a hostname
-// from a dotted-quad address, and it never contains an underscore, which
-// belongs to service labels such as _dmarc and _tcp. A leading digit is
-// allowed throughout, since RFC 1123 §2.1 relaxed the old letter-first
-// rule and 333oracle.xyz and 7-eleven.com are real names.
-func badTLD(label string) string {
-	switch {
-	case allDigits(label):
-		return "the top-level domain " + strconv.Quote(label) + " is all digits (an address, not a name)"
-	case strings.Contains(label, "_"):
-		return "the top-level domain " + strconv.Quote(label) + " contains an underscore"
-	}
-	return ""
-}
-
-// allDigits reports whether every character is an ASCII digit.
-func allDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
-}
-
+// differ. dpdomain applies the rules: IDNA 2008 lookup mapping (lenient, so
+// names registries have sold but IDNA forbids stay testable), underscore
+// service labels such as _dmarc.example allowed, IP literals and numeric or
+// otherwise non-alphabetic top-level labels refused (RFC 3696 §2 — a TLD is
+// never all digits, which is what separates a hostname from a dotted-quad
+// address; a leading digit elsewhere is fine, 333oracle.xyz and 7-eleven.com
+// are real names), RFC 1035 lengths.
 func normalizeDomain(input string) (ascii, unicode string, err error) {
-	trimmed := strings.TrimSuffix(strings.TrimSpace(input), ".")
-	if trimmed == "" {
-		return "", "", fmt.Errorf("invalid domain %q", input)
-	}
-	ascii, err = idnaProfile.ToASCII(trimmed)
+	n, err := dnsName(input)
 	if err != nil {
-		return "", "", fmt.Errorf("invalid domain %q: %v", input, err)
+		return "", "", fmt.Errorf("invalid domain %q: %w", input, err)
 	}
-	ascii = strings.ToLower(ascii)
-	if len(ascii) > 253 {
-		return "", "", fmt.Errorf("invalid domain %q: longer than 253 octets", input)
+	if n.Unicode != n.ASCII {
+		unicode = n.Unicode
 	}
-	labels := strings.Split(ascii, ".")
-	for _, label := range labels {
-		if !validLabel(label) {
-			return "", "", fmt.Errorf("invalid domain label %q in %q", label, input)
-		}
-	}
-	if reason := badTLD(labels[len(labels)-1]); reason != "" {
-		return "", "", fmt.Errorf("invalid domain %q: %s", input, reason)
-	}
-	unicode, err = idnaProfile.ToUnicode(ascii)
-	if err != nil || unicode == ascii {
-		unicode = ""
-	}
-	return ascii, unicode, nil
-}
-
-func validLabel(l string) bool {
-	if l == "" || len(l) > 63 {
-		return false
-	}
-	if l[0] == '-' || l[len(l)-1] == '-' {
-		return false
-	}
-	return strings.IndexFunc(l, func(c rune) bool { return !labelChar(c) }) < 0
-}
-
-// labelChar reports whether c may appear in a (lower-cased) hostname label.
-func labelChar(c rune) bool {
-	switch {
-	case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
-		return true
-	default:
-		return c == '-' || c == '_'
-	}
+	return n.ASCII, unicode, nil
 }
 
 func main() {

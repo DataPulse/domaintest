@@ -1,6 +1,6 @@
 package main
 
-import "golang.org/x/net/publicsuffix"
+import "github.com/DataPulse/dpdomain/psl"
 
 // registrableDomain reports whether the name is exactly a registrable
 // domain: one label below a public suffix, as the Public Suffix List
@@ -11,7 +11,15 @@ import "golang.org/x/net/publicsuffix"
 // The list is the right test rather than "is this a zone apex", in both
 // directions. A registrable domain stays registrable however odd its DNS
 // looks, and a delegated subdomain like blog.cloudflare.com is a zone apex
-// yet www.blog.cloudflare.com is just as invented.
+// yet www.blog.cloudflare.com is just as invented. Both sections count:
+// foo.github.io is a name its owner configures www for.
+func registrableDomain(domain string) bool {
+	if domain == "" {
+		return false
+	}
+	return psl.Lookup(domain, true).Registrable == domain
+}
+
 // isPublicSuffix reports whether the name is itself a public suffix, of
 // either section: a caller feeding a list needs to tell co.uk from
 // bbc.co.uk, and it explains why web.www is absent.
@@ -19,8 +27,7 @@ func isPublicSuffix(domain string) bool {
 	if domain == "" {
 		return false
 	}
-	suffix, _ := publicsuffix.PublicSuffix(domain)
-	return suffix == domain
+	return psl.Lookup(domain, true).Suffix == domain
 }
 
 // registrySuffix reports whether the name is itself an ICANN public
@@ -33,14 +40,6 @@ func registrySuffix(domain string) bool {
 	if domain == "" {
 		return false
 	}
-	suffix, icann := publicsuffix.PublicSuffix(domain)
-	return icann && suffix == domain
-}
-
-func registrableDomain(domain string) bool {
-	if domain == "" {
-		return false
-	}
-	etld1, err := publicsuffix.EffectiveTLDPlusOne(domain)
-	return err == nil && etld1 == domain
+	r := psl.Lookup(domain, true)
+	return r.ICANN && r.Suffix == domain
 }

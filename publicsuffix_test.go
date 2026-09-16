@@ -18,6 +18,10 @@ func TestRegistrableDomain(t *testing.T) {
 		{"jeff.co.uk", true}, // registrable even though co.uk is the suffix
 		{"example.com.au", true},
 		{"xn--mnchen-3ya.de", true}, // an IDN A-label is an ordinary label
+		// Private-section suffixes count too: foo.github.io is a name its
+		// owner configures www for, exactly like a registry registration.
+		{"foo.github.io", true},
+		{"example.invalidtld", true}, // unknown TLD: one label below it is still registrable
 
 		// A host inside a registrable domain: www.<name> is invented.
 		{"old.reddit.com", false},
@@ -27,6 +31,7 @@ func TestRegistrableDomain(t *testing.T) {
 		{"blog.cloudflare.com", false},
 
 		// Public suffixes are not registrable names themselves.
+		{"github.io", false},
 		{"co.uk", false},
 		{"com", false},
 		{"", false},

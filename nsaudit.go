@@ -46,11 +46,16 @@ type NSReport struct {
 	addrs             map[string][]netip.Addr
 }
 
-// nsNames returns the sorted, lower-cased NS targets of an NS lookup.
+// nsNames returns the sorted NS targets of an NS lookup in absolute form.
+// A record that is not a DNS name is kept as delivered: the address lookup
+// on it fails with an explicit error and the audit reports it unresolved.
 func nsNames(ns Lookup) []string {
 	var out []string
 	for _, r := range ns.Records {
-		out = append(out, strings.ToLower(strings.TrimSuffix(r, "."))+".")
+		if f := fqdnOf(r); f != "" {
+			r = f
+		}
+		out = append(out, r)
 	}
 	sort.Strings(out)
 	return out
@@ -300,7 +305,11 @@ func checkGlue(msgs []digMessage, domain string, addrs map[string][]netip.Addr) 
 	}
 	g := &GlueReport{Required: []string{}, Missing: []string{}, Mismatch: []string{}}
 	glue := glueAddresses(msgs[0])
-	suffix := "." + strings.ToLower(strings.TrimSuffix(domain, ".")) + "."
+	fqdn := fqdnOf(domain)
+	if fqdn == "" {
+		return nil
+	}
+	suffix := "." + fqdn
 	for _, n := range sortedAddrKeys(addrs) {
 		if !strings.HasSuffix(n, suffix) {
 			continue

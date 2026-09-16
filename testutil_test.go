@@ -266,7 +266,7 @@ func indexFixture(idx *fixtureIndex, content string) {
 // that exact type, else a captured negative answer for the name, else a
 // generic validated NXRRSET.
 func (idx *fixtureIndex) answer(t *testing.T, name, qtype string) string {
-	name = strings.ToLower(strings.TrimSuffix(name, "."))
+	name = bareName(name)
 	if c, ok := idx.positive[name+"/"+qtype]; ok {
 		return c
 	}
@@ -307,7 +307,7 @@ func indexLookup(t *testing.T) lookupFn {
 	idx := loadFixtureIndex(t)
 	return func(name, qtype string) Lookup {
 		l := parseDelvYAML(idx.answer(t, name, qtype), qtype)
-		l.Name = strings.ToLower(strings.TrimSuffix(name, "."))
+		l.Name = bareName(name)
 		return l
 	}
 }

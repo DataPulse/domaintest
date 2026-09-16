@@ -40,7 +40,13 @@ func newLookupCache(ctx context.Context, cfg config, r Runner) *lookupCache {
 // (nameserver names learned from the parent, for instance) still have a
 // budget instead of inheriting an expired deadline.
 func (c *lookupCache) get(name, qtype string) Lookup {
-	name = strings.ToLower(strings.TrimSuffix(name, "."))
+	n, err := dnsName(name)
+	if err != nil {
+		// A target the resolver handed us that is not a DNS name (rare, but
+		// an NS or MX record can carry anything) is a finding, not a query.
+		return Lookup{Name: name, Type: qtype, Status: StatusFailure, Error: "not a valid DNS name: " + err.Error()}
+	}
+	name = n.ASCII
 	key := name + "/" + qtype
 	c.mu.Lock()
 	l, ok := c.done[key]
@@ -203,7 +209,7 @@ func enclosingZone(domain string, dns dnsResults) string {
 	for _, t := range apexTypes {
 		owner := dns.apex[t].SOAOwner()
 		if owner != "" && owner != fqdn && strings.HasSuffix(fqdn, "."+owner) {
-			return strings.TrimSuffix(owner, ".")
+			return bareName(owner)
 		}
 	}
 	return ""

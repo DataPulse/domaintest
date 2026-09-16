@@ -24,7 +24,10 @@ var specialUseSuffixes = map[string]string{
 // reservedName returns the RFC reserving this name's suffix, or "" when
 // the name belongs to the global DNS.
 func reservedName(domain string) string {
-	d := strings.ToLower(strings.TrimSuffix(domain, "."))
+	d := bareName(domain)
+	if d == "" {
+		return ""
+	}
 	for suffix, rfc := range specialUseSuffixes {
 		if d == suffix || strings.HasSuffix(d, "."+suffix) {
 			return rfc

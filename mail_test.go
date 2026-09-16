@@ -13,7 +13,7 @@ import (
 func fixtureLookup(t *testing.T, table map[string]string) lookupFn {
 	t.Helper()
 	return func(name, qtype string) Lookup {
-		name = strings.ToLower(strings.TrimSuffix(name, "."))
+		name = bareName(name)
 		if file, ok := table[name+"/"+qtype]; ok {
 			l := parseDelvYAML(fixture(t, file), qtype)
 			l.Name = name

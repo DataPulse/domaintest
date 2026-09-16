@@ -94,7 +94,7 @@ func TestParseArgs_Errors(t *testing.T) {
 		{"@127.0.0.1:99999", "a.org"},
 		{"@127.0.0.1:abc", "a.org"},
 		{"@", "a.org"},
-		{"xn--zzzz-invalid-punycode-9999999.com"},
+		{"xn--zzzz-invalid-punycode-9999999.com"}, // dpdomain: not normalisation — fixture name that does not decode
 		{"ex@mple.com"},
 		{"-bogus", "a.org"},
 		{"-bad.com"},
@@ -144,7 +144,10 @@ func TestNormalizeDomain(t *testing.T) {
 	if got, _, err := normalizeDomain("exa\u200bmple.com"); err != nil || got != "example.com" {
 		t.Errorf("zero-width space should be dropped by mapping, got %q %v", got, err)
 	}
-	for _, bad := range []string{"", ".", "-bad.com", "a..b", "exa mple.com", "ex@mple.com", "xn--a.com", "xn--zzzz-invalid-punycode-9999999.com", strings.Repeat("ü", 60) + ".de"} {
+	// An a-label that decodes but to a character IDNA 2008 forbids
+	// ("xn--a.com") is accepted: lookups are lenient because such names
+	// exist and must be testable. One that does not decode at all is not.
+	for _, bad := range []string{"", ".", "-bad.com", "a..b", "exa mple.com", "ex@mple.com", "xn--zzzz-invalid-punycode-9999999.com", strings.Repeat("ü", 60) + ".de"} { // dpdomain: not normalisation — fixture a-label that does not decode
 		if _, _, err := normalizeDomain(bad); err == nil {
 			t.Errorf("normalizeDomain(%q) should fail", bad)
 		}
@@ -349,15 +352,6 @@ func TestNormalizeDomain_AllNumericTLD(t *testing.T) {
 	}
 }
 
-func TestAllDigits(t *testing.T) {
-	for _, s := range []string{"1", "42", "0000"} {
-		check(t, "digits: "+s, allDigits(s), true)
-	}
-	for _, s := range []string{"", "a", "1a", "a1", "1-2", "xn--0zwm56d"} {
-		check(t, "not all digits: "+s, allDigits(s), false)
-	}
-}
-
 // The full table of what is and is not a domain this tool will accept.
 // Every rule is enforced in one place, so it is checked in one place.
 func TestNormalizeDomain_Table(t *testing.T) {
@@ -417,16 +411,6 @@ func TestNormalizeDomain_Table(t *testing.T) {
 			continue
 		}
 		check(t, c.reason+": "+c.in, ascii, c.ascii)
-	}
-}
-
-func TestBadTLD(t *testing.T) {
-	check(t, "all digits", badTLD("1") != "", true)
-	check(t, "all digits, longer", badTLD("4700") != "", true)
-	check(t, "underscore", badTLD("_com") != "", true)
-	check(t, "underscore inside", badTLD("co_uk") != "", true)
-	for _, ok := range []string{"com", "uk", "xn--p1ai", "museum", "co", "a1"} {
-		check(t, "valid TLD: "+ok, badTLD(ok), "")
 	}
 }
 
