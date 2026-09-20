@@ -55,6 +55,7 @@ type Report struct {
 	ReservedAddresses    []string        `json:"reserved_addresses,omitempty"`
 	HSTSPreload          string          `json:"hsts_preload,omitempty"`
 	HSTSPreloadCoveredBy string          `json:"hsts_preload_covered_by,omitempty"`
+	HSTSPreloadPolicy    string          `json:"hsts_preload_policy,omitempty"`
 	HSTSPreloadError     string          `json:"hsts_preload_error,omitempty"`
 	Errors               []string        `json:"errors"`
 	Warnings             []string        `json:"warnings"`
@@ -937,21 +938,51 @@ const preloadMinAge = 31536000
 // actually served on the apex.
 func (f *findings) preloadFindings(rep *Report) {
 	h := servedHSTS(rep.Web.Apex)
-	switch {
-	case rep.HSTSPreload == PreloadPreloaded && h == nil && !anyHTTPSResponse(rep.Web.Apex):
-		// Nothing answered on 443, so there is no response to have carried
-		// a header and nothing to report either way.
-	case rep.HSTSPreload == PreloadPreloaded && h == nil:
-		// "No longer meets" implies a header we could measure. Saying so
-		// when none was served points at the wrong fix.
-		f.warningf("domain is on the HSTS preload list but serves no HSTS header on this response")
-	case rep.HSTSPreload == PreloadPreloaded && !meetsPreload(h):
-		f.warningf("domain is on the HSTS preload list but the served header does not meet the preload requirements (max-age >= 1 year, includeSubDomains, preload)")
-	case rep.HSTSPreload == PreloadAbsent && h != nil && h.Preload && !meetsPreload(h):
-		f.warningf("HSTS header carries the preload directive but does not meet the preload requirements (max-age >= 1 year, includeSubDomains)")
-	case rep.HSTSPreload == PreloadUnknown:
+	switch rep.HSTSPreload {
+	case PreloadPreloaded:
+		f.preloadedFindings(rep, h)
+	case PreloadAbsent:
+		if h != nil && h.Preload && !meetsPreload(h) {
+			f.warningf("HSTS header carries the preload directive but does not meet the preload requirements (max-age >= 1 year, includeSubDomains)")
+		}
+	case PreloadUnknown:
 		f.warningf("HSTS preload list could not be consulted: %s", rep.HSTSPreloadError)
 	}
+}
+
+// preloadedFindings holds a preloaded domain to the header requirement,
+// which only entries submitted through hstspreload.org carry. Hand-kept
+// entries (policy google, custom, public-suffix) stay preloaded whatever
+// they serve, so a missing header there is a fact in the report and not a
+// warning.
+func (f *findings) preloadedFindings(rep *Report, h *HSTS) {
+	if !headerRequired(rep.HSTSPreloadPolicy) {
+		return
+	}
+	first := firstHTTPSResponse(rep.Web.Apex)
+	switch {
+	case h == nil && first == nil:
+		// Nothing answered on 443, so there is no response to have carried
+		// a header and nothing to report either way.
+	case h == nil:
+		// "No longer meets" implies a header we could measure. Saying so
+		// when none was served points at the wrong fix.
+		f.warningf("domain is on the HSTS preload list but serves no HSTS header on this response (%s)", responseScope(rep.Domain, first))
+	case !meetsPreload(h):
+		f.warningf("domain is on the HSTS preload list but the served header does not meet the preload requirements (max-age >= 1 year, includeSubDomains, preload)")
+	}
+}
+
+// responseScope says which response the header was looked for on. Redirects
+// are not followed, and the text says why that is right: a reader who finds
+// the header on the redirect target would otherwise take this for a
+// misread. The Location value is left out; it is the server's text and the
+// https object already carries it.
+func responseScope(domain string, r *HTTPResult) string {
+	if isRedirect(r.Status) {
+		return fmt.Sprintf("https://%s/ answered with a %d redirect; HSTS is per-host, so a header served by the redirect target does not count", domain, r.Status)
+	}
+	return fmt.Sprintf("https://%s/ answered %d", domain, r.Status)
 }
 
 // servedHSTS returns the first HSTS header seen on the host, or nil.
@@ -964,17 +995,17 @@ func servedHSTS(h *HostWeb) *HSTS {
 	return nil
 }
 
-// anyHTTPSResponse reports whether any address of the host answered on 443.
-func anyHTTPSResponse(h *HostWeb) bool {
-	if h == nil {
-		return false
-	}
+// firstHTTPSResponse returns the first response any address of the host
+// gave on 443, or nil when none answered. A result without a status is a
+// request that failed (a read timeout, a reset): no head was read, so it
+// says nothing about which headers the server sends.
+func firstHTTPSResponse(h *HostWeb) *HTTPResult {
 	for _, a := range h.addrs() {
-		if a.HTTPSRes != nil {
-			return true
+		if a.HTTPSRes != nil && a.HTTPSRes.Status > 0 {
+			return a.HTTPSRes
 		}
 	}
-	return false
+	return nil
 }
 
 func meetsPreload(h *HSTS) bool {

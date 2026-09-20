@@ -36,7 +36,7 @@ var preloadListURL = "https://chromium.googlesource.com/chromium/src/+/main/net/
 // cacheHeaderPrefix identifies the derived cache and its format. A file
 // that does not start with this exact prefix is refetched rather than
 // guessed at.
-const cacheHeaderPrefix = "#domaintest-hsts-preload v1"
+const cacheHeaderPrefix = "#domaintest-hsts-preload v2"
 
 // warmTimeout bounds `-warm-hsts-cache`, which runs at container start and
 // has no probe budget to share.
@@ -45,34 +45,55 @@ const warmTimeout = 60 * time.Second
 // noCachePath disables the cache: fetch on every run.
 const noCachePath = "-"
 
-// preloadList maps a preloaded name to its include_subdomains flag.
-type preloadList struct {
-	entries map[string]bool
+// preloadRecord is what the list says about one preloaded name.
+type preloadRecord struct {
+	includeSubdomains bool
+	// policy is Chromium's reason the entry exists: "bulk-*" entries came
+	// through hstspreload.org and must keep serving a compliant header;
+	// "google", "custom", "public-suffix" and the rest are maintained by
+	// hand and carry no such obligation.
+	policy string
 }
 
-// status reports whether the name is HSTS-preloaded and, when it is
-// covered by an ancestor rather than itself, which ancestor. Whole TLDs
-// (app, bank, dev, page) are entries with include_subdomains, so names
-// under them are preloaded.
-func (l *preloadList) status(domain string) (status, coveredBy string) {
+// preloadList maps a preloaded name to its record.
+type preloadList struct {
+	entries map[string]preloadRecord
+}
+
+// bulkPolicyPrefix marks the policies of entries submitted through
+// hstspreload.org (bulk-legacy, bulk-18-weeks, bulk-1-year).
+const bulkPolicyPrefix = "bulk-"
+
+// headerRequired reports whether an entry under this policy is expected to
+// keep serving a preload-grade header. An empty policy is an entry the list
+// did not explain, which is held to the requirement rather than excused.
+func headerRequired(policy string) bool {
+	return policy == "" || strings.HasPrefix(policy, bulkPolicyPrefix)
+}
+
+// status reports whether the name is HSTS-preloaded, when it is covered by
+// an ancestor rather than itself which ancestor, and the policy of the
+// entry that covers it. Whole TLDs (app, bank, dev, page) are entries with
+// include_subdomains, so names under them are preloaded.
+func (l *preloadList) status(domain string) (status, coveredBy, policy string) {
 	if l == nil || len(l.entries) == 0 {
-		return PreloadUnknown, ""
+		return PreloadUnknown, "", ""
 	}
 	name := bareName(domain)
 	if name == "" {
-		return PreloadUnknown, ""
+		return PreloadUnknown, "", ""
 	}
-	if _, ok := l.entries[name]; ok {
-		return PreloadPreloaded, ""
+	if rec, ok := l.entries[name]; ok {
+		return PreloadPreloaded, "", rec.policy
 	}
 	for rest := name; ; {
 		i := strings.IndexByte(rest, '.')
 		if i < 0 {
-			return PreloadAbsent, ""
+			return PreloadAbsent, "", ""
 		}
 		rest = rest[i+1:]
-		if includeSubdomains, ok := l.entries[rest]; ok && includeSubdomains {
-			return PreloadPreloaded, rest
+		if rec, ok := l.entries[rest]; ok && rec.includeSubdomains {
+			return PreloadPreloaded, rest, rec.policy
 		}
 	}
 }
@@ -156,6 +177,7 @@ type preloadEntry struct {
 	Name              string `json:"name"`
 	Mode              string `json:"mode"`
 	IncludeSubdomains bool   `json:"include_subdomains"`
+	Policy            string `json:"policy"`
 }
 
 // parsePreloadJSON derives the lookup table from Chromium's JSON, which
@@ -168,12 +190,12 @@ func parsePreloadJSON(body []byte) (*preloadList, error) {
 	if err := json.Unmarshal(stripLineComments(body), &doc); err != nil {
 		return nil, fmt.Errorf("parsing the preload list: %w", err)
 	}
-	l := &preloadList{entries: make(map[string]bool, len(doc.Entries))}
+	l := &preloadList{entries: make(map[string]preloadRecord, len(doc.Entries))}
 	for _, e := range doc.Entries {
 		if e.Mode != "force-https" || e.Name == "" {
 			continue
 		}
-		l.entries[strings.ToLower(e.Name)] = e.IncludeSubdomains
+		l.entries[strings.ToLower(e.Name)] = preloadRecord{includeSubdomains: e.IncludeSubdomains, policy: cachePolicy(e.Policy)}
 	}
 	if len(l.entries) == 0 {
 		return nil, errors.New("the preload list contained no force-https entries")
@@ -207,8 +229,18 @@ func defaultPreloadCachePath() string {
 	return filepath.Join(dir, "domaintest", "hsts-preload.tsv")
 }
 
-// marshalCache renders the list: a version header then "name\t0|1" lines,
-// sorted so the file is reproducible.
+// cachePolicy keeps a policy safe to store as one cache field. Chromium's
+// policies are plain tokens; anything carrying the cache's own separators
+// is dropped rather than allowed to corrupt the file.
+func cachePolicy(policy string) string {
+	if strings.ContainsAny(policy, "\t\r\n") {
+		return ""
+	}
+	return policy
+}
+
+// marshalCache renders the list: a version header then "name\t0|1\tpolicy"
+// lines, sorted so the file is reproducible.
 func marshalCache(l *preloadList, now time.Time) []byte {
 	names := make([]string, 0, len(l.entries))
 	for name := range l.entries {
@@ -219,12 +251,15 @@ func marshalCache(l *preloadList, now time.Time) []byte {
 	b.Grow(len(names) * 24)
 	fmt.Fprintf(&b, "%s %s\n", cacheHeaderPrefix, now.UTC().Format(time.RFC3339))
 	for _, name := range names {
+		rec := l.entries[name]
 		b.WriteString(name)
-		if l.entries[name] {
-			b.WriteString("\t1\n")
+		if rec.includeSubdomains {
+			b.WriteString("\t1\t")
 		} else {
-			b.WriteString("\t0\n")
+			b.WriteString("\t0\t")
 		}
+		b.WriteString(rec.policy)
+		b.WriteByte('\n')
 	}
 	return []byte(b.String())
 }
@@ -238,25 +273,36 @@ func unmarshalCache(body []byte) (*preloadList, error) {
 	if nl < 0 || !strings.HasPrefix(text, cacheHeaderPrefix) {
 		return nil, errors.New("not a domaintest preload cache of this version")
 	}
-	l := &preloadList{entries: map[string]bool{}}
+	l := &preloadList{entries: map[string]preloadRecord{}}
 	for _, line := range strings.Split(text[nl+1:], "\n") {
 		if line == "" {
 			continue
 		}
-		name, flag, ok := strings.Cut(line, "\t")
-		if !ok || name == "" {
-			return nil, fmt.Errorf("malformed cache line %q", line)
-		}
-		includeSubdomains, err := strconv.ParseBool(flag)
+		name, rec, err := parseCacheLine(line)
 		if err != nil {
-			return nil, fmt.Errorf("malformed cache line %q", line)
+			return nil, err
 		}
-		l.entries[name] = includeSubdomains
+		l.entries[name] = rec
 	}
 	if len(l.entries) == 0 {
 		return nil, errors.New("the preload cache holds no entries")
 	}
 	return l, nil
+}
+
+// parseCacheLine reads one "name\t0|1\tpolicy" line. The policy field may
+// be empty but must be present: a two-field line is a v1 leftover or
+// damage, never something to guess at.
+func parseCacheLine(line string) (string, preloadRecord, error) {
+	fields := strings.Split(line, "\t")
+	if len(fields) != 3 || fields[0] == "" {
+		return "", preloadRecord{}, fmt.Errorf("malformed cache line %q", line)
+	}
+	includeSubdomains, err := strconv.ParseBool(fields[1])
+	if err != nil {
+		return "", preloadRecord{}, fmt.Errorf("malformed cache line %q", line)
+	}
+	return fields[0], preloadRecord{includeSubdomains: includeSubdomains, policy: fields[2]}, nil
 }
 
 // readPreloadCache loads a usable cache, or an error saying why not.

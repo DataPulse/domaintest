@@ -88,7 +88,7 @@ func newScenario(t *testing.T, domain, server string) *scenario {
 	withResolvConf(t, "nameserver 10.12.60.1\n")
 	stubWildcardLabels(t)
 	// Not on the list, and no filesystem cache in unit tests.
-	stubList(t, &preloadList{entries: map[string]bool{"example.net": true}}, nil)
+	stubList(t, &preloadList{entries: map[string]preloadRecord{"example.net": {includeSubdomains: true}}}, nil)
 	r := newFakeRunner()
 	r.fallback = fixtureFallback(t)
 	cfg := baseConfig(domain, server)
@@ -568,7 +568,7 @@ func TestRun_TXTOnlyNameInSignedZone(t *testing.T) {
 func TestRun_PreloadStatuses(t *testing.T) {
 	// google.com itself listed: preloaded, no covered-by.
 	g := googleScenario(t) // header: max-age 1y, includeSubDomains, preload
-	stubList(t, &preloadList{entries: map[string]bool{"google.com": true}}, nil)
+	stubList(t, &preloadList{entries: map[string]preloadRecord{"google.com": {includeSubdomains: true}}}, nil)
 	rep := g.s.run()
 	check(t, "preloaded", rep.HSTSPreload, PreloadPreloaded)
 	check(t, "no covered-by for an exact entry", rep.HSTSPreloadCoveredBy, "")
@@ -576,23 +576,40 @@ func TestRun_PreloadStatuses(t *testing.T) {
 
 	// Covered by an ancestor with include_subdomains.
 	g = googleScenario(t)
-	stubList(t, &preloadList{entries: map[string]bool{"com": true}}, nil)
+	stubList(t, &preloadList{entries: map[string]preloadRecord{"com": {includeSubdomains: true}}}, nil)
 	rep = g.s.run()
 	check(t, "preloaded via ancestor", rep.HSTSPreload, PreloadPreloaded)
 	check(t, "covered by", rep.HSTSPreloadCoveredBy, "com")
+	check(t, "no policy on the stub entry", rep.HSTSPreloadPolicy, "")
 
 	// Preloaded but the served header has decayed (cloudflare.com's case).
 	g = googleScenario(t)
-	stubList(t, &preloadList{entries: map[string]bool{"google.com": true}}, nil)
+	stubList(t, &preloadList{entries: map[string]preloadRecord{"google.com": {includeSubdomains: true}}}, nil)
 	weak := tlsServer(t, okHandler(map[string]string{"Strict-Transport-Security": "max-age=15780000"}), []*x509.Certificate{g.leaf, g.ca.cert}, g.key, tls.VersionTLS12, tls.VersionTLS13)
 	g.s.dialer.mapTarget(g.v4.String(), 443, weak)
 	g.s.dialer.mapTarget(g.v6.String(), 443, weak)
 	rep = g.s.run()
 	check(t, "decayed header warned", contains(rep.Warnings, "on the HSTS preload list but the served header does not meet"), true)
 
+	// An apex that only redirects and serves no header, the shape gmail.com
+	// has. Submitted through hstspreload.org it owes the header; kept by
+	// hand (policy google) it does not, and the policy is reported instead.
+	for policy, warned := range map[string]bool{"bulk-1-year": true, "google": false} {
+		g = googleScenario(t)
+		stubList(t, &preloadList{entries: map[string]preloadRecord{"google.com": {policy: policy}}}, nil)
+		bare := tlsServer(t, redirectHandler(301, "https://mail.google.com/mail/u/0/"), []*x509.Certificate{g.leaf, g.ca.cert}, g.key, tls.VersionTLS12, tls.VersionTLS13)
+		g.s.dialer.mapTarget(g.v4.String(), 443, bare)
+		g.s.dialer.mapTarget(g.v6.String(), 443, bare)
+		rep = g.s.run()
+		check(t, policy+": preloaded", rep.HSTSPreload, PreloadPreloaded)
+		check(t, policy+": policy reported", rep.HSTSPreloadPolicy, policy)
+		check(t, policy+": the apex answered a bare redirect", []interface{}{rep.Web.Apex.IPv4[0].HTTPSRes.Status, rep.Web.Apex.IPv4[0].HTTPSRes.HSTS}, []interface{}{301, (*HSTS)(nil)})
+		check(t, policy+": missing header warned", contains(rep.Warnings, "serves no HSTS header on this response (https://google.com/ answered with a 301 redirect"), warned)
+	}
+
 	// Not on the list but the header claims preload without meeting the bar.
 	g = googleScenario(t)
-	stubList(t, &preloadList{entries: map[string]bool{"example.net": true}}, nil)
+	stubList(t, &preloadList{entries: map[string]preloadRecord{"example.net": {includeSubdomains: true}}}, nil)
 	claim := tlsServer(t, okHandler(map[string]string{"Strict-Transport-Security": "max-age=300; preload"}), []*x509.Certificate{g.leaf, g.ca.cert}, g.key, tls.VersionTLS12, tls.VersionTLS13)
 	g.s.dialer.mapTarget(g.v4.String(), 443, claim)
 	g.s.dialer.mapTarget(g.v6.String(), 443, claim)
@@ -614,7 +631,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	calls := stubList(t, fixtureList(t), nil)
 	g.s.cfg.HSTSPreload = false
 	rep = g.s.run()
-	check(t, "disabled", rep.HSTSPreload+rep.HSTSPreloadError+rep.HSTSPreloadCoveredBy, "")
+	check(t, "disabled", rep.HSTSPreload+rep.HSTSPreloadError+rep.HSTSPreloadCoveredBy+rep.HSTSPreloadPolicy, "")
 	check(t, "no fetch when disabled", calls.Load(), int32(0))
 }
 
@@ -622,7 +639,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 // host: a populated cache means no fetch at all.
 func TestRun_UsesPopulatedCache(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "hsts-preload.tsv")
-	if err := writePreloadCache(path, &preloadList{entries: map[string]bool{"google.com": true}}); err != nil {
+	if err := writePreloadCache(path, &preloadList{entries: map[string]preloadRecord{"google.com": {includeSubdomains: true}}}); err != nil {
 		t.Fatal(err)
 	}
 	g := googleScenario(t)

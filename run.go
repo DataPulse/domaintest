@@ -115,7 +115,7 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 		func() { rep.Nameservers = auditNameservers(probeCtx, cfg, dnsRunner, dns, rep) },
 		func() { rep.Mail = assessMail(probeCtx, cfg, dns, noMailPossible(rep, dns)) },
 		func() {
-			rep.HSTSPreload, rep.HSTSPreloadCoveredBy, rep.HSTSPreloadError = checkPreload(probeCtx, cfg)
+			rep.HSTSPreload, rep.HSTSPreloadCoveredBy, rep.HSTSPreloadPolicy, rep.HSTSPreloadError = checkPreload(probeCtx, cfg)
 		},
 	)
 	rep.Wildcard = wildcardSection(dns, rep.Web)
@@ -684,18 +684,18 @@ func assessMail(ctx context.Context, cfg config, dns dnsResults, skip bool) *Mai
 // once per host when the cache is cold. The wait and the fetch share the
 // probe budget, so a cold or contended start costs this run its preload
 // value rather than delaying or failing the run.
-func checkPreload(ctx context.Context, cfg config) (status, coveredBy, problem string) {
+func checkPreload(ctx context.Context, cfg config) (status, coveredBy, policy, problem string) {
 	if !cfg.HSTSPreload {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	// Zero timeout: the probe context is the only bound, so the download is
 	// not held to the per-connection budget.
 	list, err := loadPreloadList(ctx, cfg.HSTSCache, 0)
 	if err != nil {
-		return PreloadUnknown, "", scrubResolver(err.Error())
+		return PreloadUnknown, "", "", scrubResolver(err.Error())
 	}
-	status, coveredBy = list.status(cfg.Domain)
-	return status, coveredBy, ""
+	status, coveredBy, policy = list.status(cfg.Domain)
+	return status, coveredBy, policy, ""
 }
 
 // wildcardSection evaluates the random-name probes and stamps www when its

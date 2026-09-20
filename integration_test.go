@@ -377,8 +377,9 @@ func TestIntegration_PreloadListRealFetch(t *testing.T) {
 	}
 	t.Logf("fetched %d entries in %v", len(l.entries), time.Since(start))
 	check(t, "a real list has many entries", len(l.entries) > 50000, true)
-	check(t, "github.com listed", l.entries["github.com"], true)
-	check(t, "app is a listed TLD", l.entries["app"], true)
+	check(t, "github.com listed", l.entries["github.com"].includeSubdomains, true)
+	check(t, "app is a listed TLD", l.entries["app"], preloadRecord{includeSubdomains: true, policy: "public-suffix"})
+	check(t, "gmail.com is a hand-kept Google entry", l.entries["gmail.com"].policy, "google")
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -398,11 +399,12 @@ func TestIntegration_PreloadListRealFetch(t *testing.T) {
 	check(t, "second load", err, nil)
 	check(t, "same size", len(cached.entries), len(l.entries))
 
-	status, coveredBy := cached.status("github.com")
+	status, coveredBy, policy := cached.status("github.com")
 	check(t, "github.com", []string{status, coveredBy}, []string{PreloadPreloaded, ""})
-	status, coveredBy = cached.status("nothing-here.example.app")
-	check(t, "covered by the app TLD", []string{status, coveredBy}, []string{PreloadPreloaded, "app"})
-	status, _ = cached.status("jschmidt.org")
+	check(t, "github.com came through hstspreload.org", headerRequired(policy), true)
+	status, coveredBy, policy = cached.status("nothing-here.example.app")
+	check(t, "covered by the app TLD", []string{status, coveredBy, policy}, []string{PreloadPreloaded, "app", "public-suffix"})
+	status, _, _ = cached.status("jschmidt.org")
 	check(t, "jschmidt.org absent", status, PreloadAbsent)
 }
 

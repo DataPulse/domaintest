@@ -42,11 +42,12 @@ func stubList(t *testing.T, l *preloadList, err error) *atomic.Int32 {
 func TestParsePreloadJSON(t *testing.T) {
 	l := fixtureList(t)
 	check(t, "entries parsed", len(l.entries) > 200, true)
-	check(t, "TLD entry with include_subdomains", l.entries["app"], true)
-	check(t, "bulk entry", l.entries["github.com"], true)
-	inc, ok := l.entries["gmail.com"]
+	check(t, "TLD entry with include_subdomains", l.entries["app"], preloadRecord{includeSubdomains: true, policy: "public-suffix"})
+	check(t, "bulk entry", l.entries["github.com"], preloadRecord{includeSubdomains: true, policy: "bulk-18-weeks"})
+	gmail, ok := l.entries["gmail.com"]
 	check(t, "gmail.com present", ok, true)
-	check(t, "gmail.com does not include subdomains", inc, false)
+	check(t, "gmail.com does not include subdomains", gmail.includeSubdomains, false)
+	check(t, "gmail.com is a hand-kept Google entry", gmail.policy, "google")
 
 	// Comments are stripped, force-https is required, an empty list is an error.
 	_, err := parsePreloadJSON([]byte(`{"entries":[{"name":"x.test","mode":"disabled"}]}`))
@@ -55,35 +56,57 @@ func TestParsePreloadJSON(t *testing.T) {
 	check(t, "malformed json", err != nil, true)
 	one, err := parsePreloadJSON([]byte("// lead comment\n{\"entries\":[\n // inner\n {\"name\":\"X.Test\",\"mode\":\"force-https\",\"include_subdomains\":true}]}"))
 	check(t, "comments tolerated", err, nil)
-	check(t, "name lower-cased", one.entries["x.test"], true)
+	check(t, "name lower-cased, policy absent", one.entries["x.test"], preloadRecord{includeSubdomains: true})
+	odd, err := parsePreloadJSON([]byte("{\"entries\":[{\"name\":\"y.test\",\"mode\":\"force-https\",\"policy\":\"bulk\\t1\\nz.test\"}]}"))
+	check(t, "separator-bearing policy parses", err, nil)
+	check(t, "separator-bearing policy is dropped", odd.entries["y.test"].policy, "")
+}
+
+func TestHeaderRequired(t *testing.T) {
+	cases := map[string]bool{
+		"bulk-legacy":             true,
+		"bulk-18-weeks":           true,
+		"bulk-1-year":             true,
+		"":                        true, // unexplained entries are not excused
+		"google":                  false,
+		"custom":                  false,
+		"public-suffix":           false,
+		"public-suffix-requested": false,
+		"test":                    false,
+	}
+	for policy, want := range cases {
+		check(t, "policy "+policy, headerRequired(policy), want)
+	}
 }
 
 func TestPreloadListStatus(t *testing.T) {
 	l := fixtureList(t)
-	cases := []struct{ domain, status, coveredBy string }{
-		{"github.com", PreloadPreloaded, ""},
-		{"GitHub.com.", PreloadPreloaded, ""},
-		{"api.github.com", PreloadPreloaded, "github.com"},
-		{"deep.api.github.com", PreloadPreloaded, "github.com"},
-		{"app", PreloadPreloaded, ""},
-		{"anything.app", PreloadPreloaded, "app"},
-		{"a.b.c.bank", PreloadPreloaded, "bank"},
-		{"gmail.com", PreloadPreloaded, ""},
+	cases := []struct{ domain, status, coveredBy, policy string }{
+		{"github.com", PreloadPreloaded, "", "bulk-18-weeks"},
+		{"GitHub.com.", PreloadPreloaded, "", "bulk-18-weeks"},
+		// A covered name reports the policy of the ancestor that covers it.
+		{"api.github.com", PreloadPreloaded, "github.com", "bulk-18-weeks"},
+		{"deep.api.github.com", PreloadPreloaded, "github.com", "bulk-18-weeks"},
+		{"app", PreloadPreloaded, "", "public-suffix"},
+		{"anything.app", PreloadPreloaded, "app", "public-suffix"},
+		{"a.b.c.bank", PreloadPreloaded, "bank", "public-suffix"},
+		{"gmail.com", PreloadPreloaded, "", "google"},
 		// gmail.com is listed without include_subdomains, so children are not covered.
-		{"mail.gmail.com", PreloadAbsent, ""},
-		{"jschmidt.org", PreloadAbsent, ""},
-		{"org", PreloadAbsent, ""},
-		{"xn--mnchen-3ya.de", PreloadAbsent, ""},
+		{"mail.gmail.com", PreloadAbsent, "", ""},
+		{"jschmidt.org", PreloadAbsent, "", ""},
+		{"org", PreloadAbsent, "", ""},
+		{"xn--mnchen-3ya.de", PreloadAbsent, "", ""},
 	}
 	for _, c := range cases {
-		status, coveredBy := l.status(c.domain)
+		status, coveredBy, policy := l.status(c.domain)
 		check(t, c.domain+" status", status, c.status)
 		check(t, c.domain+" covered by", coveredBy, c.coveredBy)
+		check(t, c.domain+" policy", policy, c.policy)
 	}
 	var empty *preloadList
-	s, _ := empty.status("x.test")
+	s, _, _ := empty.status("x.test")
 	check(t, "nil list is unknown", s, PreloadUnknown)
-	s, _ = (&preloadList{entries: map[string]bool{}}).status("x.test")
+	s, _, _ = (&preloadList{entries: map[string]preloadRecord{}}).status("x.test")
 	check(t, "empty list is unknown", s, PreloadUnknown)
 }
 
@@ -98,14 +121,15 @@ func TestPreloadCacheRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(t, "entry count survives", len(back.entries), len(l.entries))
-	check(t, "flags survive", []bool{back.entries["app"], back.entries["gmail.com"]}, []bool{true, false})
+	check(t, "records survive", []preloadRecord{back.entries["app"], back.entries["gmail.com"], back.entries["github.com"]},
+		[]preloadRecord{{true, "public-suffix"}, {false, "google"}, {true, "bulk-18-weeks"}})
 
 	body, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	check(t, "header", strings.HasPrefix(string(body), cacheHeaderPrefix+" "), true)
-	check(t, "sorted and tab separated", strings.Contains(string(body), "\napp\t1\n"), true)
+	check(t, "sorted and tab separated", strings.Contains(string(body), "\napp\t1\tpublic-suffix\n"), true)
 	check(t, "no temporary files left", len(dirEntries(t, filepath.Dir(path))), 1)
 
 	// Writing twice is idempotent apart from the timestamp.
@@ -129,10 +153,12 @@ func TestPreloadCacheDamageForcesRefetch(t *testing.T) {
 	cases := map[string]string{
 		"empty file":      "",
 		"header only":     cacheHeaderPrefix + " 2026-01-01T00:00:00Z\n",
-		"wrong version":   "#domaintest-hsts-preload v2 2026-01-01T00:00:00Z\napp\t1\n",
+		"wrong version":   "#domaintest-hsts-preload v1 2026-01-01T00:00:00Z\napp\t1\n",
+		"v1 line shape":   cacheHeaderPrefix + " x\napp\t1\n",
+		"extra field":     cacheHeaderPrefix + " x\napp\t1\tgoogle\tmore\n",
 		"foreign file":    "{\"json\": true}\n",
 		"no header":       "app\t1\n",
-		"bad flag":        cacheHeaderPrefix + " x\napp\tyes\n",
+		"bad flag":        cacheHeaderPrefix + " x\napp\tyes\tgoogle\n",
 		"missing tab":     cacheHeaderPrefix + " x\napp1\n",
 		"truncated write": good[:len(good)/2],
 	}
@@ -165,7 +191,7 @@ func TestLoadPreloadList_UsesCacheThenFetchesOnce(t *testing.T) {
 	check(t, "first load fetches", err, nil)
 	check(t, "one fetch", calls.Load(), int32(1))
 	check(t, "cache written", fileExists(path), true)
-	check(t, "list usable", l.entries["app"], true)
+	check(t, "list usable", l.entries["app"].includeSubdomains, true)
 
 	l2, err := loadPreloadList(context.Background(), path, time.Second)
 	check(t, "second load", err, nil)
@@ -202,7 +228,7 @@ func TestLoadPreloadList_UnwritableCacheStillAnswers(t *testing.T) {
 	stubList(t, fixtureList(t), nil)
 	l, err := loadPreloadList(context.Background(), filepath.Join(dir, "sub", "c.tsv"), time.Second)
 	check(t, "still answers", err, nil)
-	check(t, "list usable", l.entries["app"], true)
+	check(t, "list usable", l.entries["app"].includeSubdomains, true)
 }
 
 func TestLoadPreloadList_ConcurrentCallersFetchOnce(t *testing.T) {
@@ -231,7 +257,7 @@ func TestLoadPreloadList_ConcurrentCallersFetchOnce(t *testing.T) {
 	check(t, "exactly one fetch", calls.Load(), int32(1))
 	for i := range results {
 		check(t, "no error", errs[i], nil)
-		check(t, "answered", results[i].entries["app"], true)
+		check(t, "answered", results[i].entries["app"].includeSubdomains, true)
 	}
 }
 
@@ -334,7 +360,7 @@ func TestFetchPreloadList_Retries(t *testing.T) {
 	l, err := fetchPreloadList(context.Background(), 5*time.Second)
 	check(t, "succeeds after retries", err, nil)
 	check(t, "attempts", hits.Load(), int32(3))
-	check(t, "list parsed", l.entries["app"], true)
+	check(t, "list parsed", l.entries["app"].includeSubdomains, true)
 
 	// A client error is final.
 	hits.Store(0)
@@ -377,8 +403,8 @@ func marshalJSONList(t *testing.T) []byte {
 	var doc struct {
 		Entries []preloadEntry `json:"entries"`
 	}
-	for name, inc := range fixtureList(t).entries {
-		doc.Entries = append(doc.Entries, preloadEntry{Name: name, Mode: "force-https", IncludeSubdomains: inc})
+	for name, rec := range fixtureList(t).entries {
+		doc.Entries = append(doc.Entries, preloadEntry{Name: name, Mode: "force-https", IncludeSubdomains: rec.includeSubdomains, Policy: rec.policy})
 	}
 	b, err := json.Marshal(doc)
 	if err != nil {

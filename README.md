@@ -224,8 +224,8 @@ independently DNSSEC-validated.
 The preload answer comes from Chromium's `transport_security_state_static.json`,
 not from a per-domain API call, so **the network is touched at most once per
 host**. The list is fetched once (about 1.1 MB on the wire, gzipped by the
-transport), reduced to the two fields a lookup needs and cached as roughly
-1.65 MB of TSV. Every later run on that host, for any domain, reads the
+transport), reduced to the three fields a lookup needs (name,
+`include_subdomains`, `policy`) and cached as TSV, a little over 2 MB. Every later run on that host, for any domain, reads the
 cache.
 
 - **Path**: `-hsts-cache`, defaulting to
@@ -249,6 +249,24 @@ cache.
   exits, taking no domain, with its own 60 s budget. It prints the cache and
   lock paths to stderr and exits 2 with the reason if it fails. Run it once
   when a machine or container starts and no later run pays for a cold cache.
+- **Policy decides whether a header is owed**: `hsts_preload_policy` is
+  Chromium's `policy` for the entry that covers the name. `bulk-legacy`,
+  `bulk-18-weeks` and `bulk-1-year` entries were submitted through
+  hstspreload.org and stay listed only while they serve a compliant header,
+  so a missing or weak header on one is a warning. `google`, `custom`,
+  `public-suffix` and the other hand-kept policies carry no such obligation:
+  gmail.com is policy `google`, answers `https://gmail.com/` with a bare 301
+  and no header, and that is reported as fact, not warned about. An entry
+  with no policy is held to the requirement.
+- **Which response is read**: the header is looked for on the apex's own
+  `GET /` on 443. Redirects are not followed for this, deliberately: HSTS is
+  per-host, so a header served by the redirect target says nothing about the
+  name that was asked about. The warning names the status that was read. A
+  request that failed before a response head arrived (a read timeout, a
+  reset) is not a response without the header and produces no warning.
+- **Cache format**: `#domaintest-hsts-preload v2`, lines of
+  `name<TAB>0|1<TAB>policy`. A v1 cache fails the header check and is
+  refetched; nothing needs deleting.
 - **Semantics**: the list records enforcement, so there is no equivalent of
   the submission states `pending` and `rejected` that hstspreload.org
   reports; such domains read `absent`, which is what browsers do.

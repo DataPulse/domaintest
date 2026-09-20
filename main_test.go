@@ -292,7 +292,7 @@ func TestParseArgs_HSTSCacheAndWarm(t *testing.T) {
 func TestRealMain_WarmMode(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "hsts-preload.tsv")
-	stubList(t, &preloadList{entries: map[string]bool{"app": true}}, nil)
+	stubList(t, &preloadList{entries: map[string]preloadRecord{"app": {includeSubdomains: true}}}, nil)
 	var out, errBuf bytes.Buffer
 	rc := realMain([]string{"-warm-hsts-cache", "-hsts-cache", path}, &out, &errBuf)
 	check(t, "exit 0", rc, 0)
