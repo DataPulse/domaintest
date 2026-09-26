@@ -51,8 +51,8 @@ var caaIssuers = []struct {
 	{"globalsign", []string{"globalsign.com"}},
 	{"google trust services", []string{"pki.goog"}},
 	{"amazon", []string{"amazon.com", "amazontrust.com", "awstrust.com", "amazonaws.com"}},
-	{"godaddy", []string{"godaddy.com"}},
-	{"starfield", []string{"godaddy.com", "starfieldtech.com"}},
+	{"godaddy", []string{"godaddy.com"}},                        // dpdomain: not an infra list — CAA issuer domain of a certificate authority
+	{"starfield", []string{"godaddy.com", "starfieldtech.com"}}, // dpdomain: not an infra list — CAA issuer domain of a certificate authority
 	{"entrust", []string{"entrust.net"}},
 	{"identrust", []string{"identrust.com"}},
 	{"ssl.com", []string{"ssl.com"}},
