@@ -60,9 +60,9 @@ type Report struct {
 	HSTSPreloadError     string          `json:"hsts_preload_error,omitempty"`
 	Errors               []string        `json:"errors"`
 	Warnings             []string        `json:"warnings"`
-	// Findings is every error and warning again with a stable code and a
-	// severity (fail, warn, info). fail entries are exactly Errors; warn
-	// and info entries are exactly Warnings, in the same order.
+	// Findings is every result with a stable code and a severity (fail,
+	// warn, info). fail entries are exactly Errors and warn entries exactly
+	// Warnings, in the same order; info entries appear only here.
 	Findings  []Finding `json:"findings"`
 	OK        bool      `json:"ok"`
 	ElapsedMs int64     `json:"elapsed_ms"`
@@ -143,9 +143,10 @@ type Finding struct {
 }
 
 // findings collects results while walking the report. Every finding is
-// recorded once in list and mirrored into the legacy arrays: fail into
-// errors, warn and info into warnings, so that ok, errors and warnings stay
-// exactly what consumers that predate findings read.
+// recorded once in list; fail is mirrored into errors and warn into
+// warnings for consumers that read those arrays. info lives in list only:
+// a configuration fact is not a warning, and listing it as one is what
+// turned well-run domains yellow.
 type findings struct {
 	errors   []string
 	warnings []string
@@ -155,11 +156,12 @@ type findings struct {
 func (f *findings) add(sev, code, host, format string, a ...any) {
 	msg := fmt.Sprintf(format, a...)
 	f.list = append(f.list, Finding{Code: code, Severity: sev, Host: host, Message: msg})
-	if sev == SeverityFail {
+	switch sev {
+	case SeverityFail:
 		f.errors = append(f.errors, msg)
-		return
+	case SeverityWarn:
+		f.warnings = append(f.warnings, msg)
 	}
-	f.warnings = append(f.warnings, msg)
 }
 
 func (f *findings) fail(code, host, format string, a ...any) {

@@ -118,7 +118,7 @@ func TestRun_SignedDomainWithoutWeb(t *testing.T) {
 	check(t, "web", rep.Web, WebSection{})
 	// jschmidt.org's SPF includes amazonses.com, whose TXT answer is 523
 	// octets on the wire.
-	check(t, "warnings", rep.Warnings, []string{"apex has no A or AAAA records", "www has no A or AAAA records", "SPF: include:amazonses.com TXT answer is 523 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"})
+	check(t, "warnings", notes(rep), []string{"apex has no A or AAAA records", "www has no A or AAAA records", "SPF: include:amazonses.com TXT answer is 523 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"})
 	check(t, "no quic", len(s.r.called("quicprobe")), 0)
 	check(t, "no dials", len(s.dialer.seen), 0)
 	check(t, "no bogus probe", len(s.digCalls("+cd")), 0)
@@ -217,7 +217,7 @@ func TestRun_WebDomainFullProbe(t *testing.T) {
 	// google.com publishes 17 apex TXT records (1176 octets without EDNS;
 	// a live dig +noedns really is truncated), and Google's four
 	// nameservers really do share 2001:4860:4802::/48.
-	check(t, "warnings", rep.Warnings, []string{
+	check(t, "warnings", notes(rep), []string{
 		"SPF: apex TXT answer is 1176 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP",
 		"all IPv6 nameserver addresses share one /48",
 	})
@@ -270,13 +270,13 @@ func TestRun_WebProblems(t *testing.T) {
 	rep := s.run()
 	check(t, "not ok", rep.OK, false)
 	check(t, "expired is an error", contains(rep.Errors, "apex: certificate expired on 1 of 2 addresses:"), true)
-	check(t, "5xx on one address is a warning", contains(rep.Warnings, "1 of 2 addresses return a server error on port 443"), true)
-	check(t, "old tls warning aggregated", contains(rep.Warnings, "apex: TLS 1.0/1.1 still accepted on 1 of 2 addresses"), true)
-	check(t, "no tls 1.3 warning", contains(rep.Warnings, "apex: no TLS 1.3 on 1 of 2 addresses"), true)
-	check(t, "cleartext warning", contains(rep.Warnings, "apex: HTTP serves content in the clear"), true)
-	check(t, "short hsts warning", contains(rep.Warnings, "apex: HSTS max-age 300 is under 180 days"), true)
-	check(t, "expired cert covers apex only but www has its own valid cert: no coverage warning", contains(rep.Warnings, "does not cover"), false)
-	check(t, "certificates differ", contains(rep.Warnings, "addresses serve different certificates"), true)
+	check(t, "5xx on one address is a warning", contains(notes(rep), "1 of 2 addresses return a server error on port 443"), true)
+	check(t, "old tls warning aggregated", contains(notes(rep), "apex: TLS 1.0/1.1 still accepted on 1 of 2 addresses"), true)
+	check(t, "no tls 1.3 warning", contains(notes(rep), "apex: no TLS 1.3 on 1 of 2 addresses"), true)
+	check(t, "cleartext warning", contains(notes(rep), "apex: HTTP serves content in the clear"), true)
+	check(t, "short hsts warning", contains(notes(rep), "apex: HSTS max-age 300 is under 180 days"), true)
+	check(t, "expired cert covers apex only but www has its own valid cert: no coverage warning", contains(notes(rep), "does not cover"), false)
+	check(t, "certificates differ", contains(notes(rep), "addresses serve different certificates"), true)
 	check(t, "expired chain recorded", rep.Web.Apex.IPv4[0].TLS.Chain, ChainExpired)
 	check(t, "cert consistent false", *rep.Web.Apex.CertConsistent, false)
 }
@@ -304,9 +304,9 @@ func TestRun_WWWWithDifferentAddresses(t *testing.T) {
 	check(t, "not same as apex", rep.Web.WWW.SameAsApex, false)
 	check(t, "www ipv4 entries", len(rep.Web.WWW.IPv4), 4)
 	check(t, "www addresses refused", rep.Web.WWW.IPv4[0].HTTPS, PortRefused)
-	check(t, "www AAAA warning", contains(rep.Warnings, "www has no AAAA"), true)
-	check(t, "www no listener warning", contains(rep.Warnings, "www 151.101.3.42: no listener"), true)
-	check(t, "apex cert does not cover... no: it does", contains(rep.Warnings, "does not cover www"), false)
+	check(t, "www AAAA warning", contains(notes(rep), "www has no AAAA"), true)
+	check(t, "www no listener warning", contains(notes(rep), "www 151.101.3.42: no listener"), true)
+	check(t, "apex cert does not cover... no: it does", contains(notes(rep), "does not cover www"), false)
 }
 
 func TestRun_BogusZoneViaPublicResolver(t *testing.T) {
@@ -394,8 +394,8 @@ func TestRun_ReservedAddress(t *testing.T) {
 	}
 	check(t, "one error, not one per host", reserved, 1)
 	// The probe declined to connect; nothing failed to listen.
-	check(t, "says why it was not probed", contains(rep.Warnings, "apex 127.0.0.1: not probed (reserved address)"), true)
-	check(t, "not reported as a dead listener", contains(rep.Warnings, "no listener"), false)
+	check(t, "says why it was not probed", contains(notes(rep), "apex 127.0.0.1: not probed (reserved address)"), true)
+	check(t, "not reported as a dead listener", contains(notes(rep), "no listener"), false)
 	check(t, "ports skipped", []PortState{rep.Web.Apex.IPv4[0].HTTP, rep.Web.Apex.IPv4[0].HTTPS}, []PortState{PortSkipped, PortSkipped})
 	check(t, "nothing dialed", len(s.dialer.seen), 0)
 	check(t, "no quic", len(s.r.called("quicprobe")), 0)
@@ -558,11 +558,11 @@ func TestRun_TXTOnlyNameInSignedZone(t *testing.T) {
 	check(t, "delegation", rep.Delegation.Status, DelegationNotAZone)
 	check(t, "dnssec follows the validated TXT answer", rep.DNSSEC.State, DNSSECSecure)
 	check(t, "healthy", rep.Errors, []string{})
-	check(t, "warned once about the zone", contains(rep.Warnings, "not a zone apex (inside zone jschmidt.org)"), true)
+	check(t, "warned once about the zone", contains(notes(rep), "not a zone apex (inside zone jschmidt.org)"), true)
 	check(t, "no bogus probe", len(s.digCalls("+cd")), 0)
 	check(t, "no nameserver audit for a host", rep.Nameservers, (*NSReport)(nil))
 	check(t, "no mail section for a host", rep.Mail, (*MailReport)(nil))
-	check(t, "no DMARC noise", contains(rep.Warnings, "DMARC"), false)
+	check(t, "no DMARC noise", contains(notes(rep), "DMARC"), false)
 }
 
 func TestRun_PreloadStatuses(t *testing.T) {
@@ -572,7 +572,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	rep := g.s.run()
 	check(t, "preloaded", rep.HSTSPreload, PreloadPreloaded)
 	check(t, "no covered-by for an exact entry", rep.HSTSPreloadCoveredBy, "")
-	check(t, "header meets requirements", contains(rep.Warnings, "preload"), false)
+	check(t, "header meets requirements", contains(notes(rep), "preload"), false)
 
 	// Covered by an ancestor with include_subdomains.
 	g = googleScenario(t)
@@ -589,7 +589,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	g.s.dialer.mapTarget(g.v4.String(), 443, weak)
 	g.s.dialer.mapTarget(g.v6.String(), 443, weak)
 	rep = g.s.run()
-	check(t, "decayed header warned", contains(rep.Warnings, "on the HSTS preload list but the served header does not meet"), true)
+	check(t, "decayed header warned", contains(notes(rep), "on the HSTS preload list but the served header does not meet"), true)
 
 	// An apex that only redirects and serves no header, the shape gmail.com
 	// has. Submitted through hstspreload.org it owes the header; kept by
@@ -604,7 +604,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 		check(t, policy+": preloaded", rep.HSTSPreload, PreloadPreloaded)
 		check(t, policy+": policy reported", rep.HSTSPreloadPolicy, policy)
 		check(t, policy+": the apex answered a bare redirect", []interface{}{rep.Web.Apex.IPv4[0].HTTPSRes.Status, rep.Web.Apex.IPv4[0].HTTPSRes.HSTS}, []interface{}{301, (*HSTS)(nil)})
-		check(t, policy+": missing header warned", contains(rep.Warnings, "serves no HSTS header on this response (https://google.com/ answered with a 301 redirect"), warned)
+		check(t, policy+": missing header warned", contains(notes(rep), "serves no HSTS header on this response (https://google.com/ answered with a 301 redirect"), warned)
 	}
 
 	// Not on the list but the header claims preload without meeting the bar.
@@ -615,7 +615,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	g.s.dialer.mapTarget(g.v6.String(), 443, claim)
 	rep = g.s.run()
 	check(t, "absent", rep.HSTSPreload, PreloadAbsent)
-	check(t, "directive without requirements warned", contains(rep.Warnings, "carries the preload directive but does not meet"), true)
+	check(t, "directive without requirements warned", contains(notes(rep), "carries the preload directive but does not meet"), true)
 
 	// The list could not be obtained: unknown plus a scrubbed reason.
 	g = googleScenario(t)
@@ -624,7 +624,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	check(t, "unknown", rep.HSTSPreload, PreloadUnknown)
 	check(t, "reason kept", strings.Contains(rep.HSTSPreloadError, "server misbehaving"), true)
 	check(t, "resolver scrubbed", strings.Contains(rep.HSTSPreloadError, "10.0.0.2"), false)
-	check(t, "warned", contains(rep.Warnings, "HSTS preload list could not be consulted"), true)
+	check(t, "warned", contains(notes(rep), "HSTS preload list could not be consulted"), true)
 
 	// Disabled: no status, no error, no warning, and no fetch.
 	g = googleScenario(t)
@@ -701,7 +701,7 @@ func TestRun_HostInsideZoneIsNotAZone(t *testing.T) {
 	check(t, "dnssec from answer trust", rep.DNSSEC.State, DNSSECInsecure)
 	check(t, "no bogus probe for a non-zone", len(s.digCalls("+cd")), 0)
 	check(t, "only the TXT failure remains an error", rep.Errors, []string{"apex TXT lookup failed: delv: resolution failed"})
-	check(t, "not-a-zone warning", contains(rep.Warnings, "is not a zone apex"), true)
+	check(t, "not-a-zone warning", contains(notes(rep), "is not a zone apex"), true)
 	check(t, "addresses probed (refused)", rep.Web.Apex.IPv4[0].HTTPS, PortRefused)
 	check(t, "no mail section", rep.Mail, (*MailReport)(nil))
 }
@@ -741,7 +741,7 @@ func TestRun_DNSConcurrencyCap(t *testing.T) {
 	uncapped := jschmidtScenario(t)
 	full := uncapped.run()
 	check(t, "same errors", rep.Errors, full.Errors)
-	check(t, "same warnings", rep.Warnings, full.Warnings)
+	check(t, "same warnings", notes(rep), notes(full))
 	check(t, "same NS verdicts", len(rep.Nameservers.Servers), len(full.Nameservers.Servers))
 }
 
@@ -903,11 +903,11 @@ func TestProbeWeb_NoWWWForAHostInsideAZone(t *testing.T) {
 	rep := s.run()
 	check(t, "detected as a host", rep.NotAZone, true)
 	check(t, "no www section", rep.Web.WWW, (*HostWeb)(nil))
-	check(t, "no www warnings", contains(rep.Warnings, "www "), false)
+	check(t, "no www warnings", contains(notes(rep), "www "), false)
 
 	// An apex still gets the full www treatment.
 	apex := jschmidtScenario(t)
 	rep = apex.run()
 	check(t, "apex is a zone", rep.NotAZone, false)
-	check(t, "www still warned about", contains(rep.Warnings, "www has no A or AAAA records"), true)
+	check(t, "www still warned about", contains(notes(rep), "www has no A or AAAA records"), true)
 }

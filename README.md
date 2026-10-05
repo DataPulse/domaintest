@@ -415,15 +415,15 @@ issuer the CAA records forbid, and TLSA records matching no served
 certificate. A bogus zone yields one DNSSEC error; the per-lookup failures
 it causes are folded into it rather than listed one by one.
 
-Warnings: everything in `findings` with severity `warn` or `info`, listed
-below. The SOA drift finding names each nameserver with the address that
+Warnings: everything in `findings` with severity `warn`, listed below.
+`info` findings are configuration facts, not warnings, and appear only in
+`findings`. The SOA drift finding names each nameserver with the address that
 answered, `ns1.example.(192.0.2.1)=9957`, since which address disagrees is
 the point.
 
 ### Findings
 
-`findings` lists every error and warning again as
-`{code, severity, host, message}`:
+`findings` lists every result as `{code, severity, host, message}`:
 
 - `code` is a stable snake_case identifier. Key on it, not on `message`,
   whose wording may change. A code always has the same severity.
@@ -435,13 +435,17 @@ the point.
   against a reference that domaintest does not hold.
 - `host` is `apex`, `www`, a nameserver or MX host name, or empty for a
   finding about the domain as a whole.
-- `message` is the sentence also found in `errors` or `warnings`. Messages
+- `message` is the sentence also found in `errors` (fail) or `warnings`
+  (warn); an `info` message is in `findings` only. Messages
   state what was observed and nothing else: no advice, no citations. A
   consumer that wants to advise maps codes to its own guidance.
 
 `errors` and `warnings` are kept for consumers that predate `findings`:
-`fail` entries are exactly `errors`, and `warn` plus `info` entries are
-exactly `warnings`, in the same order.
+`fail` entries are exactly `errors` and `warn` entries are exactly
+`warnings`, in the same order. Through 0392e4c, `warnings` also carried the
+`info` entries. They were taken out once every consumer that colours by
+the arrays had moved to `findings`, so a report from an earlier build has
+more warnings than the same domain does now.
 
 The severities were calibrated on 2026-10-05 against the flagship
 apexes and subdomains in `testdata/calibration/reference.txt`. A finding

@@ -319,3 +319,17 @@ func googleAddrs(t *testing.T) (netip.Addr, netip.Addr) {
 	v6 := parseDelvYAML(fixture(t, "delv/google_aaaa_unsigned.yaml"), "AAAA").Addrs()[0]
 	return v4, v6
 }
+
+// notes returns every non-fail finding's message, warn and info, in report
+// order: what warnings held before info moved out of it. Tests that ask
+// "was this reported, and not as an error" read it; the warn/info split is
+// pinned in findings_test.go.
+func notes(rep *Report) []string {
+	out := []string{}
+	for _, f := range rep.Findings {
+		if f.Severity != SeverityFail {
+			out = append(out, f.Message)
+		}
+	}
+	return out
+}

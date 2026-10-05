@@ -45,7 +45,7 @@ func TestReservedName_NoSecurityVerdict(t *testing.T) {
 	check(t, "no errors", rep.Errors, []string{})
 	check(t, "ok", rep.OK, true)
 	check(t, "no bogus claim", contains(rep.Errors, "bogus"), false)
-	check(t, "explained once", contains(rep.Warnings, "is reserved by RFC 6761 and is not served by the global DNS"), true)
+	check(t, "explained once", contains(notes(rep), "is reserved by RFC 6761 and is not served by the global DNS"), true)
 
 	// The same shape without the reservation is still a real fault.
 	rep.ReservedName = ""

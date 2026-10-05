@@ -44,8 +44,8 @@ func healthyReport(t *testing.T) *Report {
 func TestBuildFindings_Healthy(t *testing.T) {
 	rep := healthyReport(t)
 	buildFindings(rep)
-	if !rep.OK || len(rep.Errors) != 0 || len(rep.Warnings) != 0 {
-		t.Errorf("healthy report should be clean: errors %v warnings %v", rep.Errors, rep.Warnings)
+	if !rep.OK || len(rep.Errors) != 0 || len(notes(rep)) != 0 {
+		t.Errorf("healthy report should be clean: errors %v warnings %v", rep.Errors, notes(rep))
 	}
 	out, _ := json.Marshal(rep)
 	if !strings.Contains(string(out), `"errors":[]`) || !strings.Contains(string(out), `"warnings":[]`) {
@@ -65,8 +65,8 @@ func TestBuildFindings_DNSWarnings(t *testing.T) {
 		t.Errorf("warnings only, expected ok: %v", rep.Errors)
 	}
 	for _, want := range []string{"apex has no AAAA", "www name does not exist", "no MX", "no SPF"} {
-		if !contains(rep.Warnings, want) {
-			t.Errorf("missing warning %q in %v", want, rep.Warnings)
+		if !contains(notes(rep), want) {
+			t.Errorf("missing warning %q in %v", want, notes(rep))
 		}
 	}
 }
@@ -80,8 +80,8 @@ func TestBuildFindings_NXDomainApex(t *testing.T) {
 	if rep.OK || !contains(rep.Errors, "NXDOMAIN") {
 		t.Errorf("expected NXDOMAIN error, got %v", rep.Errors)
 	}
-	if contains(rep.Warnings, "no A or AAAA") {
-		t.Errorf("presence warnings are noise for a missing domain: %v", rep.Warnings)
+	if contains(notes(rep), "no A or AAAA") {
+		t.Errorf("presence warnings are noise for a missing domain: %v", notes(rep))
 	}
 }
 
@@ -93,8 +93,8 @@ func TestBuildFindings_LookupFailuresAndBogus(t *testing.T) {
 	if !contains(rep.Errors, "apex A lookup timed out") || !contains(rep.Errors, "apex MX lookup failed") {
 		t.Errorf("expected timeout and failure errors, got %v", rep.Errors)
 	}
-	if contains(rep.Warnings, "no A or AAAA") {
-		t.Errorf("failed lookups must not produce presence warnings: %v", rep.Warnings)
+	if contains(notes(rep), "no A or AAAA") {
+		t.Errorf("failed lookups must not produce presence warnings: %v", notes(rep))
 	}
 
 	// With a bogus DNSSEC state the per-lookup failures are folded into one error.
@@ -122,15 +122,15 @@ func TestBuildFindings_DNSSECStates(t *testing.T) {
 		rep := healthyReport(t)
 		rep.DNSSEC = DNSSECReport{State: c.state, Detail: "detail"}
 		buildFindings(rep)
-		list := rep.Warnings
+		list := notes(rep)
 		if c.isError {
 			list = rep.Errors
 		}
 		if c.text != "" && !contains(list, c.text) {
 			t.Errorf("%s: expected %q in %v", c.state, c.text, list)
 		}
-		if c.text == "" && (len(rep.Errors)+len(rep.Warnings)) != 0 {
-			t.Errorf("%s: unexpected findings %v %v", c.state, rep.Errors, rep.Warnings)
+		if c.text == "" && (len(rep.Errors)+len(notes(rep))) != 0 {
+			t.Errorf("%s: unexpected findings %v %v", c.state, rep.Errors, notes(rep))
 		}
 	}
 }
@@ -174,8 +174,8 @@ func TestBuildFindings_ReachabilityAndWeb(t *testing.T) {
 	if !rep.OK {
 		t.Errorf("web problems are warnings: %v", rep.Errors)
 	}
-	if !contains(rep.Warnings, "no listener on 80 or 443 (refused/timeout)") || !contains(rep.Warnings, "QUIC/h3 works on another probed address") {
-		t.Errorf("got %v", rep.Warnings)
+	if !contains(notes(rep), "no listener on 80 or 443 (refused/timeout)") || !contains(notes(rep), "QUIC/h3 works on another probed address") {
+		t.Errorf("got %v", notes(rep))
 	}
 
 	// No address supports QUIC: that is the common case and not a warning.
@@ -183,15 +183,15 @@ func TestBuildFindings_ReachabilityAndWeb(t *testing.T) {
 	rep.Web.Apex.IPv4[0].QUIC = &QUICResult{Error: "context deadline exceeded"}
 	rep.Web.Apex.IPv6[0].QUIC = &QUICResult{Error: "context deadline exceeded"}
 	buildFindings(rep)
-	check(t, "no QUIC warnings without asymmetry", rep.Warnings, []string{})
+	check(t, "no QUIC warnings without asymmetry", notes(rep), []string{})
 
 	// www with its own addresses is reported under its own label.
 	rep = healthyReport(t)
 	ip := netip.MustParseAddr("192.0.2.5")
 	rep.Web.WWW = hostWeb([]netip.Addr{ip}, map[portKey]PortState{{ip, 80}: PortRefused, {ip, 443}: PortRefused}, nil)
 	buildFindings(rep)
-	if !contains(rep.Warnings, "www 192.0.2.5: no listener") {
-		t.Errorf("got %v", rep.Warnings)
+	if !contains(notes(rep), "www 192.0.2.5: no listener") {
+		t.Errorf("got %v", notes(rep))
 	}
 }
 
@@ -248,9 +248,9 @@ func TestBuildFindings_HTTPSDownWhileHTTPUp(t *testing.T) {
 	rep.Web.Apex.IPv6[0].QUIC = nil
 	buildFindings(rep)
 	check(t, "still ok (warning only)", rep.OK, true)
-	check(t, "https warning", contains(rep.Warnings, "HTTP on 80 answers but HTTPS on 443 does not (timeout)"), true)
-	check(t, "no both-closed warning", contains(rep.Warnings, "no listener"), false)
-	check(t, "single warning", len(rep.Warnings), 1)
+	check(t, "https warning", contains(notes(rep), "HTTP on 80 answers but HTTPS on 443 does not (timeout)"), true)
+	check(t, "no both-closed warning", contains(notes(rep), "no listener"), false)
+	check(t, "single warning", len(notes(rep)), 1)
 }
 
 func TestBuildFindings_LameZoneReportedOnce(t *testing.T) {
@@ -265,8 +265,8 @@ func TestBuildFindings_NullMXAndNotAZone(t *testing.T) {
 	rep := healthyReport(t)
 	rep.DNS.Apex["MX"] = parseDelvYAML(fixture(t, "delv/microsoft_jp_net_null_mx.yaml"), "MX")
 	buildFindings(rep)
-	check(t, "null MX warning", contains(rep.Warnings, "null MX"), true)
-	check(t, "no 'no MX' warning", contains(rep.Warnings, "no MX records"), false)
+	check(t, "null MX warning", contains(notes(rep), "null MX"), true)
+	check(t, "no 'no MX' warning", contains(notes(rep), "no MX records"), false)
 	check(t, "still ok", rep.OK, true)
 
 	rep = healthyReport(t)
@@ -276,12 +276,12 @@ func TestBuildFindings_NullMXAndNotAZone(t *testing.T) {
 	rep.Delegation = Delegation{Status: DelegationNotAZone}
 	buildFindings(rep)
 	check(t, "ok", rep.OK, true)
-	check(t, "warning names the zone", contains(rep.Warnings, "not a zone apex (inside zone example.net)"), true)
+	check(t, "warning names the zone", contains(notes(rep), "not a zone apex (inside zone example.net)"), true)
 	check(t, "no NS error", contains(rep.Errors, "no NS"), false)
 
 	rep.EnclosingZone = ""
 	buildFindings(rep)
-	check(t, "warning without zone", contains(rep.Warnings, "host.example.net is not a zone apex: delegation"), true)
+	check(t, "warning without zone", contains(notes(rep), "host.example.net is not a zone apex: delegation"), true)
 }
 
 func TestTLSFindings_Aggregation(t *testing.T) {
@@ -299,17 +299,17 @@ func TestTLSFindings_Aggregation(t *testing.T) {
 		"apex: certificate expires in 10 days",
 		"apex: certificate does not cover www, which resolves but has no valid certificate",
 	} {
-		check(t, want, contains(rep.Warnings, want), true)
+		check(t, want, contains(notes(rep), want), true)
 	}
 	// Once www has its own valid certificate the coverage warning goes away.
 	rep.Web.WWW.IPv4[0].TLS = &TLSResult{Chain: ChainValid, Version: "TLS 1.3", Cert: &CertInfo{DaysRemaining: 90, CoversWWW: true}}
 	buildFindings(rep)
-	check(t, "no coverage warning", contains(rep.Warnings, "does not cover"), false)
+	check(t, "no coverage warning", contains(notes(rep), "does not cover"), false)
 	// Urgent expiry wording and per-address chain errors.
 	rep.Web.Apex.IPv6[0].TLS.Cert.DaysRemaining = 3
 	rep.Web.Apex.IPv4[0].TLS = &TLSResult{Chain: ChainSelfSigned, Error: "self-signed certificate", Cert: valid}
 	buildFindings(rep)
-	check(t, "urgent", contains(rep.Warnings, "certificate expires in 3 days (urgent)"), true)
+	check(t, "urgent", contains(notes(rep), "certificate expires in 3 days (urgent)"), true)
 	check(t, "chain error names the count, not the address", contains(rep.Errors, "apex: certificate self signed on 1 of 2 addresses: self-signed certificate"), true)
 	check(t, "not ok", rep.OK, false)
 }
@@ -328,14 +328,14 @@ func TestHTTPFindings_Aggregation(t *testing.T) {
 	}
 	buildFindings(rep)
 	check(t, "5xx everywhere is an error", contains(rep.Errors, "apex: every address returns a server error on port 443"), true)
-	check(t, "cleartext once", contains(rep.Warnings, "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 2 addresses)"), true)
-	check(t, "non-https redirect", contains(rep.Warnings, "apex: HTTP redirects to a non-HTTPS URL (1 of 2 addresses)"), true)
-	check(t, "shortest hsts", contains(rep.Warnings, "apex: HSTS max-age 100 is under 180 days"), true)
-	check(t, "chain ends 404", contains(rep.Warnings, "apex (ipv4): redirect chain ends in HTTP 404"), true)
+	check(t, "cleartext once", contains(notes(rep), "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 2 addresses)"), true)
+	check(t, "non-https redirect", contains(notes(rep), "apex: HTTP redirects to a non-HTTPS URL (1 of 2 addresses)"), true)
+	check(t, "shortest hsts", contains(notes(rep), "apex: HSTS max-age 100 is under 180 days"), true)
+	check(t, "chain ends 404", contains(notes(rep), "apex (ipv4): redirect chain ends in HTTP 404"), true)
 	check(t, "loop", contains(rep.Errors, "apex (ipv6): redirect loop http://google.com/ (302) -> http://www.google.com/ (302)"), true)
 	rep.Web.Apex.IPv6[0].HTTPSRes.Status = 200
 	buildFindings(rep)
-	check(t, "partial 5xx is a warning", contains(rep.Warnings, "apex: 1 of 2 addresses return a server error on port 443"), true)
+	check(t, "partial 5xx is a warning", contains(notes(rep), "apex: 1 of 2 addresses return a server error on port 443"), true)
 }
 
 func TestServerFindings_AggregatePerName(t *testing.T) {
@@ -642,7 +642,7 @@ func TestDNSFindings_ComparableDenials(t *testing.T) {
 	buildFindings(nodata)
 	check(t, "compact denial fails too", nodata.OK, false)
 	check(t, "and says what it found", nodata.Errors, []string{"apex nosuchhost.example.com has no records of any type"})
-	check(t, "without restating it per type", nodata.Warnings, []string{})
+	check(t, "without restating it per type", notes(nodata), []string{})
 
 	// One record of any type means the name exists and is judged normally.
 	live := &Report{Domain: "mail.example.com", NotAZone: true, DNS: section(StatusNXRRSet)}

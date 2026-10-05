@@ -57,23 +57,16 @@ func TestFindings_OneSeverityPerCode(t *testing.T) {
 	}
 }
 
-// The contract consumers hold us to while they still read the legacy
-// arrays: fail is exactly errors, warn and info are exactly warnings, in
-// order, and ok is "no fail". Every captured report is replayed, and none
-// of them may gain or lose an error, because a deployed consumer turns a
-// row red on errors alone.
+// The contract consumers hold us to: fail is exactly errors and warn is
+// exactly warnings, in order, ok is "no fail", and info appears in
+// findings only. Every captured report is replayed. None may gain or lose
+// an error, because a consumer turns a row red on errors alone, and every
+// warning still emitted must be one the report was captured with: the
+// arrays only shrink, by the info entries and the fixed false positives.
 func TestFindings_ParityWithLegacyArrays(t *testing.T) {
 	paths, _ := filepath.Glob("testdata/reports/*.json")
 	if len(paths) < 10 {
 		t.Fatalf("expected the captured reports, found %d", len(paths))
-	}
-	// The three fixed false positives each drop a warning from one fixture.
-	dropped := map[string]int{
-		"app.slack.com.json":      1, // www.app.slack.com wildcard
-		"docs.github.com.json":    1, // preload header owed by github.com, not docs
-		"expired.badssl.com.json": 1, // www.expired.badssl.com wildcard
-		"dnssec-failed.org.json":  1, // TLSA lookup failed, so no record to call unsigned
-		"nikonic.net.json":        1, // the same
 	}
 	// A zone no delegated server answers for is reported as that one fact.
 	collapsed := map[string]bool{"skvr.site.json": true, "login-microsoft-virtualperu.com.json": true}
@@ -86,17 +79,21 @@ func TestFindings_ParityWithLegacyArrays(t *testing.T) {
 			check(t, name+": no warnings", rep.Warnings, []string{})
 		} else {
 			check(t, name+": errors unchanged", rep.Errors, oldErrors)
-			check(t, name+": warning count", len(rep.Warnings), len(oldWarnings)-dropped[name])
+			check(t, name+": warnings only shrink", isSubsequence(rep.Warnings, oldWarnings), true)
 		}
-		var fails, rest []string
+		var fails, warns []string
 		anyFail := false
 		for _, f := range rep.Findings {
 			switch f.Severity {
 			case SeverityFail:
 				fails = append(fails, f.Message)
 				anyFail = true
-			case SeverityWarn, SeverityInfo:
-				rest = append(rest, f.Message)
+			case SeverityWarn:
+				warns = append(warns, f.Message)
+			case SeverityInfo:
+				if contains(rep.Warnings, f.Message) {
+					t.Errorf("%s: info %s is listed in warnings", name, f.Code)
+				}
 			default:
 				t.Errorf("%s: severity %q outside the closed set", name, f.Severity)
 			}
@@ -105,9 +102,21 @@ func TestFindings_ParityWithLegacyArrays(t *testing.T) {
 			}
 		}
 		check(t, name+": fail is errors", nonNil(fails), rep.Errors)
-		check(t, name+": warn+info is warnings", nonNil(rest), rep.Warnings)
+		check(t, name+": warn is warnings", nonNil(warns), rep.Warnings)
 		check(t, name+": ok is no fail", rep.OK, !anyFail)
 	}
+}
+
+// isSubsequence reports whether every element of sub appears in seq, in
+// order.
+func isSubsequence(sub, seq []string) bool {
+	i := 0
+	for _, s := range seq {
+		if i < len(sub) && sub[i] == s {
+			i++
+		}
+	}
+	return i == len(sub)
 }
 
 // warnCodes is the sorted set of warn-severity codes in a report: what
@@ -226,7 +235,8 @@ func TestStatusFindings_RefusalIsNotBreakage(t *testing.T) {
 	}
 	f := &findings{}
 	f.statusFindings("www", "443", at(429, 403, 403), pick)
-	check(t, "names the statuses seen", f.warnings, []string{"www: every address refuses the probe on port 443 (HTTP 403/429), so the content was not verified"})
+	check(t, "names the statuses seen", f.list[0].Message, "www: every address refuses the probe on port 443 (HTTP 403/429), so the content was not verified")
+	check(t, "info is not a warning", f.warnings, []string(nil))
 }
 
 func TestRedirectFindings_RefusedDestination(t *testing.T) {
@@ -239,7 +249,7 @@ func TestRedirectFindings_RefusedDestination(t *testing.T) {
 	f := &findings{}
 	f.redirectFindings("apex", chain(403))
 	check(t, "403 is the probe refused", findingCodes(f), []string{"info:http_probe_refused"})
-	check(t, "and says so", contains(f.warnings, "the server refused the probe"), true)
+	check(t, "and says so", strings.Contains(f.list[0].Message, "the server refused the probe"), true)
 	g := &findings{}
 	g.redirectFindings("apex", chain(404))
 	check(t, "404 is a broken destination", findingCodes(g), []string{"warn:redirect_ends_error"})
