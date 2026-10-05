@@ -1,0 +1,926 @@
+{
+  "domain": "oraclehealth.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "138.1.33.162"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "MX": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "ns1.p201.dns.oraclecloud.net.",
+          "ns2.p201.dns.oraclecloud.net.",
+          "ns3.p201.dns.oraclecloud.net.",
+          "ns4.p201.dns.oraclecloud.net.",
+          "a1-160.akam.net.",
+          "a11-66.akam.net.",
+          "a13-65.akam.net.",
+          "a18-67.akam.net."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "v=spf1 include:eu.rp.oracleemaildelivery.com -all"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "23.47.72.13",
+          "23.47.72.19"
+        ],
+        "cname": [
+          "ds-www-legacy-05.oracle.com.edgekey.net.",
+          "e206023.dscx.akamaiedge.net."
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2600:1407:3c00:44::17dc:9049",
+          "2600:1407:3c00:44::17dc:9058"
+        ],
+        "cname": [
+          "ds-www-legacy-05.oracle.com.edgekey.net.",
+          "e206023.dscx.akamaiedge.net."
+        ]
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false
+  },
+  "delegation": {
+    "status": "no_child_answer",
+    "parent_ns": [
+      "a1-160.akam.net.",
+      "a11-66.akam.net.",
+      "a13-65.akam.net.",
+      "a18-67.akam.net.",
+      "ns1.p201.dns.oraclecloud.net.",
+      "ns2.p201.dns.oraclecloud.net.",
+      "ns3.p201.dns.oraclecloud.net.",
+      "ns4.p201.dns.oraclecloud.net."
+    ],
+    "parent_server": "a.gtld-servers.net"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "138.1.33.162",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://oraclehealth.com:443/"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.oraclehealth.com/"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.2",
+            "alpn": "http/1.1",
+            "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "oracle.com",
+              "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+              "not_before": "2026-06-04T00:00:00Z",
+              "not_after": "2026-12-19T23:59:59Z",
+              "days_remaining": 75,
+              "sans": [
+                "oracle.com",
+                "oracleimg.com",
+                "oraclecloud.com",
+                "www.oraclecloud.com",
+                "opower.com",
+                "blog.opower.com",
+                "powerup.opower.com",
+                "support.opower.com",
+                "www.opower.com",
+                "conject.com",
+                "support.conject.com",
+                "www.conject.com",
+                "push.io",
+                "www.push.io",
+                "bigmachines.com",
+                "crowdtwist.com",
+                "aconex.com",
+                "blog.aconex.com",
+                "www.aconex.com",
+                "selectminds.com",
+                "ocomtld-stage.appoci.oracle.com",
+                "ocomtld-prod.appoci.oracle.com",
+                "ocomtld-dr.appoci.oracle.com",
+                "stage.mysql.com",
+                "mysql.com",
+                "mysql.se",
+                "mysql.fi",
+                "mysql.lu",
+                "mysql.biz",
+                "mysql.info",
+                "mysql.org",
+                "mysqlnetwork.us",
+                "mysqlnetwork.com",
+                "mysqlnetwork.org",
+                "mysqlnetwork.biz",
+                "mysqlab.com",
+                "mysqlcorp.com",
+                "mysqlserver.net",
+                "mysqlpress.com",
+                "mysqlpress.org",
+                "mysqlpress.biz",
+                "mysqlpress.net",
+                "mysql-press.biz",
+                "mysqlpress.us",
+                "sakila.net",
+                "sakila.org",
+                "sakila.biz",
+                "sakila.us",
+                "innodb.com",
+                "planetmysql.net",
+                "planetmysql.info",
+                "planetmysql.biz",
+                "planetmysql.org",
+                "sun.com",
+                "www-cdn.sun.com",
+                "www.sun.com",
+                "virtualbox.org",
+                "oraclecloud.eu",
+                "www.oraclecloud.eu",
+                "suitecommerce.com",
+                "www.suitecommerce.com",
+                "oraclehealth.com",
+                "sqlfree.com",
+                "oraclefoundation.org",
+                "cernerHealth.cm",
+                "cernerHealth.co",
+                "cernerHealth.co.uk",
+                "cernerHealth.net",
+                "cernerHealth.uk",
+                "cernerHealthCare.com",
+                "java.hu",
+                "micros.hu",
+                "netsuite.hu",
+                "oracle.cam",
+                "peoplesoft.hu",
+                "www.ateam-oracle.com",
+                "ateam-oracle.com",
+                "oraclehealthfoundation.org",
+                "java.com",
+                "go.java",
+                "netsuitesuiteworld.com",
+                "java-stage.com",
+                "suiteapp.com",
+                "suiteapp.ai",
+                "oracle.eu"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "0b0c1da3703975cbb66c276b9ee6ba123d0642bde3ce3d6a1a8b3881151ea73c"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://oraclehealth.com/",
+              "status": 301
+            },
+            {
+              "url": "https://oraclehealth.com:443/",
+              "status": 301
+            },
+            {
+              "url": "https://www.oraclehealth.com/",
+              "status": 301
+            }
+          ],
+          "ended": "external",
+          "external": "https://www.oracle.com/health/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "ipv4": [
+        {
+          "ip": "23.47.72.13",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.oracle.com/health/",
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.oracle.com/health/",
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www-legacy-5.oracle.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-06-26T00:00:00Z",
+              "not_after": "2027-01-10T23:59:59Z",
+              "days_remaining": 97,
+              "sans": [
+                "www-legacy-5.oracle.com",
+                "addthis.com",
+                "ai.oracle.com",
+                "blog.bronto.com",
+                "blogs.bronto.com",
+                "bronto.com",
+                "cernerHealth.cm",
+                "cernerHealth.co",
+                "cernerHealth.co.uk",
+                "cernerHealth.net",
+                "cernerHealth.uk",
+                "cernerHealthCare.com",
+                "datacloudoptout.oracle.com",
+                "growwire.com",
+                "java.hu",
+                "micros.hu",
+                "netsuite.hu",
+                "oracle.cam",
+                "oraclehealth.com",
+                "peoplesoft.hu",
+                "sql.free",
+                "sqlfree.com",
+                "www.addthis.com",
+                "www.cernerHealth.cm",
+                "www.cernerHealth.co",
+                "www.cernerHealth.co.uk",
+                "www.cernerHealth.net",
+                "www.cernerHealth.uk",
+                "www.cernerHealthCare.com",
+                "www.growwire.com",
+                "www.java.hu",
+                "www.micros.hu",
+                "www.netsuite.hu",
+                "www.oracle.cam",
+                "www.oraclehealth.com",
+                "www.peoplesoft.hu",
+                "www.sql.free",
+                "www.sqlfree.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "9376155e615c35e87d60e2f6412b4fb81bc83558ec78ea84179d2196f62a79b9"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 23,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        },
+        {
+          "ip": "23.47.72.19",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.oracle.com/health/",
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.oracle.com/health/",
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www-legacy-5.oracle.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-06-26T00:00:00Z",
+              "not_after": "2027-01-10T23:59:59Z",
+              "days_remaining": 97,
+              "sans": [
+                "www-legacy-5.oracle.com",
+                "addthis.com",
+                "ai.oracle.com",
+                "blog.bronto.com",
+                "blogs.bronto.com",
+                "bronto.com",
+                "cernerHealth.cm",
+                "cernerHealth.co",
+                "cernerHealth.co.uk",
+                "cernerHealth.net",
+                "cernerHealth.uk",
+                "cernerHealthCare.com",
+                "datacloudoptout.oracle.com",
+                "growwire.com",
+                "java.hu",
+                "micros.hu",
+                "netsuite.hu",
+                "oracle.cam",
+                "oraclehealth.com",
+                "peoplesoft.hu",
+                "sql.free",
+                "sqlfree.com",
+                "www.addthis.com",
+                "www.cernerHealth.cm",
+                "www.cernerHealth.co",
+                "www.cernerHealth.co.uk",
+                "www.cernerHealth.net",
+                "www.cernerHealth.uk",
+                "www.cernerHealthCare.com",
+                "www.growwire.com",
+                "www.java.hu",
+                "www.micros.hu",
+                "www.netsuite.hu",
+                "www.oracle.cam",
+                "www.oraclehealth.com",
+                "www.peoplesoft.hu",
+                "www.sql.free",
+                "www.sqlfree.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "9376155e615c35e87d60e2f6412b4fb81bc83558ec78ea84179d2196f62a79b9"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 35,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2600:1407:3c00:44::17dc:9049",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.oracle.com/health/",
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.oracle.com/health/",
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www-legacy-5.oracle.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-06-26T00:00:00Z",
+              "not_after": "2027-01-10T23:59:59Z",
+              "days_remaining": 97,
+              "sans": [
+                "www-legacy-5.oracle.com",
+                "addthis.com",
+                "ai.oracle.com",
+                "blog.bronto.com",
+                "blogs.bronto.com",
+                "bronto.com",
+                "cernerHealth.cm",
+                "cernerHealth.co",
+                "cernerHealth.co.uk",
+                "cernerHealth.net",
+                "cernerHealth.uk",
+                "cernerHealthCare.com",
+                "datacloudoptout.oracle.com",
+                "growwire.com",
+                "java.hu",
+                "micros.hu",
+                "netsuite.hu",
+                "oracle.cam",
+                "oraclehealth.com",
+                "peoplesoft.hu",
+                "sql.free",
+                "sqlfree.com",
+                "www.addthis.com",
+                "www.cernerHealth.cm",
+                "www.cernerHealth.co",
+                "www.cernerHealth.co.uk",
+                "www.cernerHealth.net",
+                "www.cernerHealth.uk",
+                "www.cernerHealthCare.com",
+                "www.growwire.com",
+                "www.java.hu",
+                "www.micros.hu",
+                "www.netsuite.hu",
+                "www.oracle.cam",
+                "www.oraclehealth.com",
+                "www.peoplesoft.hu",
+                "www.sql.free",
+                "www.sqlfree.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "9376155e615c35e87d60e2f6412b4fb81bc83558ec78ea84179d2196f62a79b9"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 46,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        },
+        {
+          "ip": "2600:1407:3c00:44::17dc:9058",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.oracle.com/health/",
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.oracle.com/health/",
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www-legacy-5.oracle.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-06-26T00:00:00Z",
+              "not_after": "2027-01-10T23:59:59Z",
+              "days_remaining": 97,
+              "sans": [
+                "www-legacy-5.oracle.com",
+                "addthis.com",
+                "ai.oracle.com",
+                "blog.bronto.com",
+                "blogs.bronto.com",
+                "bronto.com",
+                "cernerHealth.cm",
+                "cernerHealth.co",
+                "cernerHealth.co.uk",
+                "cernerHealth.net",
+                "cernerHealth.uk",
+                "cernerHealthCare.com",
+                "datacloudoptout.oracle.com",
+                "growwire.com",
+                "java.hu",
+                "micros.hu",
+                "netsuite.hu",
+                "oracle.cam",
+                "oraclehealth.com",
+                "peoplesoft.hu",
+                "sql.free",
+                "sqlfree.com",
+                "www.addthis.com",
+                "www.cernerHealth.cm",
+                "www.cernerHealth.co",
+                "www.cernerHealth.co.uk",
+                "www.cernerHealth.net",
+                "www.cernerHealth.uk",
+                "www.cernerHealthCare.com",
+                "www.growwire.com",
+                "www.java.hu",
+                "www.micros.hu",
+                "www.netsuite.hu",
+                "www.oracle.cam",
+                "www.oraclehealth.com",
+                "www.peoplesoft.hu",
+                "www.sql.free",
+                "www.sqlfree.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "9376155e615c35e87d60e2f6412b4fb81bc83558ec78ea84179d2196f62a79b9"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 63,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.oraclehealth.com/",
+              "status": 301
+            }
+          ],
+          "ended": "external",
+          "external": "https://www.oracle.com/health/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://www.oraclehealth.com/",
+              "status": 301
+            }
+          ],
+          "ended": "external",
+          "external": "https://www.oracle.com/health/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "unresolved": false,
+      "policy": "reject",
+      "pct": 100,
+      "rua": true,
+      "records": 1,
+      "problems": []
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 1,
+      "void_lookups": 0,
+      "txt_answer_octets": 96,
+      "all": "-all",
+      "includes": [
+        "eu.rp.oracleemaildelivery.com"
+      ],
+      "problems": []
+    },
+    "mx": [],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 8,
+    "servers": [
+      {
+        "name": "a1-160.akam.net.",
+        "ip": "193.108.91.160",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026092301,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a1-160.akam.net.",
+        "ip": "2600:1401:2::a0",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026092301,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a11-66.akam.net.",
+        "ip": "2600:1480:1::42",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026092301,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a11-66.akam.net.",
+        "ip": "84.53.139.66",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026092301,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a13-65.akam.net.",
+        "ip": "2.22.230.65",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026092301,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a13-65.akam.net.",
+        "ip": "2600:1480:800::41",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026092301,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a18-67.akam.net.",
+        "ip": "2600:1480:4800::43",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026092301,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a18-67.akam.net.",
+        "ip": "95.101.36.67",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026092301,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns1.p201.dns.oraclecloud.net.",
+        "ip": "108.59.166.201",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns1.p201.dns.oraclecloud.net.",
+        "ip": "2600:2000:2100::c9",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns2.p201.dns.oraclecloud.net.",
+        "ip": "108.59.168.201",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns2.p201.dns.oraclecloud.net.",
+        "ip": "2600:2000:2110::c9",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns3.p201.dns.oraclecloud.net.",
+        "ip": "108.59.170.201",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns3.p201.dns.oraclecloud.net.",
+        "ip": "2600:2000:2120::c9",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns4.p201.dns.oraclecloud.net.",
+        "ip": "108.59.172.201",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns4.p201.dns.oraclecloud.net.",
+        "ip": "2600:2000:2130::c9",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 8,
+    "ipv6_prefixes_48": 8,
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [],
+        "effective": [],
+        "issuer": "DigiCert Inc",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      },
+      "www": {
+        "published": [],
+        "effective": [],
+        "issuer": "DigiCert Inc",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name udsmluensftm is denied",
+    "probes": [
+      {
+        "label": "udsmluensftm",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [
+    "delegated NS servers did not answer the NS query: no response",
+    "nameserver ns1.p201.dns.oraclecloud.net.: not authoritative (REFUSED) on 2 of 2 addresses",
+    "nameserver ns2.p201.dns.oraclecloud.net.: not authoritative (REFUSED) on 2 of 2 addresses",
+    "nameserver ns3.p201.dns.oraclecloud.net.: not authoritative (REFUSED) on 2 of 2 addresses",
+    "nameserver ns4.p201.dns.oraclecloud.net.: not authoritative (REFUSED) on 2 of 2 addresses"
+  ],
+  "warnings": [
+    "apex has no AAAA record",
+    "apex has no MX records",
+    "apex: no TLS 1.3 on 1 of 1 addresses"
+  ],
+  "findings": [
+    {
+      "code": "aaaa_absent",
+      "severity": "info",
+      "host": "apex",
+      "message": "apex has no AAAA record"
+    },
+    {
+      "code": "mx_absent",
+      "severity": "info",
+      "host": "apex",
+      "message": "apex has no MX records"
+    },
+    {
+      "code": "delegation_no_answer",
+      "severity": "fail",
+      "host": "",
+      "message": "delegated NS servers did not answer the NS query: no response"
+    },
+    {
+      "code": "tls13_absent",
+      "severity": "info",
+      "host": "apex",
+      "message": "apex: no TLS 1.3 on 1 of 1 addresses"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns1.p201.dns.oraclecloud.net.",
+      "message": "nameserver ns1.p201.dns.oraclecloud.net.: not authoritative (REFUSED) on 2 of 2 addresses"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns2.p201.dns.oraclecloud.net.",
+      "message": "nameserver ns2.p201.dns.oraclecloud.net.: not authoritative (REFUSED) on 2 of 2 addresses"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns3.p201.dns.oraclecloud.net.",
+      "message": "nameserver ns3.p201.dns.oraclecloud.net.: not authoritative (REFUSED) on 2 of 2 addresses"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns4.p201.dns.oraclecloud.net.",
+      "message": "nameserver ns4.p201.dns.oraclecloud.net.: not authoritative (REFUSED) on 2 of 2 addresses"
+    }
+  ],
+  "ok": false,
+  "elapsed_ms": 3300
+}

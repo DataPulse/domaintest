@@ -1,0 +1,284 @@
+{
+  "domain": "skvr.site",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "AAAA": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "MX": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "NS": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "TXT": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      }
+    },
+    "www": {
+      "A": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "AAAA": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "servfail",
+    "ds": false,
+    "dnskey": false,
+    "detail": "resolver failed and returned no data even with checking disabled"
+  },
+  "delegation": {
+    "status": "no_child_answer",
+    "parent_ns": [
+      "ns-1119.awsdns-11.org.",
+      "ns-1720.awsdns-23.co.uk.",
+      "ns-316.awsdns-39.com.",
+      "ns-840.awsdns-41.net."
+    ],
+    "parent_server": "ns10.trs-dns.info"
+  },
+  "web": {},
+  "mail": {
+    "dmarc": {
+      "present": false,
+      "unresolved": true,
+      "pct": 100,
+      "rua": false,
+      "records": 0,
+      "problems": []
+    },
+    "spf": {
+      "records": 0,
+      "lookups": 0,
+      "void_lookups": 0,
+      "includes": [],
+      "problems": []
+    },
+    "mx": [],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 4,
+    "servers": [
+      {
+        "name": "ns-1119.awsdns-11.org.",
+        "ip": "205.251.196.95",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": false,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns-1119.awsdns-11.org.",
+        "ip": "2600:9000:5304:5f00::1",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": false,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns-1720.awsdns-23.co.uk.",
+        "ip": "205.251.198.184",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": false,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns-1720.awsdns-23.co.uk.",
+        "ip": "2600:9000:5306:b800::1",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": false,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns-316.awsdns-39.com.",
+        "ip": "205.251.193.60",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": false,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns-316.awsdns-39.com.",
+        "ip": "2600:9000:5301:3c00::1",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": false,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns-840.awsdns-41.net.",
+        "ip": "205.251.195.72",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": false,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns-840.awsdns-41.net.",
+        "ip": "2600:9000:5303:4800::1",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": false,
+        "error": "not authoritative (REFUSED)"
+      }
+    ],
+    "serials_consistent": null,
+    "ipv4_prefixes_24": 4,
+    "ipv6_prefixes_48": 4,
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [],
+        "effective": [],
+        "note": "the CAA lookup did not complete, so no restriction can be ruled out"
+      },
+      "www": {
+        "published": [],
+        "effective": [],
+        "note": "the CAA lookup did not complete, so no restriction can be ruled out"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "unknown"
+  },
+  "wildcard": {
+    "status": "unknown",
+    "determined_by": "the lookup for the random name dypklvxpcixt did not complete",
+    "probes": [
+      {
+        "label": "dypklvxpcixt",
+        "status": "unresolved",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [
+    "resolver returned SERVFAIL: resolver failed and returned no data even with checking disabled",
+    "delegated NS servers did not answer the NS query: no response",
+    "nameserver ns-1119.awsdns-11.org.: not authoritative (REFUSED) on 2 of 2 addresses",
+    "nameserver ns-1720.awsdns-23.co.uk.: not authoritative (REFUSED) on 2 of 2 addresses",
+    "nameserver ns-316.awsdns-39.com.: not authoritative (REFUSED) on 2 of 2 addresses",
+    "nameserver ns-840.awsdns-41.net.: not authoritative (REFUSED) on 2 of 2 addresses"
+  ],
+  "warnings": [
+    "the DMARC lookup did not complete, so whether a record exists is unknown",
+    "TLSA records are published in an unsigned zone (DANE clients ignore them)"
+  ],
+  "findings": [
+    {
+      "code": "resolver_servfail",
+      "severity": "fail",
+      "host": "",
+      "message": "resolver returned SERVFAIL: resolver failed and returned no data even with checking disabled"
+    },
+    {
+      "code": "delegation_no_answer",
+      "severity": "fail",
+      "host": "",
+      "message": "delegated NS servers did not answer the NS query: no response"
+    },
+    {
+      "code": "dmarc_unknown",
+      "severity": "warn",
+      "host": "",
+      "message": "the DMARC lookup did not complete, so whether a record exists is unknown"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns-1119.awsdns-11.org.",
+      "message": "nameserver ns-1119.awsdns-11.org.: not authoritative (REFUSED) on 2 of 2 addresses"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns-1720.awsdns-23.co.uk.",
+      "message": "nameserver ns-1720.awsdns-23.co.uk.: not authoritative (REFUSED) on 2 of 2 addresses"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns-316.awsdns-39.com.",
+      "message": "nameserver ns-316.awsdns-39.com.: not authoritative (REFUSED) on 2 of 2 addresses"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns-840.awsdns-41.net.",
+      "message": "nameserver ns-840.awsdns-41.net.: not authoritative (REFUSED) on 2 of 2 addresses"
+    },
+    {
+      "code": "tlsa_unsigned_zone",
+      "severity": "info",
+      "host": "",
+      "message": "TLSA records are published in an unsigned zone (DANE clients ignore them)"
+    }
+  ],
+  "ok": false,
+  "elapsed_ms": 4342
+}

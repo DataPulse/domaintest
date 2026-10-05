@@ -1,0 +1,226 @@
+{
+  "domain": "login-microsoft-virtualperu.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "AAAA": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "MX": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "NS": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "TXT": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      }
+    },
+    "www": {
+      "A": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      },
+      "AAAA": {
+        "status": "failure",
+        "error": "delv: resolution failed"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "servfail",
+    "ds": false,
+    "dnskey": false,
+    "detail": "resolver failed and returned no data even with checking disabled"
+  },
+  "delegation": {
+    "status": "no_child_answer",
+    "parent_ns": [
+      "ns1.navicosoft.com.",
+      "ns2.navicosoft.com.",
+      "ns3.navicosoft.com."
+    ],
+    "parent_server": "e.gtld-servers.net"
+  },
+  "web": {},
+  "mail": {
+    "dmarc": {
+      "present": false,
+      "unresolved": true,
+      "pct": 100,
+      "rua": false,
+      "records": 0,
+      "problems": []
+    },
+    "spf": {
+      "records": 0,
+      "lookups": 0,
+      "void_lookups": 0,
+      "includes": [],
+      "problems": []
+    },
+    "mx": [],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 3,
+    "servers": [
+      {
+        "name": "ns1.navicosoft.com.",
+        "ip": "34.60.193.7",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns2.navicosoft.com.",
+        "ip": "34.58.194.226",
+        "aa": false,
+        "rcode": "REFUSED",
+        "tcp": false,
+        "edns": true,
+        "error": "not authoritative (REFUSED)"
+      },
+      {
+        "name": "ns3.navicosoft.com.",
+        "ip": "158.51.122.202",
+        "aa": false,
+        "tcp": false,
+        "edns": false,
+        "retries": 1,
+        "error": "dig timed out"
+      }
+    ],
+    "serials_consistent": null,
+    "ipv4_prefixes_24": 3,
+    "ipv6_prefixes_48": 0,
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [],
+        "effective": [],
+        "note": "the CAA lookup did not complete, so no restriction can be ruled out"
+      },
+      "www": {
+        "published": [],
+        "effective": [],
+        "note": "the CAA lookup did not complete, so no restriction can be ruled out"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "unknown"
+  },
+  "wildcard": {
+    "status": "unknown",
+    "determined_by": "the lookup for the random name rtexszmogadw did not complete",
+    "probes": [
+      {
+        "label": "rtexszmogadw",
+        "status": "unresolved",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [
+    "resolver returned SERVFAIL: resolver failed and returned no data even with checking disabled",
+    "delegated NS servers did not answer the NS query: no response",
+    "nameserver ns1.navicosoft.com.: not authoritative (REFUSED) on 1 of 1 addresses",
+    "nameserver ns2.navicosoft.com.: not authoritative (REFUSED) on 1 of 1 addresses",
+    "nameserver ns3.navicosoft.com.: no answer on 1 of 1 addresses"
+  ],
+  "warnings": [
+    "the DMARC lookup did not complete, so whether a record exists is unknown",
+    "TLSA records are published in an unsigned zone (DANE clients ignore them)"
+  ],
+  "findings": [
+    {
+      "code": "resolver_servfail",
+      "severity": "fail",
+      "host": "",
+      "message": "resolver returned SERVFAIL: resolver failed and returned no data even with checking disabled"
+    },
+    {
+      "code": "delegation_no_answer",
+      "severity": "fail",
+      "host": "",
+      "message": "delegated NS servers did not answer the NS query: no response"
+    },
+    {
+      "code": "dmarc_unknown",
+      "severity": "warn",
+      "host": "",
+      "message": "the DMARC lookup did not complete, so whether a record exists is unknown"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns1.navicosoft.com.",
+      "message": "nameserver ns1.navicosoft.com.: not authoritative (REFUSED) on 1 of 1 addresses"
+    },
+    {
+      "code": "ns_lame",
+      "severity": "fail",
+      "host": "ns2.navicosoft.com.",
+      "message": "nameserver ns2.navicosoft.com.: not authoritative (REFUSED) on 1 of 1 addresses"
+    },
+    {
+      "code": "ns_no_answer",
+      "severity": "fail",
+      "host": "ns3.navicosoft.com.",
+      "message": "nameserver ns3.navicosoft.com.: no answer on 1 of 1 addresses"
+    },
+    {
+      "code": "tlsa_unsigned_zone",
+      "severity": "info",
+      "host": "",
+      "message": "TLSA records are published in an unsigned zone (DANE clients ignore them)"
+    }
+  ],
+  "ok": false,
+  "elapsed_ms": 9153
+}

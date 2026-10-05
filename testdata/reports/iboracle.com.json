@@ -1,0 +1,346 @@
+{
+  "domain": "iboracle.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "208.91.197.132"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "MX": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "NS": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "TXT": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "208.91.197.132"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false
+  },
+  "delegation": {
+    "status": "no_child_answer",
+    "parent_ns": [
+      "ns1.pendingrenewaldeletion.com.",
+      "ns2.pendingrenewaldeletion.com."
+    ],
+    "parent_server": "f.gtld-servers.net"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "208.91.197.132",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 200,
+            "server": "nginx/1.28.0"
+          },
+          "tls": {
+            "chain": "handshake_failed",
+            "chain_problems": null,
+            "tls10": false,
+            "tls11": false,
+            "error": "read: connection reset by peer"
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://iboracle.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "http://iboracle.com/",
+          "loop": false
+        }
+      }
+    },
+    "www": {
+      "same_as_apex": true,
+      "via_wildcard": true,
+      "ipv4": [
+        {
+          "ip": "208.91.197.132",
+          "80": "open",
+          "443": "timeout",
+          "http": {
+            "status": 200,
+            "server": "nginx/1.28.0"
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.iboracle.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "http://www.iboracle.com/",
+          "loop": false
+        }
+      }
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": false,
+      "unresolved": false,
+      "pct": 100,
+      "rua": false,
+      "records": 0,
+      "problems": []
+    },
+    "spf": {
+      "records": 0,
+      "lookups": 0,
+      "void_lookups": 0,
+      "includes": [],
+      "problems": []
+    },
+    "mx": [],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 2,
+    "servers": [
+      {
+        "name": "ns1.pendingrenewaldeletion.com.",
+        "ip": "162.214.41.44",
+        "aa": true,
+        "rcode": "NOERROR",
+        "tcp": true,
+        "edns": true,
+        "no_soa": true
+      },
+      {
+        "name": "ns2.pendingrenewaldeletion.com.",
+        "ip": "162.159.26.74",
+        "aa": true,
+        "rcode": "NOERROR",
+        "tcp": true,
+        "edns": true,
+        "no_soa": true
+      }
+    ],
+    "serials_consistent": null,
+    "ipv4_prefixes_24": 2,
+    "ipv6_prefixes_48": 0,
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [],
+        "effective": [],
+        "note": "no certificate observed"
+      },
+      "www": {
+        "published": [],
+        "effective": [],
+        "note": "no certificate observed"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "present",
+    "determined_by": "3 random names all answer",
+    "probes": [
+      {
+        "label": "lraqktnrmpfj",
+        "status": "answered",
+        "addresses": [
+          "208.91.197.132"
+        ]
+      },
+      {
+        "label": "aiebfqbcldmq",
+        "status": "answered",
+        "addresses": [
+          "208.91.197.132"
+        ]
+      },
+      {
+        "label": "ienfflidycjz",
+        "status": "answered",
+        "addresses": [
+          "208.91.197.132"
+        ]
+      }
+    ],
+    "addresses": [
+      "208.91.197.132"
+    ],
+    "consistent": true,
+    "www_via_wildcard": true
+  },
+  "hsts_preload": "absent",
+  "errors": [
+    "delegated NS servers answered with no NS records (NODATA): the zone has no apex NS RRset",
+    "apex: certificate handshake failed on 1 of 1 addresses: read: connection reset by peer"
+  ],
+  "warnings": [
+    "apex has no AAAA record",
+    "www has no AAAA record",
+    "apex has no MX records",
+    "no SPF (v=spf1) record in apex TXT",
+    "www 208.91.197.132: HTTP on 80 answers but HTTPS on 443 does not (timeout)",
+    "www is answered by a wildcard record, not a real host",
+    "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
+    "www: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)",
+    "no DMARC record"
+  ],
+  "findings": [
+    {
+      "code": "aaaa_absent",
+      "severity": "info",
+      "host": "apex",
+      "message": "apex has no AAAA record"
+    },
+    {
+      "code": "aaaa_absent",
+      "severity": "info",
+      "host": "www",
+      "message": "www has no AAAA record"
+    },
+    {
+      "code": "mx_absent",
+      "severity": "info",
+      "host": "apex",
+      "message": "apex has no MX records"
+    },
+    {
+      "code": "spf_absent",
+      "severity": "warn",
+      "host": "",
+      "message": "no SPF (v=spf1) record in apex TXT"
+    },
+    {
+      "code": "delegation_nodata",
+      "severity": "fail",
+      "host": "",
+      "message": "delegated NS servers answered with no NS records (NODATA): the zone has no apex NS RRset"
+    },
+    {
+      "code": "https_unreachable",
+      "severity": "warn",
+      "host": "www",
+      "message": "www 208.91.197.132: HTTP on 80 answers but HTTPS on 443 does not (timeout)"
+    },
+    {
+      "code": "www_wildcard",
+      "severity": "info",
+      "host": "www",
+      "message": "www is answered by a wildcard record, not a real host"
+    },
+    {
+      "code": "cert_handshake_failed",
+      "severity": "fail",
+      "host": "apex",
+      "message": "apex: certificate handshake failed on 1 of 1 addresses: read: connection reset by peer"
+    },
+    {
+      "code": "http_cleartext",
+      "severity": "warn",
+      "host": "apex",
+      "message": "apex: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)"
+    },
+    {
+      "code": "http_cleartext",
+      "severity": "warn",
+      "host": "www",
+      "message": "www: HTTP serves content in the clear instead of redirecting to HTTPS (1 of 1 addresses)"
+    },
+    {
+      "code": "dmarc_absent",
+      "severity": "warn",
+      "host": "",
+      "message": "no DMARC record"
+    }
+  ],
+  "ok": false,
+  "elapsed_ms": 3539
+}

@@ -452,9 +452,28 @@ set.
 
 | severity | codes |
 |---|---|
-| fail | `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` |
+| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` |
 | warn | `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_problem` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` |
 | info | `not_a_zone` `reserved_name` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` |
+
+A zone no delegated nameserver answers for is reported as one finding,
+`zone_unreachable`, and the probe stops there. For this to apply, the
+parent zone must have returned a referral, which shows the probe's own
+network works. The delegated servers must then have given no answer to
+the trace, and the nameserver audit must have found every address of
+every nameserver refusing or silent, or the nameserver having no address.
+The message names what each server did:
+
+`no delegated nameserver answers for the zone: ns1.example. not authoritative (REFUSED) on 2 of 2 addresses; ns2.example. no answer on 2 of 2 addresses`
+
+Every other check depends on an answer from those servers, so none is
+reported. The probe skips the web, mail, CAA, TLSA, wildcard and HSTS
+preload checks. `web` is `{}`, and `mail`, `caa`, `tlsa`, `wildcard`
+and the `hsts_preload` keys are absent. The resolver-reachability error
+is still reported, since it describes the probe rather than the domain.
+If one nameserver answers, or one nameserver's address lookup did not
+complete, the zone is not called unreachable and the full report is
+produced. Likewise a zone that answers with no NS records has answered.
 
 Notes on the info rows:
 
@@ -587,7 +606,11 @@ dnssec-failed.org (DNSSEC bogus). The calibration fixtures, captured live
 on 2026-10-05, are google.com, microsoft.com, facebook.com, oracle.com,
 sap.com, icann.org, wikipedia.org, nic.cz, docs.github.com and
 app.slack.com. Alongside them are parked defensive registrations from a
-real portfolio: microsoft.ar, microsoft.org and nikonic.net. These
+real portfolio: microsoft.ar, microsoft.org and nikonic.net. The delegation
+cases are skvr.site (every nameserver refuses),
+login-microsoft-virtualperu.com (refusing and silent), oraclehealth.com
+(half its nameservers refuse, so it is not unreachable) and iboracle.com
+(the zone answers with no NS records). These
 fixtures were captured before `findings` existed, and the tests rebuild
 it from each report's sections. Use them to write parsers against the
 real shape.

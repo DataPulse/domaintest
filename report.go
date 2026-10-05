@@ -175,6 +175,15 @@ func (f *findings) info(code, host, format string, a ...any) {
 // buildFindings fills Errors, Warnings and OK from the rest of the report.
 func buildFindings(rep *Report) {
 	var f findings
+	if zoneUnreachable(rep) {
+		// Nothing below the delegation can work, so every other finding
+		// would only restate this one. The resolver's own reachability is
+		// kept: it is about the probe, not the domain.
+		f.reachabilityFindings(rep.DNS.ResolverReachable)
+		f.fail("zone_unreachable", "", "no delegated nameserver answers for the zone: %s", describeSilentServers(rep.Nameservers))
+		f.finish(rep)
+		return
+	}
 	f.dnsFindings(rep)
 	if rep.ReservedName == "" {
 		f.dnssecFindings(rep.DNSSEC)
@@ -184,6 +193,11 @@ func buildFindings(rep *Report) {
 	f.webFindings("apex", rep.Web.Apex)
 	f.webFindings("www", rep.Web.WWW)
 	f.deepFindings(rep)
+	f.finish(rep)
+}
+
+// finish copies the collected findings into the report.
+func (f *findings) finish(rep *Report) {
 	rep.Errors = nonNil(f.errors)
 	rep.Warnings = nonNil(f.warnings)
 	rep.Findings = f.list
@@ -191,6 +205,62 @@ func buildFindings(rep *Report) {
 		rep.Findings = []Finding{}
 	}
 	rep.OK = len(rep.Errors) == 0
+}
+
+// delegationSilent reports whether the trace reached the parent zone, got
+// a referral, and then heard nothing from the delegated servers. An empty
+// NS answer (NODATA) is an answer and does not count. The parent's referral
+// is what shows the probe's own network was working.
+func delegationSilent(d Delegation, apexNS Lookup) bool {
+	return d.Status == DelegationNoChildAnswer && d.ParentServer != "" && apexNS.Status != StatusNXRRSet
+}
+
+// noServerAnswers reports whether the nameserver audit examined the
+// delegation and found no server answering for the zone: every address
+// silent or refusing, or the name without an address. A name whose
+// address lookup did not complete leaves the question open, so it is not
+// counted as dead.
+func noServerAnswers(n *NSReport) bool {
+	if n == nil || len(n.Unresolved) > 0 || len(n.Servers)+len(n.Unresolvable) == 0 {
+		return false
+	}
+	for _, s := range n.Servers {
+		if s.Error == "" || s.AA {
+			return false
+		}
+	}
+	return true
+}
+
+// zoneUnreachable reports whether the zone is dead at the delegation: the
+// parent delegates it and no delegated nameserver answers for it. Every
+// other check depends on an answer from those servers, so the probe stops
+// there and reports this one finding.
+func zoneUnreachable(rep *Report) bool {
+	return rep.ReservedName == "" && !rep.NotAZone &&
+		delegationSilent(rep.Delegation, rep.DNS.Apex["NS"]) && noServerAnswers(rep.Nameservers)
+}
+
+// describeSilentServers says what each delegated nameserver did, once per
+// name, in the shape the per-server findings use.
+func describeSilentServers(n *NSReport) string {
+	byName, order := tallyServers(&findings{}, n.Servers)
+	var parts []string
+	for _, name := range order {
+		t := byName[name]
+		var what []string
+		if t.lame > 0 {
+			what = append(what, fmt.Sprintf("%s on %d of %d addresses", t.reason, t.lame, t.total))
+		}
+		if t.silent > 0 {
+			what = append(what, fmt.Sprintf("no answer on %d of %d addresses", t.silent, t.total))
+		}
+		parts = append(parts, name+" "+strings.Join(what, ", "))
+	}
+	for _, name := range n.Unresolvable {
+		parts = append(parts, name+" has no address")
+	}
+	return strings.Join(parts, "; ")
 }
 
 func (f *findings) dnsFindings(rep *Report) {
@@ -1223,7 +1293,9 @@ func meetsPreload(h *HSTS) bool {
 }
 
 func (f *findings) tlsaFindings(t *TLSAReport) {
-	if t == nil || t.Result == TLSANone {
+	// unknown means the TLSA lookups did not complete: no record was seen,
+	// so there is nothing to call unsigned.
+	if t == nil || t.Result == TLSANone || t.Result == TLSAUnknown {
 		return
 	}
 	if !t.Signed {

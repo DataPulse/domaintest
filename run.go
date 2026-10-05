@@ -110,9 +110,25 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	probeCtx, cancel := context.WithTimeout(ctx, probeBudget(cfg))
 	defer cancel()
 	dns.cache.setContext(probeCtx) // late lookups share the probe budget
+	// When the delegated servers were silent to the trace, ask each of them
+	// before anything else. If none answers for the zone, nothing else can
+	// work, and the report is that one fact.
+	audited := false
+	if delegationSilent(rep.Delegation, dns.apex["NS"]) {
+		rep.Nameservers, audited = auditNameservers(probeCtx, cfg, dnsRunner, dns, rep), true
+		if zoneUnreachable(rep) {
+			buildFindings(rep)
+			rep.ElapsedMs = time.Since(start).Milliseconds()
+			return rep
+		}
+	}
 	parallel(
 		func() { rep.Web = probeWeb(probeCtx, cfg, r, d, dns, rep) },
-		func() { rep.Nameservers = auditNameservers(probeCtx, cfg, dnsRunner, dns, rep) },
+		func() {
+			if !audited {
+				rep.Nameservers = auditNameservers(probeCtx, cfg, dnsRunner, dns, rep)
+			}
+		},
 		func() { rep.Mail = assessMail(probeCtx, cfg, dns, noMailPossible(rep, dns)) },
 		func() {
 			rep.HSTSPreload, rep.HSTSPreloadCoveredBy, rep.HSTSPreloadPolicy, rep.HSTSPreloadError = checkPreload(probeCtx, cfg)

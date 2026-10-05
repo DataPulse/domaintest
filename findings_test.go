@@ -72,12 +72,22 @@ func TestFindings_ParityWithLegacyArrays(t *testing.T) {
 		"app.slack.com.json":      1, // www.app.slack.com wildcard
 		"docs.github.com.json":    1, // preload header owed by github.com, not docs
 		"expired.badssl.com.json": 1, // www.expired.badssl.com wildcard
+		"dnssec-failed.org.json":  1, // TLSA lookup failed, so no record to call unsigned
+		"nikonic.net.json":        1, // the same
 	}
+	// A zone no delegated server answers for is reported as that one fact.
+	collapsed := map[string]bool{"skvr.site.json": true, "login-microsoft-virtualperu.com.json": true}
 	for _, p := range paths {
 		name := filepath.Base(p)
 		rep, oldErrors, oldWarnings := replayFixture(t, p)
-		check(t, name+": errors unchanged", rep.Errors, oldErrors)
-		check(t, name+": warning count", len(rep.Warnings), len(oldWarnings)-dropped[name])
+		if collapsed[name] {
+			check(t, name+": was already red", len(oldErrors) > 0, true)
+			check(t, name+": one error", len(rep.Errors), 1)
+			check(t, name+": no warnings", rep.Warnings, []string{})
+		} else {
+			check(t, name+": errors unchanged", rep.Errors, oldErrors)
+			check(t, name+": warning count", len(rep.Warnings), len(oldWarnings)-dropped[name])
+		}
 		var fails, rest []string
 		anyFail := false
 		for _, f := range rep.Findings {
@@ -402,4 +412,61 @@ func TestFindings_SerialisedShape(t *testing.T) {
 	rep, _, _ = replayFixture(t, "testdata/reports/microsoft.com.json")
 	out, _ = json.Marshal(rep.Findings[0])
 	check(t, "finding shape", string(out), `{"code":"http_cleartext","severity":"warn","host":"www","message":"www: HTTP serves content in the clear instead of redirecting to HTTPS (4 of 4 addresses)"}`)
+}
+
+// A zone whose delegated servers all refuse or stay silent cannot answer
+// any other question, so the report is that one fact and not a dozen
+// restatements of it (skvr.site carried six errors and two warnings, every
+// one a symptom). Captured from a real portfolio, 2026-09/10.
+func TestZoneUnreachable_OneFinding(t *testing.T) {
+	rep, _, _ := replayFixture(t, "testdata/reports/skvr.site.json")
+	check(t, "refusing zone", findingCodes(&findings{list: rep.Findings}), []string{"fail:zone_unreachable"})
+	check(t, "names what each server did", rep.Errors, []string{"no delegated nameserver answers for the zone: " +
+		"ns-1119.awsdns-11.org. not authoritative (REFUSED) on 2 of 2 addresses; " +
+		"ns-1720.awsdns-23.co.uk. not authoritative (REFUSED) on 2 of 2 addresses; " +
+		"ns-316.awsdns-39.com. not authoritative (REFUSED) on 2 of 2 addresses; " +
+		"ns-840.awsdns-41.net. not authoritative (REFUSED) on 2 of 2 addresses"})
+	check(t, "ok is false", rep.OK, false)
+
+	rep, _, _ = replayFixture(t, "testdata/reports/login-microsoft-virtualperu.com.json")
+	check(t, "silent zone", findingCodes(&findings{list: rep.Findings}), []string{"fail:zone_unreachable"})
+	check(t, "says silent", contains(rep.Errors, "no answer on"), true)
+}
+
+// One authoritative server is enough for the zone to work, and a zone that
+// answers with no NS records answered: neither collapses.
+func TestZoneUnreachable_NotWhenAnythingAnswers(t *testing.T) {
+	for _, file := range []string{"oraclehealth.com.json", "iboracle.com.json"} {
+		rep, oldErrors, _ := replayFixture(t, filepath.Join("testdata/reports", file))
+		check(t, file+": not collapsed", zoneUnreachable(rep), false)
+		check(t, file+": errors unchanged", rep.Errors, oldErrors)
+	}
+}
+
+func TestZoneUnreachable_Guards(t *testing.T) {
+	silent := Delegation{Status: DelegationNoChildAnswer, ParentServer: "a.gtld-servers.net"}
+	failed := Lookup{Status: StatusTimeout}
+	check(t, "silent delegation", delegationSilent(silent, failed), true)
+	check(t, "no referral: our network, not theirs", delegationSilent(Delegation{Status: DelegationNoChildAnswer}, failed), false)
+	check(t, "NODATA is an answer", delegationSilent(silent, Lookup{Status: StatusNXRRSet}), false)
+
+	refused := NSServer{Name: "ns1.example.", IP: "192.0.2.1", Error: "not authoritative (REFUSED)"}
+	check(t, "all refusing", noServerAnswers(&NSReport{Servers: []NSServer{refused}}), true)
+	check(t, "no address counts", noServerAnswers(&NSReport{Unresolvable: []string{"ns1.example."}}), true)
+	check(t, "one answers", noServerAnswers(&NSReport{Servers: []NSServer{refused, {Name: "ns2.example.", AA: true}}}), false)
+	check(t, "an unfinished lookup leaves it open", noServerAnswers(&NSReport{Servers: []NSServer{refused}, Unresolved: []string{"ns2.example."}}), false)
+	check(t, "nothing examined", noServerAnswers(&NSReport{}), false)
+	check(t, "no audit", noServerAnswers(nil), false)
+}
+
+// A TLSA lookup that did not complete saw no record, so there is nothing
+// to call unsigned. All 794 portfolio reports carrying the unsigned-zone
+// finding were this case.
+func TestTLSAFindings_UnknownSaysNothing(t *testing.T) {
+	f := &findings{}
+	f.tlsaFindings(&TLSAReport{Apex: []string{}, WWW: []string{}, Result: TLSAUnknown})
+	check(t, "unknown", findingCodes(f), []string{})
+	g := &findings{}
+	g.tlsaFindings(&TLSAReport{Apex: []string{"3 1 1 ab"}, WWW: []string{}, Result: "unverified"})
+	check(t, "records in an unsigned zone", findingCodes(g), []string{"info:tlsa_unsigned_zone"})
 }
