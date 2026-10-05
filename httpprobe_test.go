@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -72,7 +73,11 @@ func TestFollowRedirects(t *testing.T) {
 	d.mapTarget(wwwIP.String(), 443, wwwHTTPS)
 
 	chain := followRedirects(context.Background(), d, "http", "example.test", hosts, 2*time.Second)
-	check(t, "hops", chain.Hops, []RedirectHop{{"http://example.test/", 301}, {"https://example.test/", 301}, {"https://www.example.test/", 200}})
+	check(t, "hops", chain.Hops, []RedirectHop{
+		{URL: "http://example.test/", Status: 301, Location: "https://example.test/"},
+		{URL: "https://example.test/", Status: 301, Location: "https://www.example.test/"},
+		{URL: "https://www.example.test/", Status: 200},
+	})
 	check(t, "final", chain.FinalURL, "https://www.example.test/")
 	check(t, "no loop", chain.Loop, false)
 	check(t, "no error", chain.Error, "")
@@ -85,6 +90,19 @@ func TestFollowRedirects(t *testing.T) {
 	chain = followRedirects(context.Background(), d, "https", "example.test", hosts, 2*time.Second)
 	check(t, "loop detected", chain.Loop, true)
 	check(t, "loop hops", len(chain.Hops), 2)
+	check(t, "where the loop closed", chain.Hops[1].Location, "https://example.test/")
+
+	// The ip-house.com shape (2026-10-05, CloudFront): port 80 upgrades to
+	// https, and https redirects to itself. Only the Location shows that
+	// the second hop pointed at its own URL rather than back a step.
+	self := tlsServer(t, redirectHandler(301, "https://example.test/"), []*x509.Certificate{leaf, ca.cert}, key, tls.VersionTLS12, tls.VersionTLS13)
+	d.mapTarget(apexIP.String(), 80, http80)
+	d.mapTarget(apexIP.String(), 443, self)
+	chain = followRedirects(context.Background(), d, "http", "example.test", hosts, 2*time.Second)
+	check(t, "self loop", chain.Loop, true)
+	f := &findings{}
+	f.redirectFindings("apex", map[string]*RedirectChain{familyIPv4: &chain})
+	check(t, "loop message names the target", f.errors, []string{"apex (ipv4): redirect loop http://example.test/ (301) -> https://example.test/ (301) -> https://example.test/"})
 
 	// External target is recorded, not followed.
 	ext := plainServer(t, redirectHandler(301, "https://cdn.example.net/x"))
@@ -102,6 +120,20 @@ func TestFollowRedirects(t *testing.T) {
 	chain = followRedirects(context.Background(), d, "http", "example.test", hosts, 2*time.Second)
 	check(t, "too many", strings.HasPrefix(chain.Error, "more than"), true)
 	check(t, "max hops recorded", len(chain.Hops), maxRedirectHops+1)
+	check(t, "relative Location kept as sent", chain.Hops[0].Location, "/next/")
+
+	// A hostile Location does not bloat the report or get followed: the
+	// chain ends broken, and the recorded value is clipped and says so.
+	huge := "https://example.test/" + strings.Repeat("a", maxLocationBytes)
+	hostile := plainServer(t, redirectHandler(301, huge))
+	d.mapTarget(apexIP.String(), 80, hostile)
+	chain = followRedirects(context.Background(), d, "http", "example.test", hosts, 2*time.Second)
+	check(t, "not followed", len(chain.Hops), 1)
+	check(t, "ended broken", chain.Ended, RedirectFailed)
+	check(t, "says why", chain.Error, fmt.Sprintf("Location header is %d bytes, over the %d-byte limit", len(huge), maxLocationBytes))
+	check(t, "recorded clipped", strings.HasSuffix(chain.Hops[0].Location, fmt.Sprintf("... (clipped, %d bytes)", len(huge))), true)
+	check(t, "bounded", len(chain.Hops[0].Location) < maxLocationBytes+64, true)
+	check(t, "at the limit is kept whole", clipLocation(huge[:maxLocationBytes]), huge[:maxLocationBytes])
 
 	// Broken hop (connection refused) is an error, not a loop.
 	chain = followRedirects(context.Background(), d, "https", "www.example.test", hostAddrs{"www.example.test": netip.MustParseAddr("192.0.2.99")}, time.Second)

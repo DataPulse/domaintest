@@ -93,6 +93,7 @@ type dnsResults struct {
 func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	start := time.Now()
 	rep := newReport(cfg)
+	rep.Timestamp = reportTimestamp(start)
 
 	// The DNS tools are capped together; quicprobe is left alone because it
 	// waits on the network rather than competing for CPU, and queueing it
@@ -140,6 +141,12 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	buildFindings(rep)
 	rep.ElapsedMs = time.Since(start).Milliseconds()
 	return rep
+}
+
+// reportTimestamp formats the probe's start for the report header: UTC,
+// RFC 3339, whole seconds.
+func reportTimestamp(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
 }
 
 func newReport(cfg config) *Report {

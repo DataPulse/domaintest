@@ -323,8 +323,8 @@ func TestHTTPFindings_Aggregation(t *testing.T) {
 	a.HTTPSRes = &HTTPResult{Status: 503, HSTS: &HSTS{MaxAge: 100}}
 	b.HTTPSRes = &HTTPResult{Status: 503, HSTS: &HSTS{MaxAge: 99999999}}
 	rep.Web.Apex.Redirects = map[string]*RedirectChain{
-		familyIPv4: {Hops: []RedirectHop{{"http://google.com/", 302}, {"https://google.com/", 404}}, FinalURL: "https://google.com/"},
-		familyIPv6: {Loop: true, Hops: []RedirectHop{{"http://google.com/", 302}, {"http://www.google.com/", 302}}},
+		familyIPv4: {Hops: []RedirectHop{{URL: "http://google.com/", Status: 302}, {URL: "https://google.com/", Status: 404}}, FinalURL: "https://google.com/"},
+		familyIPv6: {Loop: true, Hops: []RedirectHop{{URL: "http://google.com/", Status: 302}, {URL: "http://www.google.com/", Status: 302}}},
 	}
 	buildFindings(rep)
 	check(t, "5xx everywhere is an error", contains(rep.Errors, "apex: every address returns a server error on port 443"), true)

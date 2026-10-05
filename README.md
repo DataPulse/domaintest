@@ -147,6 +147,16 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    A chain that breaks after it started or ends in 4xx/5xx is a warning,
    and an external target is recorded as `external` and not followed. A chain is a property of the name, so
    it is followed once per family, unlike the per-address probes above.
+   Each hop records `url`, `status` and the `location` the server sent
+   (verbatim, relative or absolute), and a loop's message ends with the
+   URL that closed it, so a page redirecting to itself
+   (`https://x/ (301) -> https://x/`) reads differently from a chain sent
+   back a step. The follower defends itself: at most ten hops, a stop at
+   the first repeated URL, a per-hop timeout inside the probe budget, 64 KB
+   of response head, and only apex and www are ever contacted. A Location
+   over 4096 bytes is not followed: the chain ends broken and the hop
+   records it clipped, with the original length, so a hostile server
+   cannot bloat the report.
 9. **QUIC / HTTP3** via the sibling `quicprobe` tool, on every address of
    both names, so every address carries a `quic` object and the "QUIC/h3
    works on another probed address" warning means what it says.
@@ -291,8 +301,11 @@ cache.
 
 ## Report
 
-Single-line JSON on stdout (`-pretty` indents). Top-level keys: `domain`,
-`version` (the build, as `-version` prints it), `unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
+Single-line JSON on stdout (`-pretty` indents). The object opens with a
+header: `version` (the build, as `-version` prints it) and `timestamp`
+(when the probe began, UTC, RFC 3339 to the second, such as
+`2026-10-05T19:42:07Z`; it finished `elapsed_ms` later). The other
+top-level keys are `domain`, `unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
 `tcp_timeout_sec`, `quic_timeout_sec`, `not_a_zone` and `enclosing_zone`
 (hosts only), `dns`, `dnssec`, `delegation`, `web`, `mail`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
@@ -313,7 +326,7 @@ the handshake; on a CDN this usually means HTTP/3 is not enabled for the
 hostname, CloudFront sends alert 40 `handshake failure`), `resolve_failed`,
 `version_negotiation`, `stateless_reset`, `transport_error`,
 `application_error`, `listen_failed`, `invalid_args` or `other`. Each host has `same_as_apex`, `via_wildcard`,
-`redirects` (per family: hops, ended, final_url, external, loop, error) and
+`redirects` (per family: hops with url, status and location, ended, final_url, external, loop, error) and
 `cert_consistent`.
 
 `web` is an empty object when the name has no usable addresses (no

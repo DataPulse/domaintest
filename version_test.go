@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestVCSVersion(t *testing.T) {
@@ -61,4 +62,18 @@ func TestBinary_LdflagsStamp(t *testing.T) {
 	rc, out := runBinary(t, bin, "-version")
 	check(t, "exit 0", rc, 0)
 	check(t, "stamped version", out, stamp+"\n")
+}
+
+// The header is the first thing on the line: version, then timestamp, then
+// the domain. Consumers parse the object, so order is for a human reading
+// the raw output, but it is pinned so it does not drift.
+func TestReport_HeaderLeads(t *testing.T) {
+	rep := newReport(config{Domain: "example.com"})
+	rep.Timestamp = reportTimestamp(time.Date(2026, 10, 5, 14, 42, 7, 900, time.FixedZone("CDT", -5*3600)))
+	out, err := json.Marshal(rep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"version":"` + buildVersion() + `","timestamp":"2026-10-05T19:42:07Z","domain":"example.com",`
+	check(t, "header leads", strings.HasPrefix(string(out), want), true)
 }

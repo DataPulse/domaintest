@@ -29,10 +29,13 @@ const (
 
 // Report is the JSON document domaintest prints.
 type Report struct {
-	Domain string `json:"domain"`
-	// Version is the domaintest build that produced the report: the
-	// stamped commit, or see buildVersion for an unstamped build.
-	Version string `json:"version"`
+	// Version and Timestamp lead the report as its header: which build
+	// produced it, and when. Version is the stamped commit (see
+	// buildVersion for an unstamped build). Timestamp is when the probe
+	// began, UTC, RFC 3339 to the second; elapsed_ms later it finished.
+	Version   string `json:"version"`
+	Timestamp string `json:"timestamp"`
+	Domain    string `json:"domain"`
 	// UnicodeDomain is the U-label form when Domain is an IDN A-label.
 	UnicodeDomain string `json:"unicode_domain,omitempty"`
 	// NotAZone is set when the name is a host inside a zone rather than a
@@ -868,7 +871,7 @@ func (f *findings) redirectFindings(label string, chains map[string]*RedirectCha
 			// The entry point did not answer; port 80's state already says so.
 		case c.Loop || c.Ended == RedirectLoop:
 			// A loop provably never resolves, however long you follow it.
-			f.fail("redirect_loop", label, "%s (%s): redirect loop %s", label, fam, describeHops(c.Hops))
+			f.fail("redirect_loop", label, "%s (%s): redirect loop %s%s", label, fam, describeHops(c.Hops), loopTarget(c.Hops))
 		case c.Ended == RedirectHopLimit:
 			// We stopped following, so whether the chain ends is unknown.
 			// Asserting a fault from that is the vacuous negative again.
@@ -881,6 +884,15 @@ func (f *findings) redirectFindings(label string, chains map[string]*RedirectCha
 			f.warn("redirect_ends_error", label, "%s (%s): redirect chain ends in HTTP %d at %s", label, fam, c.Hops[len(c.Hops)-1].Status, c.FinalURL)
 		}
 	}
+}
+
+// loopTarget names where the last hop pointed, the URL already visited,
+// so the message shows the cycle closing rather than leaving it implied.
+func loopTarget(hops []RedirectHop) string {
+	if len(hops) == 0 || hops[len(hops)-1].Location == "" {
+		return ""
+	}
+	return " -> " + hops[len(hops)-1].Location
 }
 
 func describeHops(hops []RedirectHop) string {

@@ -243,7 +243,7 @@ func TestRun_WebDomainFullProbe(t *testing.T) {
 	check(t, "v6 443 open", a6.HTTPS, PortOpen)
 	check(t, "cert consistent", *apex.CertConsistent, true)
 	chain := apex.Redirects[familyIPv4]
-	check(t, "redirect chain", chain.Hops, []RedirectHop{{"http://google.com/", 301}, {"https://google.com/", 200}})
+	check(t, "redirect chain", chain.Hops, []RedirectHop{{URL: "http://google.com/", Status: 301, Location: "https://google.com/"}, {URL: "https://google.com/", Status: 200}})
 	check(t, "final url", chain.FinalURL, "https://google.com/")
 	check(t, "www probed separately", rep.Web.WWW.SameAsApex && len(rep.Web.WWW.IPv4) == 1, true)
 	check(t, "www cert", rep.Web.WWW.IPv4[0].TLS.Chain, ChainValid)

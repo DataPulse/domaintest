@@ -79,6 +79,10 @@ func parseHSTS(header string) *HSTS {
 type RedirectHop struct {
 	URL    string `json:"url"`
 	Status int    `json:"status"`
+	// Location is the Location header as the server sent it, when it sent
+	// one. A loop is diagnosed from it: without it, a hop that redirected
+	// to itself and one that sent the chain back a step look the same.
+	Location string `json:"location,omitempty"`
 }
 
 // Why a redirect chain stopped. A chain that leaves the zone is finished,
@@ -112,6 +116,14 @@ type RedirectChain struct {
 // rather than requests.
 const maxRedirectHops = 10
 
+// maxLocationBytes bounds a Location the follower will act on or record.
+// Every hop's URL and Location go into the report, so without a bound a
+// hostile server could put 64 KB (the header cap) into each of up to 44
+// hops across apex, www and both families. Real redirects, including SSO
+// hand-offs with long query strings, fit in a few kilobytes. A longer one
+// ends the chain as broken, recorded clipped.
+const maxLocationBytes = 4096
+
 // hostAddrs maps a hostname (apex or www) to the address to connect to for
 // one family; the follower only connects to hosts present here.
 type hostAddrs map[string]netip.Addr
@@ -143,9 +155,13 @@ func followRedirects(ctx context.Context, d dialer, scheme, host string, hosts h
 			chain.Error, chain.Ended = current+": "+res.Error, RedirectFailed
 			return chain
 		}
-		chain.Hops = append(chain.Hops, RedirectHop{URL: current, Status: res.Status})
+		chain.Hops = append(chain.Hops, RedirectHop{URL: current, Status: res.Status, Location: clipLocation(res.Location)})
 		if !isRedirect(res.Status) || res.Location == "" {
 			chain.FinalURL, chain.Ended = current, RedirectFinal
+			return chain
+		}
+		if len(res.Location) > maxLocationBytes {
+			chain.Error, chain.Ended = fmt.Sprintf("Location header is %d bytes, over the %d-byte limit", len(res.Location), maxLocationBytes), RedirectFailed
 			return chain
 		}
 		next, err := u.Parse(res.Location)
@@ -157,6 +173,15 @@ func followRedirects(ctx context.Context, d dialer, scheme, host string, hosts h
 	}
 	chain.Error, chain.Ended = fmt.Sprintf("more than %d redirects", maxRedirectHops), RedirectHopLimit
 	return chain
+}
+
+// clipLocation bounds a Location for the report, saying how long the
+// original was so a clipped value is never mistaken for the real one.
+func clipLocation(loc string) string {
+	if len(loc) <= maxLocationBytes {
+		return loc
+	}
+	return fmt.Sprintf("%s... (clipped, %d bytes)", strings.ToValidUTF8(loc[:maxLocationBytes], ""), len(loc))
 }
 
 func isRedirect(status int) bool {
