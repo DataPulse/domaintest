@@ -30,6 +30,9 @@ const (
 // Report is the JSON document domaintest prints.
 type Report struct {
 	Domain string `json:"domain"`
+	// Version is the domaintest build that produced the report: the
+	// stamped commit, or see buildVersion for an unstamped build.
+	Version string `json:"version"`
 	// UnicodeDomain is the U-label form when Domain is an IDN A-label.
 	UnicodeDomain string `json:"unicode_domain,omitempty"`
 	// NotAZone is set when the name is a host inside a zone rather than a

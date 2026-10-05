@@ -6,7 +6,17 @@ JSON report.
 ```
 domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
 domaintest -warm-hsts-cache
+domaintest -version
 ```
+
+`-version` prints the build's version and exits 0. The version is whatever
+the builder stamped with `go build -ldflags "-X main.version=<commit>"`.
+scrape's worker image stamps the full commit it vendored. An unstamped
+build reports the commit Go recorded from the source tree, with `-dirty`
+appended when the tree had uncommitted changes, or `devel` when there is
+no such record. Every report carries the same value as `version`. The
+variable must stay `main.version`, a string: `-X` silently ignores a name
+that does not exist.
 
 Like `dig`, the optional `@dnsserver` may appear anywhere on the command
 line. Without it the system resolver is used. A port may be appended
@@ -282,7 +292,7 @@ cache.
 ## Report
 
 Single-line JSON on stdout (`-pretty` indents). Top-level keys: `domain`,
-`unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
+`version` (the build, as `-version` prints it), `unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
 `tcp_timeout_sec`, `quic_timeout_sec`, `not_a_zone` and `enclosing_zone`
 (hosts only), `dns`, `dnssec`, `delegation`, `web`, `mail`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,

@@ -34,7 +34,7 @@ const (
 	defaultTimeoutSec     = 3
 	defaultTCPTimeoutSec  = 2
 	defaultQuicTimeoutSec = 2
-	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache"
+	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
 )
 
 // config is the parsed command line.
@@ -53,6 +53,7 @@ type config struct {
 	HSTSPreload    bool   // consult the HSTS preload list (on by default; -no-hsts-preload disables)
 	HSTSCache      string // path to the cached preload list; "-" disables caching
 	WarmHSTSCache  bool   // populate the cache and exit
+	ShowVersion    bool   // print the build version and exit
 	Pretty         bool
 	DelvPath       string
 	DigPath        string
@@ -193,7 +194,18 @@ func parseArgs(args []string) (config, error) {
 	cfg.Families = chooseFamilies(*only4, *only6)
 	cfg.HSTSPreload = !*noPreload
 	cfg.dnsFamily = serverFamily(cfg.Resolver.Host)
-	if cfg.WarmHSTSCache {
+	return finishConfig(cfg, positional)
+}
+
+// finishConfig completes the invocation the flags selected: -version and
+// -warm-hsts-cache take no domain, anything else takes exactly one.
+func finishConfig(cfg config, positional []string) (config, error) {
+	switch {
+	case cfg.ShowVersion && len(positional) > 0:
+		return config{}, errors.New("-version takes no domain")
+	case cfg.ShowVersion:
+		return cfg, nil
+	case cfg.WarmHSTSCache:
 		return warmConfig(cfg, positional)
 	}
 	return domainConfig(cfg, positional)
@@ -242,6 +254,7 @@ func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
 	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
 	fs.StringVar(&cfg.HSTSCache, "hsts-cache", "", "path to the cached HSTS preload list (default: user cache dir; \"-\" disables caching)")
 	fs.BoolVar(&cfg.WarmHSTSCache, "warm-hsts-cache", false, "populate the HSTS preload cache and exit")
+	fs.BoolVar(&cfg.ShowVersion, "version", false, "print the build version and exit")
 	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")
 	fs.StringVar(&cfg.DelvPath, "delv", "", "path to delv")
 	fs.StringVar(&cfg.DigPath, "dig", "", "path to dig")
@@ -325,6 +338,10 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintf(stderr, "domaintest: %v\n%s\n", err, usage)
 		return 2
+	}
+	if cfg.ShowVersion {
+		fmt.Fprintln(stdout, buildVersion())
+		return 0
 	}
 	if cfg.WarmHSTSCache {
 		return warmMain(cfg, stderr)

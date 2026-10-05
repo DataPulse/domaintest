@@ -145,6 +145,7 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 func newReport(cfg config) *Report {
 	return &Report{
 		Domain:         cfg.Domain,
+		Version:        buildVersion(),
 		UnicodeDomain:  cfg.UnicodeDomain,
 		Resolver:       cfg.Resolver.String(),
 		Families:       cfg.Families,
