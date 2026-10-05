@@ -1,0 +1,663 @@
+{
+  "domain": "sap.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "130.214.229.163"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "0 sap-com.mail.protection.outlook.com."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "ns1.sap.net.",
+          "ns2.sap.de.",
+          "ns3.sap.com.",
+          "ns4.sap.asia."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "c5fbc342a5",
+          "MS=ms84836878",
+          "v=spf1 redirect=_spf.sap.com",
+          "6SdRWEGkneYyykOiCbmoMF0d0Ax6xCI",
+          "661d0e40-85ff-458e-8e8b-1f95ae27fffe",
+          "yandex-verification: c3b1b40605efa9c1",
+          "apple-domain-verification=IsUmtmlwZmPkE4Of",
+          "apple-domain-verification=WvjYJRX5Kt6kdwhO",
+          "apple-domain-verification=ZotejZH2RlWcWJ22",
+          "FgkZLxls4RXcx0SaWq5llYSp5Rvu5OO9rkFJ7RE1uHo",
+          "swisssign-check=Qcw8ym537yWjOYSmbgl8gn4uXhw",
+          "docusign=b9473d9b-508d-403a-b3ef-d2338a7fb70a",
+          "docusign=d2efb22a-3d41-491e-80a3-e8754ed4c8da",
+          "jamf-site-verification=d4EYmVjwH3lyiJWS9JpKiw",
+          "zoho-verification=zb18849919.zmverify.zoho.eu",
+          "canva-site-verification=bEorpXEIsmbPRGOP_RTzCg",
+          "mentimeter-a2766a31-088d-4bc9-a6d8-83224f44874b",
+          "lovable_verification=workspace_mhufzou04cxcb6wkjgs",
+          "mongodb-site-verification=SF6dIfomMRnqQaJFpLfFBFoJYGROcbqr",
+          "cursor-domain-verification-cxftct=R9FPZi3dYbbk18FHkUNNaYpR0",
+          "cursor-domain-verification-cxftct=R9FPZj3dYbbk18FHkUNNaYpR0",
+          "facebook-domain-verification=pq1ke4h5ogbbstvcw70nnouhc9gnos",
+          "workplace-domain-verification=zpHmNw64oBbienGdPWAHD70Ub3jJr3",
+          "favro-verification=xttPpZk_Tn7IbEozkV-vd5wJjwPF-U17-FvqUv7dp6S",
+          "adobe-idp-site-verification=293544be-dc84-4c27-8e65-ad26489bc26b",
+          "ecostruxure-it-verification=9b471467-1384-43b1-b610-200b5afcf151",
+          "perplexity-ai-domain-verification-f87tp3=jfuHPCU0jspt5IIhFKl91hxQs",
+          "google-site-verification=K7yG9KqOHJfMUjyflwJAsT2yqWooMui5YI-ec3EoWGM",
+          "google-site-verification=dr997hmW8WL_vTRj038b3xOji3TVff6MmV3_x-KojLI",
+          "mgverify=7af4ff085a4f5f93763d674228ea9ae1df7ae4ad12ff188c1723e640d4914dfb",
+          "stripe-verification=AEFA6B3D32A1DBE5D1E28D2CAB16BA5348337BA62462E349128D251CAE17DDC5",
+          "adobe-sign-verification=615be959d1a3668caf4bb789e9485d3282244bfb4ee7197cd7f2e03b7479c3d9",
+          "jltGn5yA+eScMP977eUFgdHhKuk7LEFd/OkHNYfghrBTIsIHEpY08mD+Ur4DLkAqpf8l3PYSGuwc4j9Aajw+2w==",
+          "kl4TlDXTgbq1M4tHs4nKiIr9ffZ9K851FWjhLMqcHcsp3aJGStm7pI4wEiBi9SDgRgznXomfhkIFn2mY55uZig==",
+          "Dynatrace-site-verification=819d7fe2-0095-4a4a-a8cd-11603765a4c3__ed3c65jdl3ufjpnkf58hse1s15",
+          "atlassian-domain-verification=0hALItOOAWxc7d8CgldRHxiU1d0r7W3T4DfOJG4enbYRgIzVjoTmVna3bv9N/Kte",
+          "atlassian-domain-verification=YuEOHQ64G4zqVoZ8BjJfCcoPOWdIzuCjDt0xGY8bNqpFdYHHAIh5saI5NLSqmUT7",
+          "DirectFedAuthUrl=https://cn40-ops.accounts.sapcloud.cn/saml2/idp/sso/cn40-ops.accounts.sapcloud.cn",
+          "hpe-greenlake-domain-verification=466547633462464b444945625446614348704f5a64784c34366c762d344b4969",
+          "wrike-verification=NTIzMDUzNjpmYjI3Y2Q4NDE3ZjdlMGE5ZjE0ZDIyY2NkMWU5Y2YyZDU1ZmVkYWUxN2YyMDVlZTE3Zjc0YjFhMWUxYzEwNGYw",
+          "postman-domain-verification=d1521f90c9baac3a371faec7d2f2db931023fd28093230b3c79365ea22abb730b64b769446e50cb277d32088188345af79046dccfa7a34dcdd11fe1951aff6ad"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "23.213.186.198",
+          "23.213.186.207"
+        ],
+        "cname": [
+          "www.sap.com.cn.edgekey.net.",
+          "e259656.dsca.akamaiedge.net."
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2600:1407:3c00:44::17dc:904d",
+          "2600:1407:3c00:44::17dc:904f"
+        ],
+        "cname": [
+          "www.sap.com.cn.edgekey.net.",
+          "e259656.dsca.akamaiedge.net."
+        ]
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "ns1.sap.net.",
+      "ns2.sap.de.",
+      "ns3.sap.com.",
+      "ns4.sap.asia."
+    ],
+    "parent_server": "h.gtld-servers.net",
+    "child_ns": [
+      "ns1.sap.net.",
+      "ns2.sap.de.",
+      "ns3.sap.com.",
+      "ns4.sap.asia."
+    ],
+    "child_server": "ns1.sap.net"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "130.214.229.163",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.sap.com/"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.sap.com/",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.sap.com",
+              "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+              "not_before": "2026-09-03T00:00:00Z",
+              "not_after": "2027-03-20T23:59:59Z",
+              "days_remaining": 166,
+              "sans": [
+                "www.sap.com",
+                "cloudplatform.sap.com",
+                "deloscloud.com",
+                "deloscloud.de",
+                "developers.sap.com",
+                "go.sap.com",
+                "sap.com",
+                "search.sap.com",
+                "www.deloscloud.com",
+                "www.deloscloud.de",
+                "sap.cn",
+                "www.sap.cn"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "ba8c43607dbbd2e8caca3030638c1d8f146cca757c59a5c9ccc64be84ec98cae"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://sap.com/",
+              "status": 301
+            },
+            {
+              "url": "https://www.sap.com/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.sap.com/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "ipv4": [
+        {
+          "ip": "23.213.186.198",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.sap.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-06-29T00:00:00Z",
+              "not_after": "2027-01-13T23:59:59Z",
+              "days_remaining": 100,
+              "sans": [
+                "www.sap.com",
+                "cloudplatform.sap.com",
+                "deloscloud.com",
+                "deloscloud.de",
+                "developers.sap.com",
+                "go.sap.com",
+                "partneredge.sap.com",
+                "sap.com",
+                "search.sap.com",
+                "support.sap.com",
+                "translation.sap.com",
+                "www.deloscloud.com",
+                "www.deloscloud.de"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "9a35f9ded160e7e1ec8b264b7f573812fae704470864e09acf0212cbd7eb5745"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 22,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        },
+        {
+          "ip": "23.213.186.207",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.sap.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-06-29T00:00:00Z",
+              "not_after": "2027-01-13T23:59:59Z",
+              "days_remaining": 100,
+              "sans": [
+                "www.sap.com",
+                "cloudplatform.sap.com",
+                "deloscloud.com",
+                "deloscloud.de",
+                "developers.sap.com",
+                "go.sap.com",
+                "partneredge.sap.com",
+                "sap.com",
+                "search.sap.com",
+                "support.sap.com",
+                "translation.sap.com",
+                "www.deloscloud.com",
+                "www.deloscloud.de"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "9a35f9ded160e7e1ec8b264b7f573812fae704470864e09acf0212cbd7eb5745"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 20,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2600:1407:3c00:44::17dc:904d",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.sap.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-06-29T00:00:00Z",
+              "not_after": "2027-01-13T23:59:59Z",
+              "days_remaining": 100,
+              "sans": [
+                "www.sap.com",
+                "cloudplatform.sap.com",
+                "deloscloud.com",
+                "deloscloud.de",
+                "developers.sap.com",
+                "go.sap.com",
+                "partneredge.sap.com",
+                "sap.com",
+                "search.sap.com",
+                "support.sap.com",
+                "translation.sap.com",
+                "www.deloscloud.com",
+                "www.deloscloud.de"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "9a35f9ded160e7e1ec8b264b7f573812fae704470864e09acf0212cbd7eb5745"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 54,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        },
+        {
+          "ip": "2600:1407:3c00:44::17dc:904f",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.sap.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-06-29T00:00:00Z",
+              "not_after": "2027-01-13T23:59:59Z",
+              "days_remaining": 100,
+              "sans": [
+                "www.sap.com",
+                "cloudplatform.sap.com",
+                "deloscloud.com",
+                "deloscloud.de",
+                "developers.sap.com",
+                "go.sap.com",
+                "partneredge.sap.com",
+                "sap.com",
+                "search.sap.com",
+                "support.sap.com",
+                "translation.sap.com",
+                "www.deloscloud.com",
+                "www.deloscloud.de"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "9a35f9ded160e7e1ec8b264b7f573812fae704470864e09acf0212cbd7eb5745"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 139,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.sap.com/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "http://www.sap.com/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://www.sap.com/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "http://www.sap.com/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "unresolved": false,
+      "policy": "reject",
+      "pct": 100,
+      "rua": true,
+      "records": 1,
+      "problems": []
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 2,
+      "void_lookups": 0,
+      "txt_answer_octets": 3103,
+      "includes": [
+        "_spf.sap.com",
+        "spf.protection.outlook.com"
+      ],
+      "problems": [
+        "apex TXT answer is 3103 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP"
+      ]
+    },
+    "mx": [
+      {
+        "host": "sap-com.mail.protection.outlook.com.",
+        "preference": 0,
+        "addresses": 4,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      }
+    ],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [
+        "selector1",
+        "selector2"
+      ],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": true
+  },
+  "nameservers": {
+    "count": 4,
+    "servers": [
+      {
+        "name": "ns1.sap.net.",
+        "ip": "193.46.3.53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100502,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns2.sap.de.",
+        "ip": "195.253.90.7",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100502,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns2.sap.de.",
+        "ip": "2a01:5b0:12::7",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100502,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns3.sap.com.",
+        "ip": "2607:fae0:f00d::72",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100502,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns3.sap.com.",
+        "ip": "67.221.252.72",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100502,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns4.sap.asia.",
+        "ip": "169.145.112.153",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100502,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 4,
+    "ipv6_prefixes_48": 2,
+    "glue": {
+      "required": [
+        "ns3.sap.com."
+      ],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [],
+        "effective": [],
+        "issuer": "DigiCert Inc",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      },
+      "www": {
+        "published": [],
+        "effective": [],
+        "issuer": "DigiCert Inc",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name dqdcmehgtkbb is denied",
+    "probes": [
+      {
+        "label": "dqdcmehgtkbb",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [],
+  "warnings": [
+    "apex has no AAAA record",
+    "apex (ipv4): redirect chain ends in HTTP 403 at https://www.sap.com/",
+    "www: every address returns a client error on port 80",
+    "www: every address returns a client error on port 443",
+    "www (ipv4): redirect chain ends in HTTP 403 at http://www.sap.com/",
+    "www (ipv6): redirect chain ends in HTTP 403 at http://www.sap.com/",
+    "SPF: apex TXT answer is 3103 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP"
+  ],
+  "ok": true,
+  "elapsed_ms": 3110
+}

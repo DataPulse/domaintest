@@ -1,0 +1,1024 @@
+{
+  "domain": "oracle.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "138.1.33.162"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "20 mxa-00069f01.gslb.pphosted.com.",
+          "20 mxb-00069f01.gslb.pphosted.com."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "ns1.p201.dns.oraclecloud.net.",
+          "ns2.p201.dns.oraclecloud.net.",
+          "ns3.p201.dns.oraclecloud.net.",
+          "ns4.p201.dns.oraclecloud.net.",
+          "a1-160.akam.net.",
+          "a11-66.akam.net.",
+          "a13-65.akam.net.",
+          "a18-67.akam.net."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "MS=ms56590334",
+          "MS=ms68450787",
+          "zoom-domain-verification=31c4caad-f2b3-4ef8-8d92-26df2e836f3e",
+          "5mqsjfm8mpy57x4xwfs8dbfrgx14vhs5",
+          " _4tbszkg4ufy8su1xuke2bq2zfmzx3mm",
+          "yandex-verification: 4f894a8e737184e9",
+          "docusign=061e3d77-6c9b-4908-afd2-b2f02c39ecf2",
+          "docusign=2be17354-8326-4a61-8700-8276a284f7f8",
+          "cloudhealth=647661d7-af1e-4696-88b6-eed192d10e56",
+          "amazonses:WiyIwuGeeSNOIz7rqmlfP1MfDGCQFLMv4MgUsvcUTWE=",
+          "amazonses:bGS07pWw+FmfvUu4KgJNzF1GIZqr8BJrrqcw7NtMJlI=",
+          "amazonses:rJLKgYvappkvPl76X7w/Eeq6Qdk9AorogfUGE0NB0G8=",
+          "amazonses:w4vl+NQAMony+agN9mt8H5MV4isrTCU3iFGSFSmgs7E=",
+          "webexdomainverification.=04ce0c34-7d39-41dd-a3ba-627a30cd205c",
+          "webexdomainverification.=1f146848-946a-45a1-b021-4b3d4ef924d6",
+          "webexdomainverification.=21e2aa9c-745f-4388-a31f-eac4f6c16444",
+          "webexdomainverification.=2f927290-1d5f-4df2-b1bb-bbb71bea85a9",
+          "webexdomainverification.=5c0fd5af-2fff-48d7-a138-10711dd460bb",
+          "webexdomainverification.=603d007e-3304-48a2-b9bc-c8d22b669304",
+          "webexdomainverification.=6d066ca0-8f37-48c6-8a96-1909343f9c23",
+          "webexdomainverification.=a3652afd-f531-4076-9a45-1e184df3a2d6",
+          "webexdomainverification.=bbd0294a-bc53-46f4-b21c-8dfab1cb7666",
+          "webexdomainverification.=cfeaa219-cb2c-458e-baea-d24703ba2355",
+          "webexdomainverification.=d3071182-7ce2-4cb6-b315-90e9b7f866dc",
+          "webexdomainverification.=d729667e-36b8-4d4a-bbb7-0f3069025573",
+          "webexdomainverification.=e86664eb-38ad-46f7-aa1a-60203dfca9a0",
+          "anthropic-domain-verification-f69hf4=EP3M2VJ8RvglBNY3ipKf1ChUb",
+          "zoom-domain-verification = 31c4caad-f2b3-4ef8-8d92-26df2e836f3e",
+          "adobe-idp-site-verification=897d22d1-bca0-4449-90a4-1ac86c506dcd",
+          "webexdomainverification.F00R=81ccb499-274a-447d-a54a-934bb0dafec4",
+          "webexdomainverification.HO6U=eeb397a4-2b0c-4475-ae07-56dfc4507757",
+          "webexdomainverification.JIOB=3bc19d00-8f37-45bd-9799-e8ffa9c77306",
+          "webexdomainverification.JM3I=c1caad11-9eb5-4c76-877d-06dcfcb95db3",
+          "webexdomainverification.JRGF=35895e43-87ca-4bdf-8feb-b7a0e22694f3",
+          "webexdomainverification.JRJC=6ac35490-0c1a-4729-b3fc-78a568159417",
+          "webexdomainverification.LSOE=4e1c3c86-abf0-4902-8a84-b34420ef075c",
+          "webexdomainverification.LSOJ=4b3a4ca8-7b0a-4bbc-8816-686e1bb4ddf7",
+          "google-site-verification=IwkBNLXsgiyZ9wUuXa1-PynELZFJlYOduHp7uPcTfdo",
+          "google-site-verification=RzPlMxOfod0eiMchm-MP3BhdhPgDHzL2mE_mAD91IWg",
+          "google-site-verification=Tpoo3Bhw4cI4JjPp4v2RZz3JzSNkYg98yPwOLanQ2gI",
+          "google-site-verification=wXL-gAW01OVDMhb-6YPCh4XxwPBIXfGhGDcQhLSzd-k",
+          "ciscocidomainverification=1864e14e0478e40197a9f4b07e52f6add508db236b82a10b6aa2df2eac6fe75b",
+          "atlassian-domain-verification=1Oromr6nviNhRSPQouu6eUUWlzUzqZt/84xNgWEunEkHEvAK1oY0i9GaHlO7MPi4",
+          "atlassian-domain-verification=dKssjBiaoCdxRMWHZE/bBDYu4Wh4oJ6P6tJ/jxDKM37grHev0Qa5eWhnuAi1lJfJ",
+          "atlassian-domain-verification=xpCgyo81RlS8Nywge8zAU0pqo89fXgqXNsCp9VVSIxP2j0Z9sthcjZbygEUlocRy",
+          "paloaltonetworks-site-verification=8759980204930d68307e4387f6b7db958dec60048cc1053aa8f0a7396916c491",
+          "v=spf1 include:spf_s.oracle.com include:spf_r.oracle.com include:spf_c.oraclecloud.com include:spf_x.oracle.com include:spf_z.oracle.com include:stspg-customer.com ~all"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "23.14.92.87"
+        ],
+        "cname": [
+          "ds-www.oracle.com.edgekey.net.",
+          "e2581.dscx.akamaiedge.net."
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2600:1407:3c00:b89::a15",
+          "2600:1407:3c00:b8b::a15"
+        ],
+        "cname": [
+          "ds-www.oracle.com.edgekey.net.",
+          "e2581.dscx.akamaiedge.net."
+        ]
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "a1-160.akam.net.",
+      "a11-66.akam.net.",
+      "a13-65.akam.net.",
+      "a18-67.akam.net.",
+      "ns1.p201.dns.oraclecloud.net.",
+      "ns2.p201.dns.oraclecloud.net.",
+      "ns3.p201.dns.oraclecloud.net.",
+      "ns4.p201.dns.oraclecloud.net."
+    ],
+    "parent_server": "i.gtld-servers.net",
+    "child_ns": [
+      "a1-160.akam.net.",
+      "a11-66.akam.net.",
+      "a13-65.akam.net.",
+      "a18-67.akam.net.",
+      "ns1.p201.dns.oraclecloud.net.",
+      "ns2.p201.dns.oraclecloud.net.",
+      "ns3.p201.dns.oraclecloud.net.",
+      "ns4.p201.dns.oraclecloud.net."
+    ],
+    "child_server": "a11-66.akam.net"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "138.1.33.162",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://oracle.com:443/"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.oracle.com/"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.2",
+            "alpn": "http/1.1",
+            "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "oracle.com",
+              "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+              "not_before": "2026-06-04T00:00:00Z",
+              "not_after": "2026-12-19T23:59:59Z",
+              "days_remaining": 75,
+              "sans": [
+                "oracle.com",
+                "oracleimg.com",
+                "oraclecloud.com",
+                "www.oraclecloud.com",
+                "opower.com",
+                "blog.opower.com",
+                "powerup.opower.com",
+                "support.opower.com",
+                "www.opower.com",
+                "conject.com",
+                "support.conject.com",
+                "www.conject.com",
+                "push.io",
+                "www.push.io",
+                "bigmachines.com",
+                "crowdtwist.com",
+                "aconex.com",
+                "blog.aconex.com",
+                "www.aconex.com",
+                "selectminds.com",
+                "ocomtld-stage.appoci.oracle.com",
+                "ocomtld-prod.appoci.oracle.com",
+                "ocomtld-dr.appoci.oracle.com",
+                "stage.mysql.com",
+                "mysql.com",
+                "mysql.se",
+                "mysql.fi",
+                "mysql.lu",
+                "mysql.biz",
+                "mysql.info",
+                "mysql.org",
+                "mysqlnetwork.us",
+                "mysqlnetwork.com",
+                "mysqlnetwork.org",
+                "mysqlnetwork.biz",
+                "mysqlab.com",
+                "mysqlcorp.com",
+                "mysqlserver.net",
+                "mysqlpress.com",
+                "mysqlpress.org",
+                "mysqlpress.biz",
+                "mysqlpress.net",
+                "mysql-press.biz",
+                "mysqlpress.us",
+                "sakila.net",
+                "sakila.org",
+                "sakila.biz",
+                "sakila.us",
+                "innodb.com",
+                "planetmysql.net",
+                "planetmysql.info",
+                "planetmysql.biz",
+                "planetmysql.org",
+                "sun.com",
+                "www-cdn.sun.com",
+                "www.sun.com",
+                "virtualbox.org",
+                "oraclecloud.eu",
+                "www.oraclecloud.eu",
+                "suitecommerce.com",
+                "www.suitecommerce.com",
+                "oraclehealth.com",
+                "sqlfree.com",
+                "oraclefoundation.org",
+                "cernerHealth.cm",
+                "cernerHealth.co",
+                "cernerHealth.co.uk",
+                "cernerHealth.net",
+                "cernerHealth.uk",
+                "cernerHealthCare.com",
+                "java.hu",
+                "micros.hu",
+                "netsuite.hu",
+                "oracle.cam",
+                "peoplesoft.hu",
+                "www.ateam-oracle.com",
+                "ateam-oracle.com",
+                "oraclehealthfoundation.org",
+                "java.com",
+                "go.java",
+                "netsuitesuiteworld.com",
+                "java-stage.com",
+                "suiteapp.com",
+                "suiteapp.ai",
+                "oracle.eu"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "0b0c1da3703975cbb66c276b9ee6ba123d0642bde3ce3d6a1a8b3881151ea73c"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://oracle.com/",
+              "status": 301
+            },
+            {
+              "url": "https://oracle.com:443/",
+              "status": 301
+            },
+            {
+              "url": "https://www.oracle.com/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.oracle.com/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "ipv4": [
+        {
+          "ip": "23.14.92.87",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www-cs-02.oracle.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-02-06T00:00:00Z",
+              "not_after": "2027-02-07T23:59:59Z",
+              "days_remaining": 125,
+              "sans": [
+                "www-cs-02.oracle.com",
+                "analystconnect.oracle.com",
+                "analytics.covid19.oracle.com",
+                "appcenter.bronto.com",
+                "aria.us.oracle.com",
+                "ateam-oracle.com",
+                "bi-fusioncrm.oracle.com",
+                "biapps-fusioncrm.oracle.com",
+                "blog.bronto.com",
+                "blogs.bronto.com",
+                "blogs.oracle.com",
+                "bronto.com",
+                "careers.bronto.com",
+                "cloudmarketplace.oracle.com",
+                "cn.forums.oracle.com",
+                "co19.oracle.com",
+                "community.oracle.com",
+                "container-registry.oracle.com",
+                "content.bronto.com",
+                "covid-analytics.oracle.com",
+                "covid19-rx.org",
+                "covid19.oracle.com",
+                "covid19rx.org",
+                "covpn-admin-portal.oracle.com",
+                "covpn-site-portal.oracle.com",
+                "covpn.oracle.com",
+                "crm-fusioncrm.oracle.com",
+                "elocation.oracle.com",
+                "events.oracle.com",
+                "fin-fusioncrm.oracle.com",
+                "fusioncrm.oracle.com",
+                "hcm-fusioncrm.oracle.com",
+                "hrservices.oracle.com",
+                "ic-fusioncrm.oracle.com",
+                "ideas.bronto.com",
+                "itweb.oracle.com",
+                "kr.forums.oracle.com",
+                "linux.oracle.com",
+                "m.oracle.com",
+                "maps.oracle.com",
+                "my.oracle.com",
+                "mybuilder.oracle.com",
+                "mydevice.oracle.com",
+                "myemm.oracle.com",
+                "mymobile.oracle.com",
+                "myprocess.oracle.com",
+                "myprofile.oracle.com",
+                "mysites-api.oracle.com",
+                "mysites.oracle.com",
+                "myvisualization.oracle.com",
+                "ocm-apis-cloud.oracle.com",
+                "oraassistant-dr.oracle.com",
+                "oraassistant.oracle.com",
+                "orabuilder.oracle.com",
+                "oracleassistant.oracle.com",
+                "oradocs.oracle.com",
+                "oramobile.oracle.com",
+                "partner.cloudmarketplace.oracle.com",
+                "people.us.oracle.com",
+                "pressroom.oracle.com",
+                "profile-api.oracle.com",
+                "profile.oracle.com",
+                "publicdocs.oracle.com",
+                "redwood.oracle.com",
+                "resources.bronto.com",
+                "restgwoci-dr.oracle.com",
+                "restgwoci.oracle.com",
+                "salesaccelerator.oracle.com",
+                "scm-fusioncrm.oracle.com",
+                "search-api.oracle.com",
+                "search.oracle.com",
+                "securesites.oracle.com",
+                "sites.oracle.com",
+                "volunteer.oracle.com",
+                "wikis.oracle.com",
+                "www.ateam-oracle.com",
+                "www.blogs.oracle.com",
+                "www.bronto.com",
+                "www.covid19-rx.org",
+                "www.covid19rx.org",
+                "www.oracle.com",
+                "www.oracleimg.com",
+                "wwwcmsapi.oracle.com"
+              ],
+              "covers_apex": false,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "56a929c32c5c8495b82dc37538aac398fb84d3cffe19dd8d60e59a885b75f497"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 22,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2600:1407:3c00:b89::a15",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www-cs-02.oracle.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-02-06T00:00:00Z",
+              "not_after": "2027-02-07T23:59:59Z",
+              "days_remaining": 125,
+              "sans": [
+                "www-cs-02.oracle.com",
+                "analystconnect.oracle.com",
+                "analytics.covid19.oracle.com",
+                "appcenter.bronto.com",
+                "aria.us.oracle.com",
+                "ateam-oracle.com",
+                "bi-fusioncrm.oracle.com",
+                "biapps-fusioncrm.oracle.com",
+                "blog.bronto.com",
+                "blogs.bronto.com",
+                "blogs.oracle.com",
+                "bronto.com",
+                "careers.bronto.com",
+                "cloudmarketplace.oracle.com",
+                "cn.forums.oracle.com",
+                "co19.oracle.com",
+                "community.oracle.com",
+                "container-registry.oracle.com",
+                "content.bronto.com",
+                "covid-analytics.oracle.com",
+                "covid19-rx.org",
+                "covid19.oracle.com",
+                "covid19rx.org",
+                "covpn-admin-portal.oracle.com",
+                "covpn-site-portal.oracle.com",
+                "covpn.oracle.com",
+                "crm-fusioncrm.oracle.com",
+                "elocation.oracle.com",
+                "events.oracle.com",
+                "fin-fusioncrm.oracle.com",
+                "fusioncrm.oracle.com",
+                "hcm-fusioncrm.oracle.com",
+                "hrservices.oracle.com",
+                "ic-fusioncrm.oracle.com",
+                "ideas.bronto.com",
+                "itweb.oracle.com",
+                "kr.forums.oracle.com",
+                "linux.oracle.com",
+                "m.oracle.com",
+                "maps.oracle.com",
+                "my.oracle.com",
+                "mybuilder.oracle.com",
+                "mydevice.oracle.com",
+                "myemm.oracle.com",
+                "mymobile.oracle.com",
+                "myprocess.oracle.com",
+                "myprofile.oracle.com",
+                "mysites-api.oracle.com",
+                "mysites.oracle.com",
+                "myvisualization.oracle.com",
+                "ocm-apis-cloud.oracle.com",
+                "oraassistant-dr.oracle.com",
+                "oraassistant.oracle.com",
+                "orabuilder.oracle.com",
+                "oracleassistant.oracle.com",
+                "oradocs.oracle.com",
+                "oramobile.oracle.com",
+                "partner.cloudmarketplace.oracle.com",
+                "people.us.oracle.com",
+                "pressroom.oracle.com",
+                "profile-api.oracle.com",
+                "profile.oracle.com",
+                "publicdocs.oracle.com",
+                "redwood.oracle.com",
+                "resources.bronto.com",
+                "restgwoci-dr.oracle.com",
+                "restgwoci.oracle.com",
+                "salesaccelerator.oracle.com",
+                "scm-fusioncrm.oracle.com",
+                "search-api.oracle.com",
+                "search.oracle.com",
+                "securesites.oracle.com",
+                "sites.oracle.com",
+                "volunteer.oracle.com",
+                "wikis.oracle.com",
+                "www.ateam-oracle.com",
+                "www.blogs.oracle.com",
+                "www.bronto.com",
+                "www.covid19-rx.org",
+                "www.covid19rx.org",
+                "www.oracle.com",
+                "www.oracleimg.com",
+                "wwwcmsapi.oracle.com"
+              ],
+              "covers_apex": false,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "56a929c32c5c8495b82dc37538aac398fb84d3cffe19dd8d60e59a885b75f497"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 18,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        },
+        {
+          "ip": "2600:1407:3c00:b8b::a15",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 403,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www-cs-02.oracle.com",
+              "issuer": "DigiCert Global G3 TLS ECC SHA384 2020 CA1",
+              "not_before": "2026-02-06T00:00:00Z",
+              "not_after": "2027-02-07T23:59:59Z",
+              "days_remaining": 125,
+              "sans": [
+                "www-cs-02.oracle.com",
+                "analystconnect.oracle.com",
+                "analytics.covid19.oracle.com",
+                "appcenter.bronto.com",
+                "aria.us.oracle.com",
+                "ateam-oracle.com",
+                "bi-fusioncrm.oracle.com",
+                "biapps-fusioncrm.oracle.com",
+                "blog.bronto.com",
+                "blogs.bronto.com",
+                "blogs.oracle.com",
+                "bronto.com",
+                "careers.bronto.com",
+                "cloudmarketplace.oracle.com",
+                "cn.forums.oracle.com",
+                "co19.oracle.com",
+                "community.oracle.com",
+                "container-registry.oracle.com",
+                "content.bronto.com",
+                "covid-analytics.oracle.com",
+                "covid19-rx.org",
+                "covid19.oracle.com",
+                "covid19rx.org",
+                "covpn-admin-portal.oracle.com",
+                "covpn-site-portal.oracle.com",
+                "covpn.oracle.com",
+                "crm-fusioncrm.oracle.com",
+                "elocation.oracle.com",
+                "events.oracle.com",
+                "fin-fusioncrm.oracle.com",
+                "fusioncrm.oracle.com",
+                "hcm-fusioncrm.oracle.com",
+                "hrservices.oracle.com",
+                "ic-fusioncrm.oracle.com",
+                "ideas.bronto.com",
+                "itweb.oracle.com",
+                "kr.forums.oracle.com",
+                "linux.oracle.com",
+                "m.oracle.com",
+                "maps.oracle.com",
+                "my.oracle.com",
+                "mybuilder.oracle.com",
+                "mydevice.oracle.com",
+                "myemm.oracle.com",
+                "mymobile.oracle.com",
+                "myprocess.oracle.com",
+                "myprofile.oracle.com",
+                "mysites-api.oracle.com",
+                "mysites.oracle.com",
+                "myvisualization.oracle.com",
+                "ocm-apis-cloud.oracle.com",
+                "oraassistant-dr.oracle.com",
+                "oraassistant.oracle.com",
+                "orabuilder.oracle.com",
+                "oracleassistant.oracle.com",
+                "oradocs.oracle.com",
+                "oramobile.oracle.com",
+                "partner.cloudmarketplace.oracle.com",
+                "people.us.oracle.com",
+                "pressroom.oracle.com",
+                "profile-api.oracle.com",
+                "profile.oracle.com",
+                "publicdocs.oracle.com",
+                "redwood.oracle.com",
+                "resources.bronto.com",
+                "restgwoci-dr.oracle.com",
+                "restgwoci.oracle.com",
+                "salesaccelerator.oracle.com",
+                "scm-fusioncrm.oracle.com",
+                "search-api.oracle.com",
+                "search.oracle.com",
+                "securesites.oracle.com",
+                "sites.oracle.com",
+                "volunteer.oracle.com",
+                "wikis.oracle.com",
+                "www.ateam-oracle.com",
+                "www.blogs.oracle.com",
+                "www.bronto.com",
+                "www.covid19-rx.org",
+                "www.covid19rx.org",
+                "www.oracle.com",
+                "www.oracleimg.com",
+                "wwwcmsapi.oracle.com"
+              ],
+              "covers_apex": false,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "56a929c32c5c8495b82dc37538aac398fb84d3cffe19dd8d60e59a885b75f497"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 63,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.oracle.com/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "http://www.oracle.com/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://www.oracle.com/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "http://www.oracle.com/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "unresolved": false,
+      "policy": "reject",
+      "pct": 100,
+      "rua": true,
+      "records": 1,
+      "problems": []
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 10,
+      "void_lookups": 0,
+      "txt_answer_octets": 3597,
+      "all": "~all",
+      "includes": [
+        "spf_s.oracle.com",
+        "spf_p.oracle.com",
+        "spf_r.oracle.com",
+        "spf_c.oraclecloud.com",
+        "spf_s1.oraclecloud.com",
+        "spf_s2.oraclecloud.com",
+        "spf_x.oracle.com",
+        "spf.mandrillapp.com",
+        "spf_z.oracle.com",
+        "stspg-customer.com"
+      ],
+      "problems": [
+        "apex TXT answer is 3597 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP",
+        "include:stspg-customer.com TXT answer is 617 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"
+      ]
+    },
+    "mx": [
+      {
+        "host": "mxa-00069f01.gslb.pphosted.com.",
+        "preference": 20,
+        "addresses": 1,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      },
+      {
+        "host": "mxb-00069f01.gslb.pphosted.com.",
+        "preference": 20,
+        "addresses": 1,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      }
+    ],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [
+        "s1",
+        "dkim"
+      ],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 8,
+    "servers": [
+      {
+        "name": "a1-160.akam.net.",
+        "ip": "193.108.91.160",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a1-160.akam.net.",
+        "ip": "2600:1401:2::a0",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a11-66.akam.net.",
+        "ip": "2600:1480:1::42",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a11-66.akam.net.",
+        "ip": "84.53.139.66",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a13-65.akam.net.",
+        "ip": "2.22.230.65",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a13-65.akam.net.",
+        "ip": "2600:1480:800::41",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a18-67.akam.net.",
+        "ip": "2600:1480:4800::43",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a18-67.akam.net.",
+        "ip": "95.101.36.67",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns1.p201.dns.oraclecloud.net.",
+        "ip": "108.59.166.201",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns1.p201.dns.oraclecloud.net.",
+        "ip": "2600:2000:2100::c9",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns2.p201.dns.oraclecloud.net.",
+        "ip": "108.59.168.201",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns2.p201.dns.oraclecloud.net.",
+        "ip": "2600:2000:2110::c9",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns3.p201.dns.oraclecloud.net.",
+        "ip": "108.59.170.201",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns3.p201.dns.oraclecloud.net.",
+        "ip": "2600:2000:2120::c9",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns4.p201.dns.oraclecloud.net.",
+        "ip": "108.59.172.201",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns4.p201.dns.oraclecloud.net.",
+        "ip": "2600:2000:2130::c9",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026093002,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 8,
+    "ipv6_prefixes_48": 8,
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [
+          "0 issue \"digicert.com\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\""
+        ],
+        "effective": [
+          "0 issue \"digicert.com\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\""
+        ],
+        "issuer": "DigiCert Inc",
+        "permitted": true
+      },
+      "www": {
+        "published": [],
+        "effective": [
+          "0 issue \"digicert.com\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\""
+        ],
+        "issuer": "DigiCert Inc",
+        "permitted": true
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name svumqafnhhib is denied",
+    "probes": [
+      {
+        "label": "svumqafnhhib",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [],
+  "warnings": [
+    "apex has no AAAA record",
+    "apex: no TLS 1.3 on 1 of 1 addresses",
+    "apex (ipv4): redirect chain ends in HTTP 403 at https://www.oracle.com/",
+    "www: every address returns a client error on port 80",
+    "www: every address returns a client error on port 443",
+    "www (ipv4): redirect chain ends in HTTP 403 at http://www.oracle.com/",
+    "www (ipv6): redirect chain ends in HTTP 403 at http://www.oracle.com/",
+    "SPF: apex TXT answer is 3597 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP",
+    "SPF: include:stspg-customer.com TXT answer is 617 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"
+  ],
+  "ok": true,
+  "elapsed_ms": 4612
+}

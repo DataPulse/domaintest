@@ -1,0 +1,642 @@
+{
+  "domain": "facebook.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "157.240.254.35"
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2a03:2880:f175:181:face:b00c:0:25de"
+        ]
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "10 smtpin.vvv.facebook.com."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "a.ns.facebook.com.",
+          "b.ns.facebook.com.",
+          "c.ns.facebook.com.",
+          "d.ns.facebook.com."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "v=spf1 redirect=_spf.facebook.com",
+          "facebook-domain-verification=y7isfmi3kzyg1r4wophh9vyb6pgbda",
+          "zoom-domain-verification=4b2ef4e1-6dee-4483-9869-9bef353fd147",
+          "google-site-verification=A2WZWCNQHrGV_TWwKh6KHY90tY0SHZo_RnyMJoDaG0s",
+          "google-site-verification=sK6uY9x7eaMoEMfn3OILqwTFYgaNp4llmguKI-C3_iA",
+          "google-site-verification=wdH5DTJTc9AYNwVunSVFeK0hYDGUIEOGb-RReU6pJlY",
+          "zoom-domain-verification=ZOOM_verify_e6c41daeb8a04c56b2c1d1702e312f88"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "157.240.254.35"
+        ],
+        "cname": [
+          "star-mini.c10r.facebook.com."
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2a03:2880:f175:181:face:b00c:0:25de"
+        ],
+        "cname": [
+          "star-mini.c10r.facebook.com."
+        ]
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "a.ns.facebook.com.",
+      "b.ns.facebook.com.",
+      "c.ns.facebook.com.",
+      "d.ns.facebook.com."
+    ],
+    "parent_server": "j.gtld-servers.net",
+    "child_ns": [
+      "a.ns.facebook.com.",
+      "b.ns.facebook.com.",
+      "c.ns.facebook.com.",
+      "d.ns.facebook.com."
+    ],
+    "child_server": "a.ns.facebook.com"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "157.240.254.35",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://facebook.com/",
+            "server": "proxygen-bolt"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.facebook.com/",
+            "hsts": {
+              "max_age": 15552000,
+              "include_subdomains": false,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": true,
+            "tls11": true,
+            "cert": {
+              "subject": "*.facebook.com",
+              "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+              "not_before": "2026-07-15T00:00:00Z",
+              "not_after": "2026-10-13T23:59:59Z",
+              "days_remaining": 8,
+              "sans": [
+                "*.facebook.com",
+                "*.facebook.net",
+                "*.fbcdn.net",
+                "*.fbsbx.com",
+                "*.m.facebook.com",
+                "*.messenger.com",
+                "*.xx.fbcdn.net",
+                "*.xy.fbcdn.net",
+                "*.xz.fbcdn.net",
+                "facebook.com",
+                "messenger.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "d0823444b2920c068704467e3d36330845aa5b9282fe55308d0a1ead3bcf09c2"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "157.240.254.35:443",
+            "handshake_ms": 21
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2a03:2880:f175:181:face:b00c:0:25de",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://facebook.com/",
+            "server": "proxygen-bolt"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.facebook.com/",
+            "hsts": {
+              "max_age": 15552000,
+              "include_subdomains": false,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": true,
+            "tls11": true,
+            "cert": {
+              "subject": "*.facebook.com",
+              "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+              "not_before": "2026-07-15T00:00:00Z",
+              "not_after": "2026-10-13T23:59:59Z",
+              "days_remaining": 8,
+              "sans": [
+                "*.facebook.com",
+                "*.facebook.net",
+                "*.fbcdn.net",
+                "*.fbsbx.com",
+                "*.m.facebook.com",
+                "*.messenger.com",
+                "*.xx.fbcdn.net",
+                "*.xy.fbcdn.net",
+                "*.xz.fbcdn.net",
+                "facebook.com",
+                "messenger.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "d0823444b2920c068704467e3d36330845aa5b9282fe55308d0a1ead3bcf09c2"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "[2a03:2880:f175:181:face:b00c:0:25de]:443",
+            "handshake_ms": 18
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://facebook.com/",
+              "status": 301
+            },
+            {
+              "url": "https://facebook.com/",
+              "status": 301
+            },
+            {
+              "url": "https://www.facebook.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.facebook.com/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://facebook.com/",
+              "status": 301
+            },
+            {
+              "url": "https://facebook.com/",
+              "status": 301
+            },
+            {
+              "url": "https://www.facebook.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.facebook.com/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "same_as_apex": true,
+      "ipv4": [
+        {
+          "ip": "157.240.254.35",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.facebook.com/",
+            "server": "proxygen-bolt"
+          },
+          "https": {
+            "status": 200,
+            "hsts": {
+              "max_age": 15552000,
+              "include_subdomains": false,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": true,
+            "tls11": true,
+            "cert": {
+              "subject": "*.facebook.com",
+              "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+              "not_before": "2026-07-15T00:00:00Z",
+              "not_after": "2026-10-13T23:59:59Z",
+              "days_remaining": 8,
+              "sans": [
+                "*.facebook.com",
+                "*.facebook.net",
+                "*.fbcdn.net",
+                "*.fbsbx.com",
+                "*.m.facebook.com",
+                "*.messenger.com",
+                "*.xx.fbcdn.net",
+                "*.xy.fbcdn.net",
+                "*.xz.fbcdn.net",
+                "facebook.com",
+                "messenger.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "d0823444b2920c068704467e3d36330845aa5b9282fe55308d0a1ead3bcf09c2"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "157.240.254.35:443",
+            "handshake_ms": 18
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2a03:2880:f175:181:face:b00c:0:25de",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.facebook.com/",
+            "server": "proxygen-bolt"
+          },
+          "https": {
+            "status": 200,
+            "hsts": {
+              "max_age": 15552000,
+              "include_subdomains": false,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": true,
+            "tls11": true,
+            "cert": {
+              "subject": "*.facebook.com",
+              "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+              "not_before": "2026-07-15T00:00:00Z",
+              "not_after": "2026-10-13T23:59:59Z",
+              "days_remaining": 8,
+              "sans": [
+                "*.facebook.com",
+                "*.facebook.net",
+                "*.fbcdn.net",
+                "*.fbsbx.com",
+                "*.m.facebook.com",
+                "*.messenger.com",
+                "*.xx.fbcdn.net",
+                "*.xy.fbcdn.net",
+                "*.xz.fbcdn.net",
+                "facebook.com",
+                "messenger.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "d0823444b2920c068704467e3d36330845aa5b9282fe55308d0a1ead3bcf09c2"
+            },
+            "chain_length": 2
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "[2a03:2880:f175:181:face:b00c:0:25de]:443",
+            "handshake_ms": 22
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.facebook.com/",
+              "status": 301
+            },
+            {
+              "url": "https://www.facebook.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.facebook.com/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://www.facebook.com/",
+              "status": 301
+            },
+            {
+              "url": "https://www.facebook.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.facebook.com/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "unresolved": false,
+      "policy": "reject",
+      "pct": 100,
+      "rua": true,
+      "records": 1,
+      "problems": []
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 1,
+      "void_lookups": 0,
+      "txt_answer_octets": 547,
+      "includes": [
+        "_spf.facebook.com"
+      ],
+      "problems": [
+        "apex TXT answer is 547 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP"
+      ]
+    },
+    "mx": [
+      {
+        "host": "smtpin.vvv.facebook.com.",
+        "preference": 10,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      }
+    ],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [
+        "default"
+      ],
+      "revoked": [
+        "default"
+      ]
+    },
+    "mta_sts": {
+      "record": true,
+      "id": "20191202T113700",
+      "mode": "testing",
+      "max_age": 86400,
+      "mx": [
+        "smtpin.vvv.facebook.com"
+      ],
+      "policy_ok": true,
+      "mx_covered": true
+    },
+    "tls_rpt": true
+  },
+  "nameservers": {
+    "count": 4,
+    "servers": [
+      {
+        "name": "a.ns.facebook.com.",
+        "ip": "129.134.30.12",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 4207849484,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a.ns.facebook.com.",
+        "ip": "2a03:2880:f0fc:c:face:b00c:0:35",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 4207849484,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "b.ns.facebook.com.",
+        "ip": "129.134.31.12",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 4207849484,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "b.ns.facebook.com.",
+        "ip": "2a03:2880:f0fd:c:face:b00c:0:35",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 4207849484,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "c.ns.facebook.com.",
+        "ip": "185.89.218.12",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 4207849484,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "c.ns.facebook.com.",
+        "ip": "2a03:2880:f1fc:c:face:b00c:0:35",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 4207849484,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "d.ns.facebook.com.",
+        "ip": "185.89.219.12",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 4207849484,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "d.ns.facebook.com.",
+        "ip": "2a03:2880:f1fd:c:face:b00c:0:35",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 4207849484,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 4,
+    "ipv6_prefixes_48": 4,
+    "glue": {
+      "required": [
+        "a.ns.facebook.com.",
+        "b.ns.facebook.com.",
+        "c.ns.facebook.com.",
+        "d.ns.facebook.com."
+      ],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [
+          "0 issue \"digicert.com; account=271b0beda0771d006aa3a6c11b05187d456d6c239b46cb5241196095b09c92af\""
+        ],
+        "effective": [
+          "0 issue \"digicert.com; account=271b0beda0771d006aa3a6c11b05187d456d6c239b46cb5241196095b09c92af\""
+        ],
+        "issuer": "DigiCert Inc",
+        "permitted": true
+      },
+      "www": {
+        "published": [],
+        "effective": [
+          "0 issue \"digicert.com; account=271b0beda0771d006aa3a6c11b05187d456d6c239b46cb5241196095b09c92af\""
+        ],
+        "issuer": "DigiCert Inc",
+        "permitted": true
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name zhodabdscxgs is denied",
+    "probes": [
+      {
+        "label": "zhodabdscxgs",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "preloaded",
+  "hsts_preload_policy": "custom",
+  "errors": [],
+  "warnings": [
+    "apex: certificate expires in 8 days",
+    "apex: TLS 1.0/1.1 still accepted on 2 of 2 addresses",
+    "www: certificate expires in 8 days",
+    "www: TLS 1.0/1.1 still accepted on 2 of 2 addresses",
+    "SPF: apex TXT answer is 547 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP",
+    "DKIM selector default publishes a revoked (empty) key"
+  ],
+  "ok": true,
+  "elapsed_ms": 1350
+}

@@ -288,7 +288,7 @@ Single-line JSON on stdout (`-pretty` indents). Top-level keys: `domain`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
 `dns_concurrency`, `reserved_addresses` (when any), `hsts_preload`,
 `hsts_preload_covered_by` and `hsts_preload_error` (unless disabled),
-`errors`, `warnings`, `ok`, `elapsed_ms`.
+`errors`, `warnings`, `findings`, `ok`, `elapsed_ms`.
 
 Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has
 `ip`, `80`, `443` (open / refused / timeout / unreachable / error /
@@ -415,29 +415,59 @@ issuer the CAA records forbid, and TLSA records matching no served
 certificate. A bogus zone yields one DNSSEC error; the per-lookup failures
 it causes are folded into it rather than listed one by one.
 
-Warnings: no A/AAAA at apex or www, `www` name does not exist, no MX, a
-null MX (RFC 7505, accepts no mail), no SPF in TXT, name is not a zone
-apex, DNSSEC island or unknown, addresses with nothing listening on 80 or
-443, addresses where HTTP answers but HTTPS does not, QUIC working on one
-probed address of a host but not another, certificates expiring within 30
-days, a certificate not covering the sibling name, different certificates
-across a host's addresses, TLS 1.0 or 1.1 accepted, no TLS 1.3, some
-addresses 5xx or all 4xx, clear-text HTTP without redirect, HSTS max-age
-under 180 days, broken redirect chains, a chain still redirecting at the
-hop limit, missing DMARC or `p=none` or
-`pct<100`, SPF `?all` / `ptr` / missing `all` / void lookups / includes
-without SPF / a TXT answer near or over 512 octets, revoked DKIM keys, a zone that wildcards `_domainkey` (which makes every
-selector answer, so none can be verified), MTA-STS problems in testing mode,
-nameservers without TCP or EDNS, a nameserver address that never answered
-while the name's other addresses are authoritative, SOA serial drift, low
-prefix diversity,
-MX targets and nameserver names whose address lookup did not complete (a
-gap in the check, not a fault in the domain, and marked `unresolved` in
-the report), an audit that reached no nameserver at all,
-glue mismatch, TLSA in an unsigned zone, and www answered by a wildcard.
-The SOA drift warning names each nameserver with the address that answered,
-`ns1.example.(192.0.2.1)=9957`, since which address disagrees is the point.
-Warning and error strings are stable; key on them by prefix.
+Warnings: everything in `findings` with severity `warn` or `info`, listed
+below. The SOA drift finding names each nameserver with the address that
+answered, `ns1.example.(192.0.2.1)=9957`, since which address disagrees is
+the point.
+
+### Findings
+
+`findings` lists every error and warning again as
+`{code, severity, host, message}`:
+
+- `code` is a stable snake_case identifier. Key on it, not on `message`,
+  whose wording may change. A code always has the same severity.
+- `severity` is `fail`, `warn` or `info`, and the set is closed. `fail`
+  is what sets `ok` to false. `warn` is a defect worth fixing. `info` is a
+  configuration fact that is normal for some well-run domains and is
+  recorded rather than scored: an operator's choice to keep TLS 1.0 for
+  legacy clients, or a parked name having no MX, means something only
+  against a reference that domaintest does not hold.
+- `host` is `apex`, `www`, a nameserver or MX host name, or empty for a
+  finding about the domain as a whole.
+- `message` is the sentence also found in `errors` or `warnings`. Messages
+  state what was observed and nothing else: no advice, no citations. A
+  consumer that wants to advise maps codes to its own guidance.
+
+`errors` and `warnings` are kept for consumers that predate `findings`:
+`fail` entries are exactly `errors`, and `warn` plus `info` entries are
+exactly `warnings`, in the same order.
+
+The severities were calibrated on 2026-10-05 against the flagship
+apexes and subdomains in `testdata/calibration/reference.txt`. A finding
+that most of those operators carry describes a choice, not a defect, and
+is `info`. `go test -tags calibration -run Calibration -v` reruns that
+check live and fails if any `warn` code fires on more than 20% of the
+set.
+
+| severity | codes |
+|---|---|
+| fail | `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` |
+| warn | `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_problem` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` |
+| info | `not_a_zone` `reserved_name` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` |
+
+Notes on the info rows:
+
+- `http_probe_refused` is a 401, 403, 407, 417 or 429, either on every
+  address or at the end of a redirect chain. Large sites answer an honest
+  non-browser User-Agent this way, so the status says nothing about the
+  site. A 404 or 410 is still a warning.
+- `http_cleartext_preloaded` is plain HTTP on a host the HSTS preload list
+  covers. No browser ever makes that request.
+- A www name inside a zone (`www.app.example.com`) is not checked for a
+  wildcard. The HSTS preload header requirement applies only to the
+  list entry itself, not to names covered by an ancestor's
+  `include_subdomains`.
 
 ## DNS concurrency
 
@@ -553,7 +583,13 @@ off-site; the most representative healthy web domain), jschmidt.org
 MX; captured while one of its registrar's nameservers was unreachable
 from the capturing host, so it also shows a nameserver error),
 expired.badssl.com (certificate errors on a host inside a zone) and
-dnssec-failed.org (DNSSEC bogus). Use them to write parsers against the
+dnssec-failed.org (DNSSEC bogus). The calibration fixtures, captured live
+on 2026-10-05, are google.com, microsoft.com, facebook.com, oracle.com,
+sap.com, icann.org, wikipedia.org, nic.cz, docs.github.com and
+app.slack.com. Alongside them are parked defensive registrations from a
+real portfolio: microsoft.ar, microsoft.org and nikonic.net. These
+fixtures were captured before `findings` existed, and the tests rebuild
+it from each report's sections. Use them to write parsers against the
 real shape.
 
 ## Tests
@@ -561,6 +597,7 @@ real shape.
 ```
 go test -short ./...   # unit tests, fixtures captured from real tool output
 go test ./...          # also runs the network integration tests
+go test -tags calibration -run Calibration -v   # live severity calibration
 ```
 
 Unit tests never touch the network: DNS answers come from captured

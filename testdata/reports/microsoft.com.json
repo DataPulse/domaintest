@@ -1,0 +1,1072 @@
+{
+  "domain": "microsoft.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "150.171.110.209"
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2603:1061:14:1d2::1"
+        ]
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "10 microsoft-com.mail.protection.outlook.com."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "ns1-39.azure-dns.com.",
+          "ns2-39.azure-dns.net.",
+          "ns3-39.azure-dns.org.",
+          "ns4-39.azure-dns.info."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "MS=ms79629062",
+          "dobtdihqagnr18hea8uv1h1mvq",
+          "fg2t0gov9424p2tdcuo94goe9j",
+          "t7sebee51jrj7vm932k531hipa",
+          "_zx2p8gpzv720db2aqmozy4jhwk2nl43",
+          "d365mktkey=3uc1cf82cpv750lzk70v9bvf2",
+          "d365mktkey=6358r1b7e13hox60tl1uagv14",
+          "linear-domain-verification=iuq6saifcnbe",
+          "docusign=d5a3737c-c23c-4bd0-9095-d2ff621f2840",
+          "1password-site-verification=35ZTURTFFFDC5BW7GFQKRJ77QM",
+          "airtable-verification=79a09e4a8013ff5737798ffb4ea88eee",
+          "openai-domain-verification=dv-sFtCvKOlWoe31gpoSvs7cqsP",
+          "d365mktkey=3l6dste9txazu0Qd2zu4135PUB4E35txLxyzJxjkPbsx",
+          "d365mktkey=8fEQahTresJms7tZGxGFr94T1zDz36oCbUt1LJc99mox",
+          "d365mktkey=Fu49WtSTeClkHtK7S14227RIVpGwwGrzEsO6RVs1I2Ax",
+          "d365mktkey=JlXV17lfZjyvWxNje1qiP390ACSKzTxo5mGqZ3V2BmYx",
+          "d365mktkey=PNcDqkW71x8VOUhcE96aGM4l5PYX1gnlRl6ieXUl5eMx",
+          "d365mktkey=QDa792dLCZhvaAOOCe2Hz6WTzmTssOp1snABhxWibhMx",
+          "d365mktkey=SxDf1EZxLvMwx6eEZUxzjFFgHoapF8DvtWEUjwq7ZTwx",
+          "d365mktkey=ZGFU0tlXPekPusNHPo5QQQWpVf0gic0xpuKroNy3NQEx",
+          "d365mktkey=heYmJ57sWrwMjCgIG1xRwTREJrQokUIDtBcNfGuxoWQx",
+          "d365mktkey=j2qHWq9BHdaa3ZXZH8x64daJZxEWsFa0dxDeilxDoYYx",
+          "d365mktkey=wbU64GRacxVEQxwcLSQnx0zisXLYzgUbfvsufIqO9ZUx",
+          "docker-verification=b912d2f3-8614-4591-962b-9e07dbf7c047",
+          "facebook-domain-verification=fwzwhbbzwmg5fzgotc2go51olc3566",
+          "mixpanel-domain-verify=5803bc4c-5bb6-4ce1-8076-753800097373",
+          "ms-domain-verification=1c4e4677-e58f-4117-8d61-e5b2810388c2",
+          "ms-domain-verification=25524f4b-1476-489c-a086-30f4c5016ecc",
+          "ms-domain-verification=478640ad-6524-43d5-86c4-a914804b9e93",
+          "ms-domain-verification=561512fc-b4ba-4ac7-a946-e464c8f49f1b",
+          "ms-domain-verification=65f91178-9dfb-41cd-929d-08d1a38ed607",
+          "ms-domain-verification=d6545068-89f7-4432-b947-0b137e8a9fe3",
+          "workplace-domain-verification=lK0QDLk73xymCYMKUXNpfKAT8TY5Mx",
+          "sitecore-domain-verification=1d46cb5467624e33a408d14324874088",
+          "anthropic-domain-verification-phksss=GZrrKDUR4klRLFCvxyOvqcNGE",
+          "google-site-verification=GfDnTUdATPsK1230J0mXbfsYw-3A9BVMVaKSd4DcKgI",
+          "google-site-verification=M--CVfn_YwsV-2FGbCp_HFaEj23BmT0cTF4l8hXgpvM",
+          "google-site-verification=mEAmcTy1e8jIB9W6ENPk2GDg9hjuNytQQRGlK0hPm0c",
+          "google-site-verification=pjPOauSPcrfXOZS9jnPPa5axowcHGCDAl1_86dCqFpk",
+          "google-site-verification=uFg3wr5PWsK8lV029RoXXBBUW0_E6qf1WEWVHhetkOY",
+          "google-site-verification=uhh5_jbxpcQgnb-A7gDIjlrr5Ef34lA2t2_BAveYpnk",
+          "zoom-domain-verification=ZOOM_verify_e97a3d385acb4c47b9b924609a280524",
+          "liveramp-site-verification=kxcV8fDH_FUNUZQEcAO6lwgim47f_hNLgMP4VG0PF_Q",
+          "hubspot-developer-verification=OTQ5NGIwYWEtODNmZi00YWE1LTkyNmQtNDhjMDMxY2JjNDAx",
+          "hcp-domain-verification=3ce174a8b9fba88909633ab13eb1d81ce0123454745d66e500052ed84b7248a1",
+          "v=MCPv1; k=ecdsap384; p=A/78JIxAOlNwq8f0T/l50w7zhwQFpEuB8/Jz9CafdXNX7ewOluYpS/EEcSmLgxsHXg==",
+          "v=MCPv1; k=ecdsap384; p=A/Mf6IKdZzcHfBvpiVz9rkdPTIcCP5IbRDdEkeP3PgXEXF3mNjorahOwaYlMINBF5A==",
+          "v=MCPv1; k=ecdsap384; p=A5JeyhIFWFj4/epHJwt29GRUSrFwGSwXhrhDMAUSklMhfXjI7gi/ekY/fQSWToZdCw==",
+          "v=MCPv1; k=ecdsap384; p=A8qndBCDJGtFF2+3v/IPIMmM0SaVcrJBoSue7rKob6sUeK7QGeFuWkrtvze3AiqUDA==",
+          "v=MCPv1; k=ecdsap384; p=An4mJIFLRys9h1EvjX18SJs5p1uEF5MHcs2JJLYPrI48C5Qt9FpaZEM0sQTV4JvNYw==",
+          "v=MCPv1; k=ecdsap384; p=AoHTKEi2W8L2P8cf9CoDicIxYiuttTkwtIeFOqYCewBGoRZiiF+9/92saUkIDERGAA==",
+          "v=MCPv1; k=ecdsap384; p=AqXeTHJ/1FCYeuvJ8dc1B+X3uHaa7m2W0s31vzL4opnrJlSaBdtbWTY8Ti5WiZnu9Q==",
+          "v=MCPv1; k=ecdsap384; p=As/XxnDWZFxFwHvRZj+HbG5/ImtAeabLkiOWu1h7wCJQFAR216E9HoYQ5Hy6o7StoQ==",
+          "v=MCPv1; k=ecdsap384; p=Asc8WWov6gsmCCzn4CSrwRuJIh5SqvaitKz/LlTW+SD54lLC52wzcnWhlTI416p2vw==",
+          "v=MCPv1; k=ecdsap384; p=Azw9+u4M8RoH+bxJidKAZzGDmsPkzY1N4cO7rB/uC5x1RBoNfMyBlH/ott0lpo4pOQ==",
+          "atlassian-domain-verification=Sn5AwyIdVgkaRaJA/IKj7ZFMnWeCBnppa9bXGLuJvsakRHH4lYoBxS8g7GVlud9M",
+          "atlassian-domain-verification=xvoaqRfxSg3PnlVnR4xCSOlKyw1Aln0MMxRiKXnwWroFG7vI76TUC8xYb03MwMXv",
+          "hpe-greenlake-domain-verification=495143304a3330533363357a57684f6335556f316f55654675523541464d3954",
+          "v=spf1 include:_spf-a.microsoft.com include:_spf-b.microsoft.com include:_spf-c.microsoft.com include:_spf-ssg-a.msft.net include:_spf1-meo.microsoft.com -all"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "23.222.202.36"
+        ],
+        "cname": [
+          "www.microsoft.com-c-3.edgekey.net.",
+          "e13678.dscb.akamaiedge.net."
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2600:1407:7400:c8d::356e",
+          "2600:1407:7400:c8e::356e",
+          "2600:1407:7400:c8f::356e"
+        ],
+        "cname": [
+          "www.microsoft.com-c-3.edgekey.net.",
+          "e13678.dscb.akamaiedge.net."
+        ]
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "ns1-39.azure-dns.com.",
+      "ns2-39.azure-dns.net.",
+      "ns3-39.azure-dns.org.",
+      "ns4-39.azure-dns.info."
+    ],
+    "parent_server": "i.gtld-servers.net",
+    "child_ns": [
+      "ns1-39.azure-dns.com.",
+      "ns2-39.azure-dns.net.",
+      "ns3-39.azure-dns.org.",
+      "ns4-39.azure-dns.info."
+    ],
+    "child_server": "ns1-39.azure-dns.com"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "150.171.110.209",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 307,
+            "location": "https://microsoft.com/"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.microsoft.com/",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "microsoft.com",
+              "issuer": "Microsoft TLS G2 RSA CA OCSP 04",
+              "not_before": "2026-06-23T09:04:17Z",
+              "not_after": "2026-12-20T09:04:17Z",
+              "days_remaining": 75,
+              "sans": [
+                "microsoft.com",
+                "s.microsoft.com",
+                "ga.microsoft.com",
+                "aep.microsoft.com",
+                "aer.microsoft.com",
+                "grv.microsoft.com",
+                "hup.microsoft.com",
+                "mac.microsoft.com",
+                "mkb.microsoft.com",
+                "pme.microsoft.com",
+                "pmi.microsoft.com",
+                "rss.microsoft.com",
+                "sar.microsoft.com",
+                "tco.microsoft.com",
+                "fuse.microsoft.com",
+                "ieak.microsoft.com",
+                "mac2.microsoft.com",
+                "mcsp.microsoft.com",
+                "open.microsoft.com",
+                "shop.microsoft.com",
+                "spur.microsoft.com",
+                "itpro.microsoft.com",
+                "mango.microsoft.com",
+                "music.microsoft.com",
+                "pymes.microsoft.com",
+                "store.microsoft.com",
+                "aether.microsoft.com",
+                "alerts.microsoft.com",
+                "design.microsoft.com",
+                "garage.microsoft.com",
+                "gigjam.microsoft.com",
+                "msctec.microsoft.com",
+                "online.microsoft.com",
+                "stream.microsoft.com",
+                "afflink.microsoft.com",
+                "connect.microsoft.com",
+                "develop.microsoft.com",
+                "domains.microsoft.com",
+                "example.microsoft.com",
+                "madeira.microsoft.com",
+                "msdnisv.microsoft.com",
+                "mspress.microsoft.com",
+                "www.aep.microsoft.com",
+                "www.aer.microsoft.com",
+                "wwwbeta.microsoft.com",
+                "business.microsoft.com",
+                "empresas.microsoft.com",
+                "learning.microsoft.com",
+                "msdnwiki.microsoft.com",
+                "openness.microsoft.com",
+                "pinpoint.microsoft.com",
+                "snackbox.microsoft.com",
+                "sponsors.microsoft.com",
+                "stationq.microsoft.com",
+                "aistories.microsoft.com",
+                "community.microsoft.com",
+                "crawlmsdn.microsoft.com",
+                "iotschool.microsoft.com",
+                "messenger.microsoft.com",
+                "minecraft.microsoft.com",
+                "backoffice.microsoft.com",
+                "enterprise.microsoft.com",
+                "iotcentral.microsoft.com",
+                "pinunblock.microsoft.com",
+                "reroute443.microsoft.com",
+                "communities.microsoft.com",
+                "explore-smb.microsoft.com",
+                "expressions.microsoft.com",
+                "ondernemers.microsoft.com",
+                "techacademy.microsoft.com",
+                "terraserver.microsoft.com",
+                "communities2.microsoft.com",
+                "connectevent.microsoft.com",
+                "dataplatform.microsoft.com",
+                "entrepreneur.microsoft.com",
+                "hxd.research.microsoft.com",
+                "mspartnerira.microsoft.com",
+                "mydatahealth.microsoft.com",
+                "oemcommunity.microsoft.com",
+                "real-stories.microsoft.com",
+                "www.formspro.microsoft.com",
+                "futuredecoded.microsoft.com",
+                "upgradecenter.microsoft.com",
+                "learnanalytics.microsoft.com",
+                "onlinelearning.microsoft.com",
+                "businesscentral.microsoft.com",
+                "cloud-immersion.microsoft.com",
+                "studentpartners.microsoft.com",
+                "analyticspartner.microsoft.com",
+                "businessplatform.microsoft.com",
+                "explore-security.microsoft.com",
+                "kleinunternehmen.microsoft.com",
+                "partnercommunity.microsoft.com",
+                "explore-marketing.microsoft.com",
+                "innovationcontest.microsoft.com",
+                "partnerincentives.microsoft.com",
+                "phoenixcataloguat.microsoft.com",
+                "szkolyprzyszlosci.microsoft.com",
+                "www.powerautomate.microsoft.com",
+                "successionplanning.microsoft.com",
+                "lumiaconversationsuk.microsoft.com",
+                "successionplanninguat.microsoft.com",
+                "businessmobilitycenter.microsoft.com",
+                "skypeandteams.fasttrack.microsoft.com",
+                "www.microsoftdlapartnerow.microsoft.com",
+                "commercialappcertification.microsoft.com",
+                "www.skypeandteams.fasttrack.microsoft.com",
+                "ceoconnections.event.microsoft.com",
+                "biz4afrika.microsoft.com",
+                "cashback.microsoft.com",
+                "www.cashback.microsoft.com",
+                "visio.microsoft.com",
+                "insidemsr.microsoft.com",
+                "developervelocityassessment.com",
+                "www.developervelocityassessment.com",
+                "gears5.com",
+                "www.gears5.com",
+                "www.gearstactics.com",
+                "gearstactics.com",
+                "m12.microsoft.com",
+                "seeingai.com",
+                "yourchoice.microsoft.com",
+                "mvtd.events.microsoft.com",
+                "imagine.microsoft.com",
+                "microsoft.com.au",
+                "www.microsoft.com.au",
+                "dynamics.microsoft.com",
+                "powerplatform.microsoft.com",
+                "powerapps.microsoft.com",
+                "powerautomate.microsoft.com",
+                "powervirtualagents.microsoft.com",
+                "powerpages.microsoft.com",
+                "test.ideas.fabric.microsoft.com",
+                "sds.microsoft.com",
+                "ppe.sds.microsoft.com",
+                "www.microsoft365copilot.com",
+                "www.jclarity.com",
+                "techinnovatorsspotlight.com",
+                "www.techinnovatorsspotlight.com",
+                "copilot.ai",
+                "getlicensingready.com",
+                "www.getlicensingready.com",
+                "jpn.delve.office.com",
+                "aus.delve.office.com",
+                "ind.delve.office.com",
+                "kor.delve.office.com",
+                "cobra.me.microsoft.com",
+                "www.businesscentral.com",
+                "businesscentral.com",
+                "msaidatastudio.officeppe.net",
+                "ideas.fabric.microsoft.com",
+                "www.cpt.link",
+                "cpt.link",
+                "yarp.dot.net",
+                "microsoftstream.com",
+                "www.microsoftstream.com",
+                "web.microsoftstream.com",
+                "discover.copilot.ai",
+                "copilot.com",
+                "www.copilot.com",
+                "discover.copilot.com",
+                "researchforum.microsoft.com",
+                "cdn.techcommunity.microsoft.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "1e16fa37bf143e7ad494aa2ee922846a6d02434f1fdca413b78097a31c7b77f5"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2603:1061:14:1d2::1",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 307,
+            "location": "https://microsoft.com/"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.microsoft.com/",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "microsoft.com",
+              "issuer": "Microsoft TLS G2 RSA CA OCSP 04",
+              "not_before": "2026-06-23T09:04:17Z",
+              "not_after": "2026-12-20T09:04:17Z",
+              "days_remaining": 75,
+              "sans": [
+                "microsoft.com",
+                "s.microsoft.com",
+                "ga.microsoft.com",
+                "aep.microsoft.com",
+                "aer.microsoft.com",
+                "grv.microsoft.com",
+                "hup.microsoft.com",
+                "mac.microsoft.com",
+                "mkb.microsoft.com",
+                "pme.microsoft.com",
+                "pmi.microsoft.com",
+                "rss.microsoft.com",
+                "sar.microsoft.com",
+                "tco.microsoft.com",
+                "fuse.microsoft.com",
+                "ieak.microsoft.com",
+                "mac2.microsoft.com",
+                "mcsp.microsoft.com",
+                "open.microsoft.com",
+                "shop.microsoft.com",
+                "spur.microsoft.com",
+                "itpro.microsoft.com",
+                "mango.microsoft.com",
+                "music.microsoft.com",
+                "pymes.microsoft.com",
+                "store.microsoft.com",
+                "aether.microsoft.com",
+                "alerts.microsoft.com",
+                "design.microsoft.com",
+                "garage.microsoft.com",
+                "gigjam.microsoft.com",
+                "msctec.microsoft.com",
+                "online.microsoft.com",
+                "stream.microsoft.com",
+                "afflink.microsoft.com",
+                "connect.microsoft.com",
+                "develop.microsoft.com",
+                "domains.microsoft.com",
+                "example.microsoft.com",
+                "madeira.microsoft.com",
+                "msdnisv.microsoft.com",
+                "mspress.microsoft.com",
+                "www.aep.microsoft.com",
+                "www.aer.microsoft.com",
+                "wwwbeta.microsoft.com",
+                "business.microsoft.com",
+                "empresas.microsoft.com",
+                "learning.microsoft.com",
+                "msdnwiki.microsoft.com",
+                "openness.microsoft.com",
+                "pinpoint.microsoft.com",
+                "snackbox.microsoft.com",
+                "sponsors.microsoft.com",
+                "stationq.microsoft.com",
+                "aistories.microsoft.com",
+                "community.microsoft.com",
+                "crawlmsdn.microsoft.com",
+                "iotschool.microsoft.com",
+                "messenger.microsoft.com",
+                "minecraft.microsoft.com",
+                "backoffice.microsoft.com",
+                "enterprise.microsoft.com",
+                "iotcentral.microsoft.com",
+                "pinunblock.microsoft.com",
+                "reroute443.microsoft.com",
+                "communities.microsoft.com",
+                "explore-smb.microsoft.com",
+                "expressions.microsoft.com",
+                "ondernemers.microsoft.com",
+                "techacademy.microsoft.com",
+                "terraserver.microsoft.com",
+                "communities2.microsoft.com",
+                "connectevent.microsoft.com",
+                "dataplatform.microsoft.com",
+                "entrepreneur.microsoft.com",
+                "hxd.research.microsoft.com",
+                "mspartnerira.microsoft.com",
+                "mydatahealth.microsoft.com",
+                "oemcommunity.microsoft.com",
+                "real-stories.microsoft.com",
+                "www.formspro.microsoft.com",
+                "futuredecoded.microsoft.com",
+                "upgradecenter.microsoft.com",
+                "learnanalytics.microsoft.com",
+                "onlinelearning.microsoft.com",
+                "businesscentral.microsoft.com",
+                "cloud-immersion.microsoft.com",
+                "studentpartners.microsoft.com",
+                "analyticspartner.microsoft.com",
+                "businessplatform.microsoft.com",
+                "explore-security.microsoft.com",
+                "kleinunternehmen.microsoft.com",
+                "partnercommunity.microsoft.com",
+                "explore-marketing.microsoft.com",
+                "innovationcontest.microsoft.com",
+                "partnerincentives.microsoft.com",
+                "phoenixcataloguat.microsoft.com",
+                "szkolyprzyszlosci.microsoft.com",
+                "www.powerautomate.microsoft.com",
+                "successionplanning.microsoft.com",
+                "lumiaconversationsuk.microsoft.com",
+                "successionplanninguat.microsoft.com",
+                "businessmobilitycenter.microsoft.com",
+                "skypeandteams.fasttrack.microsoft.com",
+                "www.microsoftdlapartnerow.microsoft.com",
+                "commercialappcertification.microsoft.com",
+                "www.skypeandteams.fasttrack.microsoft.com",
+                "ceoconnections.event.microsoft.com",
+                "biz4afrika.microsoft.com",
+                "cashback.microsoft.com",
+                "www.cashback.microsoft.com",
+                "visio.microsoft.com",
+                "insidemsr.microsoft.com",
+                "developervelocityassessment.com",
+                "www.developervelocityassessment.com",
+                "gears5.com",
+                "www.gears5.com",
+                "www.gearstactics.com",
+                "gearstactics.com",
+                "m12.microsoft.com",
+                "seeingai.com",
+                "yourchoice.microsoft.com",
+                "mvtd.events.microsoft.com",
+                "imagine.microsoft.com",
+                "microsoft.com.au",
+                "www.microsoft.com.au",
+                "dynamics.microsoft.com",
+                "powerplatform.microsoft.com",
+                "powerapps.microsoft.com",
+                "powerautomate.microsoft.com",
+                "powervirtualagents.microsoft.com",
+                "powerpages.microsoft.com",
+                "test.ideas.fabric.microsoft.com",
+                "sds.microsoft.com",
+                "ppe.sds.microsoft.com",
+                "www.microsoft365copilot.com",
+                "www.jclarity.com",
+                "techinnovatorsspotlight.com",
+                "www.techinnovatorsspotlight.com",
+                "copilot.ai",
+                "getlicensingready.com",
+                "www.getlicensingready.com",
+                "jpn.delve.office.com",
+                "aus.delve.office.com",
+                "ind.delve.office.com",
+                "kor.delve.office.com",
+                "cobra.me.microsoft.com",
+                "www.businesscentral.com",
+                "businesscentral.com",
+                "msaidatastudio.officeppe.net",
+                "ideas.fabric.microsoft.com",
+                "www.cpt.link",
+                "cpt.link",
+                "yarp.dot.net",
+                "microsoftstream.com",
+                "www.microsoftstream.com",
+                "web.microsoftstream.com",
+                "discover.copilot.ai",
+                "copilot.com",
+                "www.copilot.com",
+                "discover.copilot.com",
+                "researchforum.microsoft.com",
+                "cdn.techcommunity.microsoft.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "1e16fa37bf143e7ad494aa2ee922846a6d02434f1fdca413b78097a31c7b77f5"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://microsoft.com/",
+              "status": 307
+            },
+            {
+              "url": "https://microsoft.com/",
+              "status": 301
+            },
+            {
+              "url": "https://www.microsoft.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.microsoft.com/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://microsoft.com/",
+              "status": 307
+            },
+            {
+              "url": "https://microsoft.com/",
+              "status": 301
+            },
+            {
+              "url": "https://www.microsoft.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.microsoft.com/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "ipv4": [
+        {
+          "ip": "23.222.202.36",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 200,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 200,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.microsoft.com",
+              "issuer": "Microsoft TLS G2 RSA CA OCSP 04",
+              "not_before": "2026-01-22T19:55:21Z",
+              "not_after": "2027-01-17T19:55:21Z",
+              "days_remaining": 104,
+              "sans": [
+                "wwwqa.microsoft.com",
+                "www.microsoft.com",
+                "staticview.microsoft.com",
+                "i.s-microsoft.com",
+                "microsoft.com",
+                "c.s-microsoft.com",
+                "privacy.microsoft.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "9f17b548f7d24f309dbcaab571576c0ca73b80559ce69f27fe295f6408cc57bf"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 47,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2600:1407:7400:c8d::356e",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 200,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 200,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.microsoft.com",
+              "issuer": "Microsoft TLS G2 RSA CA OCSP 04",
+              "not_before": "2026-01-22T19:55:21Z",
+              "not_after": "2027-01-17T19:55:21Z",
+              "days_remaining": 104,
+              "sans": [
+                "wwwqa.microsoft.com",
+                "www.microsoft.com",
+                "staticview.microsoft.com",
+                "i.s-microsoft.com",
+                "microsoft.com",
+                "c.s-microsoft.com",
+                "privacy.microsoft.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "9f17b548f7d24f309dbcaab571576c0ca73b80559ce69f27fe295f6408cc57bf"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 27,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        },
+        {
+          "ip": "2600:1407:7400:c8e::356e",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 200,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 200,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.microsoft.com",
+              "issuer": "Microsoft TLS G2 RSA CA OCSP 04",
+              "not_before": "2026-01-22T19:55:21Z",
+              "not_after": "2027-01-17T19:55:21Z",
+              "days_remaining": 104,
+              "sans": [
+                "wwwqa.microsoft.com",
+                "www.microsoft.com",
+                "staticview.microsoft.com",
+                "i.s-microsoft.com",
+                "microsoft.com",
+                "c.s-microsoft.com",
+                "privacy.microsoft.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "9f17b548f7d24f309dbcaab571576c0ca73b80559ce69f27fe295f6408cc57bf"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 29,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        },
+        {
+          "ip": "2600:1407:7400:c8f::356e",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 200,
+            "server": "AkamaiGHost"
+          },
+          "https": {
+            "status": 200,
+            "server": "AkamaiGHost"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "www.microsoft.com",
+              "issuer": "Microsoft TLS G2 RSA CA OCSP 04",
+              "not_before": "2026-01-22T19:55:21Z",
+              "not_after": "2027-01-17T19:55:21Z",
+              "days_remaining": 104,
+              "sans": [
+                "wwwqa.microsoft.com",
+                "www.microsoft.com",
+                "staticview.microsoft.com",
+                "i.s-microsoft.com",
+                "microsoft.com",
+                "c.s-microsoft.com",
+                "privacy.microsoft.com"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "9f17b548f7d24f309dbcaab571576c0ca73b80559ce69f27fe295f6408cc57bf"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 28,
+            "reason": "tls_rejected",
+            "tls_alert": "internal error",
+            "tls_alert_code": 80,
+            "error": "CRYPTO_ERROR 0x150 (remote): 200:internal error"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.microsoft.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "http://www.microsoft.com/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://www.microsoft.com/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "http://www.microsoft.com/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "unresolved": false,
+      "policy": "reject",
+      "pct": 100,
+      "rua": true,
+      "records": 1,
+      "problems": []
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 7,
+      "void_lookups": 0,
+      "txt_answer_octets": 4633,
+      "all": "-all",
+      "includes": [
+        "_spf-a.microsoft.com",
+        "spf.protection.outlook.com",
+        "_spf-b.microsoft.com",
+        "_spf-mdm.microsoft.com",
+        "_spf-c.microsoft.com",
+        "_spf-ssg-a.msft.net",
+        "_spf1-meo.microsoft.com"
+      ],
+      "problems": [
+        "apex TXT answer is 4633 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP"
+      ]
+    },
+    "mx": [
+      {
+        "host": "microsoft-com.mail.protection.outlook.com.",
+        "preference": 10,
+        "addresses": 8,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      }
+    ],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [
+        "selector2"
+      ],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": true,
+      "id": "20190225000000Z",
+      "mode": "enforce",
+      "max_age": 604800,
+      "mx": [
+        "*.mail.protection.outlook.com"
+      ],
+      "policy_ok": true,
+      "mx_covered": true
+    },
+    "tls_rpt": true
+  },
+  "nameservers": {
+    "count": 4,
+    "servers": [
+      {
+        "name": "ns1-39.azure-dns.com.",
+        "ip": "150.171.10.39",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns1-39.azure-dns.com.",
+        "ip": "2603:1061:0:10::27",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns2-39.azure-dns.net.",
+        "ip": "150.171.16.39",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns2-39.azure-dns.net.",
+        "ip": "2620:1ec:8ec:10::27",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns3-39.azure-dns.org.",
+        "ip": "13.107.222.39",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns3-39.azure-dns.org.",
+        "ip": "2a01:111:4000:10::27",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns4-39.azure-dns.info.",
+        "ip": "13.107.206.39",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns4-39.azure-dns.info.",
+        "ip": "2620:1ec:bda:10::27",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 4,
+    "ipv6_prefixes_48": 4,
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [
+          "0 contactemail \"caarecordaware@microsoft.com\""
+        ],
+        "effective": [
+          "0 contactemail \"caarecordaware@microsoft.com\""
+        ],
+        "issuer": "Microsoft Corporation",
+        "permitted": true
+      },
+      "www": {
+        "published": [],
+        "effective": [
+          "0 contactemail \"caarecordaware@microsoft.com\""
+        ],
+        "issuer": "Microsoft Corporation",
+        "permitted": true
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name oqwxjiojstqd is denied",
+    "probes": [
+      {
+        "label": "oqwxjiojstqd",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [],
+  "warnings": [
+    "www: HTTP serves content in the clear instead of redirecting to HTTPS (4 of 4 addresses)",
+    "SPF: apex TXT answer is 4633 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP"
+  ],
+  "ok": true,
+  "elapsed_ms": 3999
+}

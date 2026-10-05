@@ -1,0 +1,621 @@
+{
+  "domain": "nic.cz",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "217.31.205.50"
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "2001:1488:0:3::2"
+        ]
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "10 mail.nic.cz.",
+          "20 mx.nic.cz."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "a.ns.nic.cz.",
+          "b.ns.nic.cz.",
+          "d.ns.nic.cz."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "MS=92011E91562E6FD18FF9C5FA1F053F90DD5B1892",
+          "v=spf1 include:_v4nets.nic.cz include:_v6nets.nic.cz include:_spf.network.cz ~all"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "217.31.205.50"
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "2001:1488:0:3::2"
+        ]
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "secure",
+    "ds": true,
+    "dnskey": true
+  },
+  "delegation": {
+    "status": "same_servers",
+    "parent_ns": [
+      "a.ns.nic.cz.",
+      "b.ns.nic.cz.",
+      "d.ns.nic.cz."
+    ],
+    "parent_server": "b.ns.nic.cz",
+    "child_ns": [
+      "a.ns.nic.cz.",
+      "b.ns.nic.cz.",
+      "d.ns.nic.cz."
+    ],
+    "child_server": "b.ns.nic.cz"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "217.31.205.50",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://nic.cz/"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.nic.cz/",
+            "server": "nginx",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "nic.cz",
+              "issuer": "YE2",
+              "not_before": "2026-08-10T07:26:53Z",
+              "not_after": "2026-11-08T07:26:52Z",
+              "days_remaining": 33,
+              "sans": [
+                "business.nic.cz",
+                "dar.nic.cz",
+                "edice.nic.cz",
+                "enum.nic.cz",
+                "files.nic.cz",
+                "kariera.nic.cz",
+                "nic.cz",
+                "o.nic.cz",
+                "podpora.nic.cz",
+                "pozvanka.nic.cz",
+                "prace.nic.cz",
+                "prihlasky.nic.cz",
+                "www.business.nic.cz",
+                "www.edice.nic.cz",
+                "www.enum.nic.cz",
+                "www.nic.cz",
+                "www.podpora.nic.cz"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-384",
+              "fingerprint_sha256": "85b26690901dcecdc4e5f87db6279c24d48e3b367ac2bb6790bc24cca20d13f1"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2001:1488:0:3::2",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://nic.cz/"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.nic.cz/",
+            "server": "nginx",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "nic.cz",
+              "issuer": "YE2",
+              "not_before": "2026-08-10T07:26:53Z",
+              "not_after": "2026-11-08T07:26:52Z",
+              "days_remaining": 33,
+              "sans": [
+                "business.nic.cz",
+                "dar.nic.cz",
+                "edice.nic.cz",
+                "enum.nic.cz",
+                "files.nic.cz",
+                "kariera.nic.cz",
+                "nic.cz",
+                "o.nic.cz",
+                "podpora.nic.cz",
+                "pozvanka.nic.cz",
+                "prace.nic.cz",
+                "prihlasky.nic.cz",
+                "www.business.nic.cz",
+                "www.edice.nic.cz",
+                "www.enum.nic.cz",
+                "www.nic.cz",
+                "www.podpora.nic.cz"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-384",
+              "fingerprint_sha256": "85b26690901dcecdc4e5f87db6279c24d48e3b367ac2bb6790bc24cca20d13f1"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://nic.cz/",
+              "status": 301
+            },
+            {
+              "url": "https://nic.cz/",
+              "status": 301
+            },
+            {
+              "url": "https://www.nic.cz/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.nic.cz/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://nic.cz/",
+              "status": 301
+            },
+            {
+              "url": "https://nic.cz/",
+              "status": 301
+            },
+            {
+              "url": "https://www.nic.cz/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.nic.cz/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "same_as_apex": true,
+      "ipv4": [
+        {
+          "ip": "217.31.205.50",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.nic.cz/"
+          },
+          "https": {
+            "status": 200,
+            "server": "nginx",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "nic.cz",
+              "issuer": "YE2",
+              "not_before": "2026-08-10T07:26:53Z",
+              "not_after": "2026-11-08T07:26:52Z",
+              "days_remaining": 33,
+              "sans": [
+                "business.nic.cz",
+                "dar.nic.cz",
+                "edice.nic.cz",
+                "enum.nic.cz",
+                "files.nic.cz",
+                "kariera.nic.cz",
+                "nic.cz",
+                "o.nic.cz",
+                "podpora.nic.cz",
+                "pozvanka.nic.cz",
+                "prace.nic.cz",
+                "prihlasky.nic.cz",
+                "www.business.nic.cz",
+                "www.edice.nic.cz",
+                "www.enum.nic.cz",
+                "www.nic.cz",
+                "www.podpora.nic.cz"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-384",
+              "fingerprint_sha256": "85b26690901dcecdc4e5f87db6279c24d48e3b367ac2bb6790bc24cca20d13f1"
+            },
+            "chain_length": 4
+          },
+          "tlsa": "match",
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2001:1488:0:3::2",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.nic.cz/"
+          },
+          "https": {
+            "status": 200,
+            "server": "nginx",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "nic.cz",
+              "issuer": "YE2",
+              "not_before": "2026-08-10T07:26:53Z",
+              "not_after": "2026-11-08T07:26:52Z",
+              "days_remaining": 33,
+              "sans": [
+                "business.nic.cz",
+                "dar.nic.cz",
+                "edice.nic.cz",
+                "enum.nic.cz",
+                "files.nic.cz",
+                "kariera.nic.cz",
+                "nic.cz",
+                "o.nic.cz",
+                "podpora.nic.cz",
+                "pozvanka.nic.cz",
+                "prace.nic.cz",
+                "prihlasky.nic.cz",
+                "www.business.nic.cz",
+                "www.edice.nic.cz",
+                "www.enum.nic.cz",
+                "www.nic.cz",
+                "www.podpora.nic.cz"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": false,
+              "key": "ECDSA P-384",
+              "fingerprint_sha256": "85b26690901dcecdc4e5f87db6279c24d48e3b367ac2bb6790bc24cca20d13f1"
+            },
+            "chain_length": 4
+          },
+          "tlsa": "match",
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.nic.cz/",
+              "status": 301
+            },
+            {
+              "url": "https://www.nic.cz/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.nic.cz/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://www.nic.cz/",
+              "status": 301
+            },
+            {
+              "url": "https://www.nic.cz/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.nic.cz/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "unresolved": false,
+      "policy": "reject",
+      "subdomain_policy": "reject",
+      "pct": 100,
+      "rua": true,
+      "records": 1,
+      "problems": []
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 3,
+      "void_lookups": 0,
+      "txt_answer_octets": 174,
+      "all": "~all",
+      "includes": [
+        "_v4nets.nic.cz",
+        "_v6nets.nic.cz",
+        "_spf.network.cz"
+      ],
+      "problems": []
+    },
+    "mx": [
+      {
+        "host": "mail.nic.cz.",
+        "preference": 10,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      },
+      {
+        "host": "mx.nic.cz.",
+        "preference": 20,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      }
+    ],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [
+        "default"
+      ],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 3,
+    "servers": [
+      {
+        "name": "a.ns.nic.cz.",
+        "ip": "194.0.12.1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1791211317,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a.ns.nic.cz.",
+        "ip": "2001:678:f::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1791211317,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "b.ns.nic.cz.",
+        "ip": "194.0.13.1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1791211317,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "b.ns.nic.cz.",
+        "ip": "2001:678:10::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1791211317,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "d.ns.nic.cz.",
+        "ip": "193.29.206.1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1791211317,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "d.ns.nic.cz.",
+        "ip": "2001:678:1::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 1791211317,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 3,
+    "ipv6_prefixes_48": 3,
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [
+          "128 issue \"letsencrypt.org\""
+        ],
+        "effective": [
+          "128 issue \"letsencrypt.org\""
+        ],
+        "issuer": "Let's Encrypt",
+        "permitted": true
+      },
+      "www": {
+        "published": [],
+        "effective": [
+          "128 issue \"letsencrypt.org\""
+        ],
+        "issuer": "Let's Encrypt",
+        "permitted": true
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [
+      "3 1 1 70ACD1FE79A3B990A61269D58C338520567DDD05FE1E7657E611759B 8E9001D8"
+    ],
+    "signed": true,
+    "result": "match"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name jrrczechycdn is denied",
+    "probes": [
+      {
+        "label": "jrrczechycdn",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [],
+  "warnings": [],
+  "ok": true,
+  "elapsed_ms": 5927
+}

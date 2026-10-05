@@ -1,0 +1,210 @@
+{
+  "ok": true,
+  "caa": {
+    "hosts": {
+      "www": {
+        "note": "no certificate observed",
+        "effective": [],
+        "published": []
+      },
+      "apex": {
+        "note": "no certificate observed",
+        "effective": [],
+        "published": []
+      }
+    }
+  },
+  "dns": {
+    "www": {
+      "A": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      },
+      "AAAA": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      }
+    },
+    "apex": {
+      "A": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      },
+      "MX": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      },
+      "NS": {
+        "trust": "insecure",
+        "status": "ok",
+        "records": [
+          "ns1.kenpains.com.",
+          "ns2.kenpains.com."
+        ]
+      },
+      "TXT": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      },
+      "AAAA": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "web": {},
+  "mail": {
+    "mx": [],
+    "spf": {
+      "lookups": 0,
+      "records": 0,
+      "includes": [],
+      "problems": [],
+      "void_lookups": 0
+    },
+    "dkim": {
+      "revoked": [],
+      "wildcard": false,
+      "selectors_found": []
+    },
+    "dmarc": {
+      "pct": 100,
+      "rua": false,
+      "present": false,
+      "records": 0,
+      "problems": [],
+      "unresolved": false
+    },
+    "mta_sts": {
+      "mx": [],
+      "record": false,
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "tlsa": {
+    "www": [],
+    "apex": [],
+    "result": "unknown",
+    "signed": false
+  },
+  "dnssec": {
+    "ds": false,
+    "state": "insecure",
+    "dnskey": false
+  },
+  "domain": "nikonic.net",
+  "errors": [],
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "resolver": "127.0.0.1:8053",
+  "warnings": [
+    "apex has no A or AAAA records",
+    "www has no A or AAAA records",
+    "apex has no MX records",
+    "no SPF (v=spf1) record in apex TXT",
+    "no DMARC record",
+    "TLSA records are published in an unsigned zone (DANE clients ignore them)"
+  ],
+  "wildcard": {
+    "probes": [
+      {
+        "label": "otrqosextqjd",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "status": "absent",
+    "addresses": [],
+    "consistent": null,
+    "determined_by": "the random name otrqosextqjd is denied",
+    "www_via_wildcard": false
+  },
+  "delegation": {
+    "status": "match",
+    "child_ns": [
+      "ns1.kenpains.com.",
+      "ns2.kenpains.com."
+    ],
+    "parent_ns": [
+      "ns1.kenpains.com.",
+      "ns2.kenpains.com."
+    ],
+    "child_server": "ns1.kenpains.com",
+    "parent_server": "k.gtld-servers.net"
+  },
+  "elapsed_ms": 7399,
+  "nameservers": {
+    "glue": {
+      "missing": [],
+      "mismatch": [],
+      "required": []
+    },
+    "count": 2,
+    "servers": [
+      {
+        "aa": true,
+        "ip": "183.253.57.217",
+        "tcp": true,
+        "edns": true,
+        "name": "ns1.kenpains.com",
+        "rcode": "NOERROR",
+        "serial": 1780033892
+      },
+      {
+        "aa": true,
+        "ip": "211.99.99.45",
+        "tcp": true,
+        "edns": true,
+        "name": "ns1.kenpains.com",
+        "rcode": "NOERROR",
+        "serial": 1780033892
+      },
+      {
+        "aa": true,
+        "ip": "218.98.111.227",
+        "tcp": true,
+        "edns": true,
+        "name": "ns1.kenpains.com",
+        "rcode": "NOERROR",
+        "serial": 1780033892
+      },
+      {
+        "aa": true,
+        "ip": "1.193.216.197",
+        "tcp": true,
+        "edns": true,
+        "name": "ns2.kenpains.com",
+        "rcode": "NOERROR",
+        "serial": 1780033892
+      },
+      {
+        "aa": true,
+        "ip": "61.158.128.8",
+        "tcp": true,
+        "edns": true,
+        "name": "ns2.kenpains.com",
+        "rcode": "NOERROR",
+        "serial": 1780033892
+      }
+    ],
+    "ns_cname": [],
+    "unresolved": [],
+    "unresolvable": [],
+    "ipv4_prefixes_24": 5,
+    "ipv6_prefixes_48": 0,
+    "serials_consistent": true
+  },
+  "timeout_sec": 3,
+  "hsts_preload": "absent",
+  "dns_concurrency": 4,
+  "tcp_timeout_sec": 2,
+  "quic_timeout_sec": 2
+}

@@ -1,0 +1,737 @@
+{
+  "domain": "icann.org",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "192.0.43.7"
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "2001:500:88:200::7"
+        ]
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "10 pechora1.icann.org.",
+          "10 pechora6.icann.org.",
+          "10 pechora7.icann.org.",
+          "10 pechora8.icann.org."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "a.icann-servers.net.",
+          "b.icann-servers.net.",
+          "c.icann-servers.net.",
+          "ns.icann.org."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "3hbcot1vqg5arv8114kid9ht8i",
+          "qnqmgqkihquvl4p2032c523i0j",
+          "hibp-verify=dweb_omacgxq4jcnwyhagy8dkcp39",
+          "jamf-site-verification=ULQmCs6_3U5gNRFNpK3EQw",
+          "zoho-verification=zb07258371.zmverify.zoho.com",
+          "openai-domain-verification=dv-MDxsT9BOgVqLo5wCzRehwtG6",
+          "anthropic-domain-verification-ypsnb4=Ctf4Q8K3LJUBWZtmKlSwYtUxd",
+          "yahoo-verification-key=M/0jrPcOMm7R5iVvdWN0nM43eEIxChB44ek1AHQfxck=",
+          "google-site-verification=aOY-Hcx8bh7elpA4JF6lNqvJRG94iusCUENaibkXxxE",
+          "atlassian-domain-verification=mJbv948owArPaPuHqQq1zD12aKzhxRobB5UcwWtQygiZde9QgP/scaHPizzNziKf",
+          "parallels-domain-verification=6665083079c349dfa253aeb2f07e61113f565b5dd27b413aad065b885317a9c6",
+          "paloaltonetworks-site-verification=243a181b375b95096c7d44af65ad90f9c6d362a3debde9c52545dfacd740cfda",
+          "v=spf1 ip4:192.0.32.0/20 ip4:199.91.192.0/21 ip4:64.78.40.0/27 ip4:162.216.194.0/27 ip4:64.78.33.5/32 ip4:64.78.33.6/31 ip4:64.78.48.205/32 ip4:64.78.48.206/31 ip6:2620:0:2d0::0/48 ip6:2620:0:2830::0/48 ip6:2620:0:2ed0::0/48 include:salesforce.icann.org -all"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "104.18.2.93",
+          "104.18.3.93"
+        ],
+        "cname": [
+          "www.icann.org.cdn.cloudflare.net."
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "2606:4700::6812:25d",
+          "2606:4700::6812:35d"
+        ],
+        "cname": [
+          "www.icann.org.cdn.cloudflare.net."
+        ]
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "secure",
+    "ds": true,
+    "dnskey": true
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "a.icann-servers.net.",
+      "b.icann-servers.net.",
+      "c.icann-servers.net.",
+      "ns.icann.org."
+    ],
+    "parent_server": "a2.org.afilias-nst.info",
+    "child_ns": [
+      "a.icann-servers.net.",
+      "b.icann-servers.net.",
+      "c.icann-servers.net.",
+      "ns.icann.org."
+    ],
+    "child_server": "a.icann-servers.net"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "192.0.43.7",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.icann.org/",
+            "server": "Apache"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.icann.org/",
+            "server": "Apache",
+            "hsts": {
+              "max_age": 48211200,
+              "include_subdomains": false,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.icann.org",
+              "issuer": "Sectigo Public Server Authentication CA OV R36",
+              "not_before": "2025-12-06T00:00:00Z",
+              "not_after": "2027-01-05T23:59:59Z",
+              "days_remaining": 92,
+              "sans": [
+                "*.icann.org",
+                "icann.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "RSA 4096",
+              "fingerprint_sha256": "2435d2a77b552348c784d841f052a24b98d718f9d3f50d3fcf2810dc59d29c4b"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2001:500:88:200::7",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.icann.org/",
+            "server": "Apache"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.icann.org/",
+            "server": "Apache",
+            "hsts": {
+              "max_age": 48211200,
+              "include_subdomains": false,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.icann.org",
+              "issuer": "Sectigo Public Server Authentication CA OV R36",
+              "not_before": "2025-12-06T00:00:00Z",
+              "not_after": "2027-01-05T23:59:59Z",
+              "days_remaining": 92,
+              "sans": [
+                "*.icann.org",
+                "icann.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "RSA 4096",
+              "fingerprint_sha256": "2435d2a77b552348c784d841f052a24b98d718f9d3f50d3fcf2810dc59d29c4b"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://icann.org/",
+              "status": 301
+            },
+            {
+              "url": "https://www.icann.org/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.icann.org/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://icann.org/",
+              "status": 301
+            },
+            {
+              "url": "https://www.icann.org/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.icann.org/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "ipv4": [
+        {
+          "ip": "104.18.2.93",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.icann.org/",
+            "server": "cloudflare"
+          },
+          "https": {
+            "status": 403,
+            "server": "cloudflare"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "icann.org",
+              "issuer": "YE2",
+              "not_before": "2026-09-05T15:45:33Z",
+              "not_after": "2026-12-04T15:45:32Z",
+              "days_remaining": 59,
+              "sans": [
+                "*.icann.org",
+                "icann.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "5e9adabd4982336226bd8489fe6e6d8f3f448dbaaa29b72376a1aa2b235d519e"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "104.18.2.93:443",
+            "handshake_ms": 1043
+          }
+        },
+        {
+          "ip": "104.18.3.93",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.icann.org/",
+            "server": "cloudflare"
+          },
+          "https": {
+            "status": 403,
+            "server": "cloudflare"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "icann.org",
+              "issuer": "YE2",
+              "not_before": "2026-09-05T15:45:33Z",
+              "not_after": "2026-12-04T15:45:32Z",
+              "days_remaining": 59,
+              "sans": [
+                "*.icann.org",
+                "icann.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "5e9adabd4982336226bd8489fe6e6d8f3f448dbaaa29b72376a1aa2b235d519e"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "104.18.3.93:443",
+            "handshake_ms": 27
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2606:4700::6812:25d",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.icann.org/",
+            "server": "cloudflare"
+          },
+          "https": {
+            "status": 403,
+            "server": "cloudflare"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "icann.org",
+              "issuer": "YE2",
+              "not_before": "2026-09-05T15:45:33Z",
+              "not_after": "2026-12-04T15:45:32Z",
+              "days_remaining": 59,
+              "sans": [
+                "*.icann.org",
+                "icann.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "5e9adabd4982336226bd8489fe6e6d8f3f448dbaaa29b72376a1aa2b235d519e"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "[2606:4700::6812:25d]:443",
+            "handshake_ms": 36
+          }
+        },
+        {
+          "ip": "2606:4700::6812:35d",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.icann.org/",
+            "server": "cloudflare"
+          },
+          "https": {
+            "status": 403,
+            "server": "cloudflare"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "icann.org",
+              "issuer": "YE2",
+              "not_before": "2026-09-05T15:45:33Z",
+              "not_after": "2026-12-04T15:45:32Z",
+              "days_remaining": 59,
+              "sans": [
+                "*.icann.org",
+                "icann.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "5e9adabd4982336226bd8489fe6e6d8f3f448dbaaa29b72376a1aa2b235d519e"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "[2606:4700::6812:35d]:443",
+            "handshake_ms": 39
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.icann.org/",
+              "status": 301
+            },
+            {
+              "url": "https://www.icann.org/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.icann.org/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://www.icann.org/",
+              "status": 301
+            },
+            {
+              "url": "https://www.icann.org/",
+              "status": 403
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.icann.org/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "unresolved": false,
+      "policy": "none",
+      "pct": 100,
+      "rua": true,
+      "records": 1,
+      "problems": []
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 3,
+      "void_lookups": 0,
+      "txt_answer_octets": 1177,
+      "all": "-all",
+      "includes": [
+        "salesforce.icann.org",
+        "_spf.salesforce.com"
+      ],
+      "problems": [
+        "apex TXT answer is 1177 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP"
+      ]
+    },
+    "mx": [
+      {
+        "host": "pechora1.icann.org.",
+        "preference": 10,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      },
+      {
+        "host": "pechora6.icann.org.",
+        "preference": 10,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      },
+      {
+        "host": "pechora7.icann.org.",
+        "preference": 10,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      },
+      {
+        "host": "pechora8.icann.org.",
+        "preference": 10,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      }
+    ],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 4,
+    "servers": [
+      {
+        "name": "a.icann-servers.net.",
+        "ip": "199.43.135.53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100101,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "a.icann-servers.net.",
+        "ip": "2001:500:8f::53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100101,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "b.icann-servers.net.",
+        "ip": "199.43.133.53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100101,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "b.icann-servers.net.",
+        "ip": "2001:500:8d::53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100101,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "c.icann-servers.net.",
+        "ip": "199.43.134.53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100101,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "c.icann-servers.net.",
+        "ip": "2001:500:8e::53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100101,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns.icann.org.",
+        "ip": "199.4.138.53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100101,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns.icann.org.",
+        "ip": "2001:500:89::53",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026100101,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 4,
+    "ipv6_prefixes_48": 4,
+    "glue": {
+      "required": [
+        "ns.icann.org."
+      ],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [
+          "0 iodef \"mailto:caa-reports@icann.org\"",
+          "0 issue \"amazon.com\"",
+          "0 issue \"godaddy.com\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\"",
+          "0 issue \"sectigo.com\"",
+          "0 issuemail \"sectigo.com\"",
+          "0 issuewild \"amazon.com\"",
+          "0 issuewild \"letsencrypt.org\"",
+          "0 issuewild \"sectigo.com\""
+        ],
+        "effective": [
+          "0 iodef \"mailto:caa-reports@icann.org\"",
+          "0 issue \"amazon.com\"",
+          "0 issue \"godaddy.com\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\"",
+          "0 issue \"sectigo.com\"",
+          "0 issuemail \"sectigo.com\"",
+          "0 issuewild \"amazon.com\"",
+          "0 issuewild \"letsencrypt.org\"",
+          "0 issuewild \"sectigo.com\""
+        ],
+        "issuer": "Sectigo Limited",
+        "permitted": true
+      },
+      "www": {
+        "published": [],
+        "effective": [
+          "0 iodef \"mailto:caa-reports@icann.org\"",
+          "0 issue \"amazon.com\"",
+          "0 issue \"godaddy.com\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\"",
+          "0 issue \"sectigo.com\"",
+          "0 issuemail \"sectigo.com\"",
+          "0 issuewild \"amazon.com\"",
+          "0 issuewild \"letsencrypt.org\"",
+          "0 issuewild \"sectigo.com\""
+        ],
+        "issuer": "Let's Encrypt",
+        "permitted": true
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": true,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name ngrdhrrnymgh is denied",
+    "probes": [
+      {
+        "label": "ngrdhrrnymgh",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [],
+  "warnings": [
+    "apex (ipv4): redirect chain ends in HTTP 403 at https://www.icann.org/",
+    "apex (ipv6): redirect chain ends in HTTP 403 at https://www.icann.org/",
+    "www: every address returns a client error on port 443",
+    "www (ipv4): redirect chain ends in HTTP 403 at https://www.icann.org/",
+    "www (ipv6): redirect chain ends in HTTP 403 at https://www.icann.org/",
+    "DMARC policy is p=none (monitor only)",
+    "SPF: apex TXT answer is 1177 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP",
+    "HSTS header carries the preload directive but does not meet the preload requirements (max-age >= 1 year, includeSubDomains)"
+  ],
+  "ok": true,
+  "elapsed_ms": 2941
+}

@@ -1,0 +1,650 @@
+{
+  "domain": "docs.github.com",
+  "not_a_zone": true,
+  "enclosing_zone": "github.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "185.199.108.154",
+          "185.199.109.154",
+          "185.199.110.154",
+          "185.199.111.154"
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2606:50c0:8000::154",
+          "2606:50c0:8001::154",
+          "2606:50c0:8002::154",
+          "2606:50c0:8003::154"
+        ]
+      },
+      "MX": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "NS": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "TXT": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      }
+    },
+    "www": {
+      "A": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false,
+    "detail": "not a zone apex; state taken from answer validation"
+  },
+  "delegation": {
+    "status": "not_a_zone",
+    "error": "name is a host inside github.com"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "185.199.108.154",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://docs.github.com/",
+            "server": "Varnish",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "https": {
+            "status": 302,
+            "location": "/en",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.io",
+              "issuer": "YR1",
+              "not_before": "2026-08-02T23:38:02Z",
+              "not_after": "2026-10-31T23:38:01Z",
+              "days_remaining": 26,
+              "sans": [
+                "*.github.com",
+                "*.github.io",
+                "*.githubusercontent.com",
+                "github.com",
+                "github.io",
+                "githubusercontent.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "71f1077db377fd7b8d68380da66fa68238a303b2911bcb770b3b2a426693cf84"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        },
+        {
+          "ip": "185.199.109.154",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://docs.github.com/",
+            "server": "Varnish",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "https": {
+            "status": 302,
+            "location": "/en",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.io",
+              "issuer": "YR1",
+              "not_before": "2026-08-02T23:38:02Z",
+              "not_after": "2026-10-31T23:38:01Z",
+              "days_remaining": 26,
+              "sans": [
+                "*.github.com",
+                "*.github.io",
+                "*.githubusercontent.com",
+                "github.com",
+                "github.io",
+                "githubusercontent.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "71f1077db377fd7b8d68380da66fa68238a303b2911bcb770b3b2a426693cf84"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        },
+        {
+          "ip": "185.199.110.154",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://docs.github.com/",
+            "server": "Varnish",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "https": {
+            "status": 302,
+            "location": "/en",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.io",
+              "issuer": "YR1",
+              "not_before": "2026-08-02T23:38:02Z",
+              "not_after": "2026-10-31T23:38:01Z",
+              "days_remaining": 26,
+              "sans": [
+                "*.github.com",
+                "*.github.io",
+                "*.githubusercontent.com",
+                "github.com",
+                "github.io",
+                "githubusercontent.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "71f1077db377fd7b8d68380da66fa68238a303b2911bcb770b3b2a426693cf84"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        },
+        {
+          "ip": "185.199.111.154",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://docs.github.com/",
+            "server": "Varnish",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "https": {
+            "status": 302,
+            "location": "/en",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.io",
+              "issuer": "YR1",
+              "not_before": "2026-08-02T23:38:02Z",
+              "not_after": "2026-10-31T23:38:01Z",
+              "days_remaining": 26,
+              "sans": [
+                "*.github.com",
+                "*.github.io",
+                "*.githubusercontent.com",
+                "github.com",
+                "github.io",
+                "githubusercontent.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "71f1077db377fd7b8d68380da66fa68238a303b2911bcb770b3b2a426693cf84"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2606:50c0:8000::154",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://docs.github.com/",
+            "server": "Varnish",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "https": {
+            "status": 302,
+            "location": "/en",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.io",
+              "issuer": "YR1",
+              "not_before": "2026-08-02T23:38:02Z",
+              "not_after": "2026-10-31T23:38:01Z",
+              "days_remaining": 26,
+              "sans": [
+                "*.github.com",
+                "*.github.io",
+                "*.githubusercontent.com",
+                "github.com",
+                "github.io",
+                "githubusercontent.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "71f1077db377fd7b8d68380da66fa68238a303b2911bcb770b3b2a426693cf84"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        },
+        {
+          "ip": "2606:50c0:8001::154",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://docs.github.com/",
+            "server": "Varnish",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "https": {
+            "status": 302,
+            "location": "/en",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.io",
+              "issuer": "YR1",
+              "not_before": "2026-08-02T23:38:02Z",
+              "not_after": "2026-10-31T23:38:01Z",
+              "days_remaining": 26,
+              "sans": [
+                "*.github.com",
+                "*.github.io",
+                "*.githubusercontent.com",
+                "github.com",
+                "github.io",
+                "githubusercontent.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "71f1077db377fd7b8d68380da66fa68238a303b2911bcb770b3b2a426693cf84"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        },
+        {
+          "ip": "2606:50c0:8002::154",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://docs.github.com/",
+            "server": "Varnish",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "https": {
+            "status": 302,
+            "location": "/en",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.io",
+              "issuer": "YR1",
+              "not_before": "2026-08-02T23:38:02Z",
+              "not_after": "2026-10-31T23:38:01Z",
+              "days_remaining": 26,
+              "sans": [
+                "*.github.com",
+                "*.github.io",
+                "*.githubusercontent.com",
+                "github.com",
+                "github.io",
+                "githubusercontent.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "71f1077db377fd7b8d68380da66fa68238a303b2911bcb770b3b2a426693cf84"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        },
+        {
+          "ip": "2606:50c0:8003::154",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://docs.github.com/",
+            "server": "Varnish",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "https": {
+            "status": 302,
+            "location": "/en",
+            "hsts": {
+              "max_age": 31557600,
+              "include_subdomains": false,
+              "preload": false
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.io",
+              "issuer": "YR1",
+              "not_before": "2026-08-02T23:38:02Z",
+              "not_after": "2026-10-31T23:38:01Z",
+              "days_remaining": 26,
+              "sans": [
+                "*.github.com",
+                "*.github.io",
+                "*.githubusercontent.com",
+                "github.com",
+                "github.io",
+                "githubusercontent.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "71f1077db377fd7b8d68380da66fa68238a303b2911bcb770b3b2a426693cf84"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://docs.github.com/",
+              "status": 301
+            },
+            {
+              "url": "https://docs.github.com/",
+              "status": 302
+            },
+            {
+              "url": "https://docs.github.com/en",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://docs.github.com/en",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://docs.github.com/",
+              "status": 301
+            },
+            {
+              "url": "https://docs.github.com/",
+              "status": 302
+            },
+            {
+              "url": "https://docs.github.com/en",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://docs.github.com/en",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [],
+        "effective": [],
+        "issuer": "Let's Encrypt",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      },
+      "www": {
+        "published": [],
+        "effective": [],
+        "note": "no certificate observed"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name nwkjcjvbubsh is denied",
+    "probes": [
+      {
+        "label": "nwkjcjvbubsh",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "preloaded",
+  "hsts_preload_covered_by": "github.com",
+  "hsts_preload_policy": "bulk-18-weeks",
+  "errors": [],
+  "warnings": [
+    "docs.github.com is not a zone apex (inside zone github.com): delegation and DNSSEC zone checks skipped",
+    "apex: certificate expires in 26 days",
+    "domain is on the HSTS preload list but the served header does not meet the preload requirements (max-age >= 1 year, includeSubDomains, preload)"
+  ],
+  "ok": true,
+  "elapsed_ms": 2629
+}

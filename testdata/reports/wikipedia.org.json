@@ -1,0 +1,734 @@
+{
+  "domain": "wikipedia.org",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "208.80.154.224"
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2620:0:861:ed1a::1"
+        ]
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "10 mx-in1001.wikimedia.org.",
+          "10 mx-in2001.wikimedia.org."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "ns0.wikimedia.org.",
+          "ns1.wikimedia.org.",
+          "ns2.wikimedia.org."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "yandex-verification: 35c08d23099dc863",
+          "v=spf1 include:_cidrs.wikimedia.org ~all",
+          "google-site-verification=AMHkgs-4ViEvIJf5znZle-BSE2EPNFqM1nDJGRyn2qk"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "208.80.154.224"
+        ],
+        "cname": [
+          "dyna.wikimedia.org."
+        ]
+      },
+      "AAAA": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "2620:0:861:ed1a::1"
+        ],
+        "cname": [
+          "dyna.wikimedia.org."
+        ]
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false
+  },
+  "delegation": {
+    "status": "match",
+    "parent_ns": [
+      "ns0.wikimedia.org.",
+      "ns1.wikimedia.org.",
+      "ns2.wikimedia.org."
+    ],
+    "parent_server": "a0.org.afilias-nst.info",
+    "child_ns": [
+      "ns0.wikimedia.org.",
+      "ns1.wikimedia.org.",
+      "ns2.wikimedia.org."
+    ],
+    "child_server": "ns1.wikimedia.org"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "208.80.154.224",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://wikipedia.org/",
+            "server": "HAProxy"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.wikipedia.org/",
+            "server": "mw-web.eqiad.main-84b79dc765-2srsz",
+            "hsts": {
+              "max_age": 106384710,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.wikipedia.org",
+              "issuer": "YE2",
+              "not_before": "2026-08-05T19:15:41Z",
+              "not_after": "2026-11-03T19:15:40Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.m.mediawiki.org",
+                "*.m.wikibooks.org",
+                "*.m.wikidata.org",
+                "*.m.wikimedia.org",
+                "*.m.wikinews.org",
+                "*.m.wikipedia.org",
+                "*.m.wikiquote.org",
+                "*.m.wikisource.org",
+                "*.m.wikiversity.org",
+                "*.m.wikivoyage.org",
+                "*.m.wiktionary.org",
+                "*.mediawiki.org",
+                "*.planet.wikimedia.org",
+                "*.wikibooks.org",
+                "*.wikidata.org",
+                "*.wikifunctions.org",
+                "*.wikimedia.org",
+                "*.wikimediafoundation.org",
+                "*.wikinews.org",
+                "*.wikipedia.org",
+                "*.wikiquote.org",
+                "*.wikisource.org",
+                "*.wikiversity.org",
+                "*.wikivoyage.org",
+                "*.wiktionary.org",
+                "*.wmfusercontent.org",
+                "mediawiki.org",
+                "w.wiki",
+                "wikibooks.org",
+                "wikidata.org",
+                "wikifunctions.org",
+                "wikimedia.org",
+                "wikimediafoundation.org",
+                "wikinews.org",
+                "wikipedia.org",
+                "wikiquote.org",
+                "wikisource.org",
+                "wikiversity.org",
+                "wikivoyage.org",
+                "wiktionary.org",
+                "wmfusercontent.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "08e0b65df41fb075ec91c1dcd2cacc4e8c7dda53b754806525117b32f7b73253"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2620:0:861:ed1a::1",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://wikipedia.org/",
+            "server": "HAProxy"
+          },
+          "https": {
+            "status": 301,
+            "location": "https://www.wikipedia.org/",
+            "server": "mw-web.eqiad.main-8857dd685-vbqk2",
+            "hsts": {
+              "max_age": 106384710,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.wikipedia.org",
+              "issuer": "YE2",
+              "not_before": "2026-08-05T19:15:41Z",
+              "not_after": "2026-11-03T19:15:40Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.m.mediawiki.org",
+                "*.m.wikibooks.org",
+                "*.m.wikidata.org",
+                "*.m.wikimedia.org",
+                "*.m.wikinews.org",
+                "*.m.wikipedia.org",
+                "*.m.wikiquote.org",
+                "*.m.wikisource.org",
+                "*.m.wikiversity.org",
+                "*.m.wikivoyage.org",
+                "*.m.wiktionary.org",
+                "*.mediawiki.org",
+                "*.planet.wikimedia.org",
+                "*.wikibooks.org",
+                "*.wikidata.org",
+                "*.wikifunctions.org",
+                "*.wikimedia.org",
+                "*.wikimediafoundation.org",
+                "*.wikinews.org",
+                "*.wikipedia.org",
+                "*.wikiquote.org",
+                "*.wikisource.org",
+                "*.wikiversity.org",
+                "*.wikivoyage.org",
+                "*.wiktionary.org",
+                "*.wmfusercontent.org",
+                "mediawiki.org",
+                "w.wiki",
+                "wikibooks.org",
+                "wikidata.org",
+                "wikifunctions.org",
+                "wikimedia.org",
+                "wikimediafoundation.org",
+                "wikinews.org",
+                "wikipedia.org",
+                "wikiquote.org",
+                "wikisource.org",
+                "wikiversity.org",
+                "wikivoyage.org",
+                "wiktionary.org",
+                "wmfusercontent.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "08e0b65df41fb075ec91c1dcd2cacc4e8c7dda53b754806525117b32f7b73253"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2001,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://wikipedia.org/",
+              "status": 301
+            },
+            {
+              "url": "https://wikipedia.org/",
+              "status": 301
+            },
+            {
+              "url": "https://www.wikipedia.org/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.wikipedia.org/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://wikipedia.org/",
+              "status": 301
+            },
+            {
+              "url": "https://wikipedia.org/",
+              "status": 301
+            },
+            {
+              "url": "https://www.wikipedia.org/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.wikipedia.org/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    },
+    "www": {
+      "same_as_apex": true,
+      "ipv4": [
+        {
+          "ip": "208.80.154.224",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.wikipedia.org/",
+            "server": "HAProxy"
+          },
+          "https": {
+            "status": 200,
+            "server": "ATS/9.2.15",
+            "hsts": {
+              "max_age": 106384710,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.wikipedia.org",
+              "issuer": "YE2",
+              "not_before": "2026-08-05T19:15:41Z",
+              "not_after": "2026-11-03T19:15:40Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.m.mediawiki.org",
+                "*.m.wikibooks.org",
+                "*.m.wikidata.org",
+                "*.m.wikimedia.org",
+                "*.m.wikinews.org",
+                "*.m.wikipedia.org",
+                "*.m.wikiquote.org",
+                "*.m.wikisource.org",
+                "*.m.wikiversity.org",
+                "*.m.wikivoyage.org",
+                "*.m.wiktionary.org",
+                "*.mediawiki.org",
+                "*.planet.wikimedia.org",
+                "*.wikibooks.org",
+                "*.wikidata.org",
+                "*.wikifunctions.org",
+                "*.wikimedia.org",
+                "*.wikimediafoundation.org",
+                "*.wikinews.org",
+                "*.wikipedia.org",
+                "*.wikiquote.org",
+                "*.wikisource.org",
+                "*.wikiversity.org",
+                "*.wikivoyage.org",
+                "*.wiktionary.org",
+                "*.wmfusercontent.org",
+                "mediawiki.org",
+                "w.wiki",
+                "wikibooks.org",
+                "wikidata.org",
+                "wikifunctions.org",
+                "wikimedia.org",
+                "wikimediafoundation.org",
+                "wikinews.org",
+                "wikipedia.org",
+                "wikiquote.org",
+                "wikisource.org",
+                "wikiversity.org",
+                "wikivoyage.org",
+                "wiktionary.org",
+                "wmfusercontent.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "08e0b65df41fb075ec91c1dcd2cacc4e8c7dda53b754806525117b32f7b73253"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "ipv6": [
+        {
+          "ip": "2620:0:861:ed1a::1",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://www.wikipedia.org/",
+            "server": "HAProxy"
+          },
+          "https": {
+            "status": 200,
+            "server": "ATS/9.2.15",
+            "hsts": {
+              "max_age": 106384710,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.wikipedia.org",
+              "issuer": "YE2",
+              "not_before": "2026-08-05T19:15:41Z",
+              "not_after": "2026-11-03T19:15:40Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.m.mediawiki.org",
+                "*.m.wikibooks.org",
+                "*.m.wikidata.org",
+                "*.m.wikimedia.org",
+                "*.m.wikinews.org",
+                "*.m.wikipedia.org",
+                "*.m.wikiquote.org",
+                "*.m.wikisource.org",
+                "*.m.wikiversity.org",
+                "*.m.wikivoyage.org",
+                "*.m.wiktionary.org",
+                "*.mediawiki.org",
+                "*.planet.wikimedia.org",
+                "*.wikibooks.org",
+                "*.wikidata.org",
+                "*.wikifunctions.org",
+                "*.wikimedia.org",
+                "*.wikimediafoundation.org",
+                "*.wikinews.org",
+                "*.wikipedia.org",
+                "*.wikiquote.org",
+                "*.wikisource.org",
+                "*.wikiversity.org",
+                "*.wikivoyage.org",
+                "*.wiktionary.org",
+                "*.wmfusercontent.org",
+                "mediawiki.org",
+                "w.wiki",
+                "wikibooks.org",
+                "wikidata.org",
+                "wikifunctions.org",
+                "wikimedia.org",
+                "wikimediafoundation.org",
+                "wikinews.org",
+                "wikipedia.org",
+                "wikiquote.org",
+                "wikisource.org",
+                "wikiversity.org",
+                "wikivoyage.org",
+                "wiktionary.org",
+                "wmfusercontent.org"
+              ],
+              "covers_apex": true,
+              "covers_www": true,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "08e0b65df41fb075ec91c1dcd2cacc4e8c7dda53b754806525117b32f7b73253"
+            },
+            "chain_length": 4
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://www.wikipedia.org/",
+              "status": 301
+            },
+            {
+              "url": "https://www.wikipedia.org/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.wikipedia.org/",
+          "loop": false
+        },
+        "ipv6": {
+          "hops": [
+            {
+              "url": "http://www.wikipedia.org/",
+              "status": 301
+            },
+            {
+              "url": "https://www.wikipedia.org/",
+              "status": 200
+            }
+          ],
+          "ended": "final",
+          "final_url": "https://www.wikipedia.org/",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "mail": {
+    "dmarc": {
+      "present": true,
+      "unresolved": false,
+      "policy": "reject",
+      "pct": 100,
+      "rua": true,
+      "records": 1,
+      "problems": []
+    },
+    "spf": {
+      "records": 1,
+      "lookups": 1,
+      "void_lookups": 0,
+      "txt_answer_octets": 215,
+      "all": "~all",
+      "includes": [
+        "_cidrs.wikimedia.org"
+      ],
+      "problems": []
+    },
+    "mx": [
+      {
+        "host": "mx-in1001.wikimedia.org.",
+        "preference": 10,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      },
+      {
+        "host": "mx-in2001.wikimedia.org.",
+        "preference": 10,
+        "addresses": 2,
+        "cname": false,
+        "ip_literal": false,
+        "unresolved": false,
+        "problems": []
+      }
+    ],
+    "dkim": {
+      "wildcard": false,
+      "selectors_found": [],
+      "revoked": []
+    },
+    "mta_sts": {
+      "record": false,
+      "mx": [],
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "nameservers": {
+    "count": 3,
+    "servers": [
+      {
+        "name": "ns0.wikimedia.org.",
+        "ip": "208.80.154.238",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026060420,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns0.wikimedia.org.",
+        "ip": "2620:0:861:53::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026060420,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns1.wikimedia.org.",
+        "ip": "208.80.153.231",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026060420,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns1.wikimedia.org.",
+        "ip": "2620:0:860:53::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026060420,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns2.wikimedia.org.",
+        "ip": "198.35.27.27",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026060420,
+        "tcp": true,
+        "edns": true
+      },
+      {
+        "name": "ns2.wikimedia.org.",
+        "ip": "2a02:ec80:53::1",
+        "aa": true,
+        "rcode": "NOERROR",
+        "serial": 2026060420,
+        "tcp": true,
+        "edns": true
+      }
+    ],
+    "serials_consistent": true,
+    "ipv4_prefixes_24": 3,
+    "ipv6_prefixes_48": 3,
+    "glue": {
+      "required": [],
+      "missing": [],
+      "mismatch": []
+    },
+    "ns_cname": [],
+    "unresolvable": [],
+    "unresolved": []
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [
+          "0 iodef \"mailto:dns-admin@wikimedia.org\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\""
+        ],
+        "effective": [
+          "0 iodef \"mailto:dns-admin@wikimedia.org\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\""
+        ],
+        "issuer": "Let's Encrypt",
+        "permitted": true
+      },
+      "www": {
+        "published": [],
+        "effective": [
+          "0 iodef \"mailto:dns-admin@wikimedia.org\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"pki.goog\""
+        ],
+        "issuer": "Let's Encrypt",
+        "permitted": true
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name schwditpsipy is denied",
+    "probes": [
+      {
+        "label": "schwditpsipy",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "preloaded",
+  "hsts_preload_policy": "bulk-18-weeks",
+  "errors": [],
+  "warnings": [
+    "apex: certificate expires in 29 days",
+    "www: certificate expires in 29 days"
+  ],
+  "ok": true,
+  "elapsed_ms": 2844
+}

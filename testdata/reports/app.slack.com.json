@@ -1,0 +1,673 @@
+{
+  "domain": "app.slack.com",
+  "not_a_zone": true,
+  "enclosing_zone": "slack.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "3.22.139.176",
+          "3.129.123.235",
+          "3.130.95.182",
+          "3.134.44.134",
+          "3.142.111.40",
+          "3.143.19.65",
+          "3.143.53.1",
+          "18.216.36.190",
+          "18.221.229.81"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "secure"
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "10 inbound-smtp.us-east-1.amazonaws.com."
+        ]
+      },
+      "NS": {
+        "status": "nxrrset",
+        "trust": "secure"
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "v=spf1 -all"
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "ok",
+        "trust": "secure",
+        "records": [
+          "3.22.139.176",
+          "3.129.123.235",
+          "3.130.95.182",
+          "3.134.44.134",
+          "3.142.111.40",
+          "3.143.19.65",
+          "3.143.53.1",
+          "18.216.36.190",
+          "18.221.229.81"
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "secure"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "dnssec": {
+    "state": "secure",
+    "ds": false,
+    "dnskey": false,
+    "detail": "not a zone apex; state taken from answer validation"
+  },
+  "delegation": {
+    "status": "not_a_zone",
+    "error": "name is a host inside slack.com"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "3.22.139.176",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 200,
+            "server": "Apache",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "3.22.139.176:443",
+            "handshake_ms": 34
+          }
+        },
+        {
+          "ip": "3.129.123.235",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 200,
+            "server": "Apache",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "3.129.123.235:443",
+            "handshake_ms": 39
+          }
+        },
+        {
+          "ip": "3.130.95.182",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 200,
+            "server": "Apache",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "3.130.95.182:443",
+            "handshake_ms": 42
+          }
+        },
+        {
+          "ip": "3.134.44.134",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 200,
+            "server": "Apache",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "3.134.44.134:443",
+            "handshake_ms": 37
+          }
+        },
+        {
+          "ip": "3.142.111.40",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 200,
+            "server": "Apache",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "3.142.111.40:443",
+            "handshake_ms": 42
+          }
+        },
+        {
+          "ip": "3.143.19.65",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 200,
+            "server": "Apache",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "3.143.19.65:443",
+            "handshake_ms": 43
+          }
+        },
+        {
+          "ip": "3.143.53.1",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 200,
+            "server": "Apache",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "3.143.53.1:443",
+            "handshake_ms": 42
+          }
+        },
+        {
+          "ip": "18.216.36.190",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 200,
+            "server": "Apache",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "18.216.36.190:443",
+            "handshake_ms": 42
+          }
+        },
+        {
+          "ip": "18.221.229.81",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://app.slack.com:443/",
+            "server": "awselb/2.0"
+          },
+          "https": {
+            "status": 429,
+            "server": "envoy"
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "alpn": "http/1.1",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "slack.com",
+              "issuer": "YR1",
+              "not_before": "2026-08-06T09:33:39Z",
+              "not_after": "2026-11-04T09:33:38Z",
+              "days_remaining": 29,
+              "sans": [
+                "*.slack.com",
+                "slack.com"
+              ],
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "RSA 2048",
+              "fingerprint_sha256": "b582e54a6408ee0c4fc42fae01c15f3ed4fb60c10a067fabe898c317acaceaff"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": true,
+            "alpn": "h3",
+            "tls_version": "TLS 1.3",
+            "server_addr": "18.221.229.81:443",
+            "handshake_ms": 40
+          }
+        }
+      ],
+      "redirects": {
+        "ipv4": {
+          "hops": [
+            {
+              "url": "http://app.slack.com/",
+              "status": 301
+            },
+            {
+              "url": "https://app.slack.com:443/",
+              "status": 302
+            }
+          ],
+          "ended": "external",
+          "external": "https://slack.com/?unknown_domain=1",
+          "loop": false
+        }
+      },
+      "cert_consistent": true
+    }
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [],
+        "effective": [],
+        "issuer": "Let's Encrypt",
+        "permitted": true,
+        "note": "no CAA records; any CA may issue"
+      },
+      "www": {
+        "published": [],
+        "effective": [],
+        "note": "no certificate observed"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": true,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "present",
+    "determined_by": "3 random names all answer",
+    "probes": [
+      {
+        "label": "ysqaxdwfacnf",
+        "status": "answered",
+        "addresses": [
+          "18.216.36.190",
+          "18.221.229.81",
+          "3.129.123.235",
+          "3.130.95.182",
+          "3.134.44.134",
+          "3.142.111.40",
+          "3.143.19.65",
+          "3.143.53.1",
+          "3.22.139.176"
+        ]
+      },
+      {
+        "label": "voiigeziegap",
+        "status": "answered",
+        "addresses": [
+          "18.216.36.190",
+          "18.221.229.81",
+          "3.129.123.235",
+          "3.130.95.182",
+          "3.134.44.134",
+          "3.142.111.40",
+          "3.143.19.65",
+          "3.143.53.1",
+          "3.22.139.176"
+        ]
+      },
+      {
+        "label": "tikrpicmeewj",
+        "status": "answered",
+        "addresses": [
+          "18.216.36.190",
+          "18.221.229.81",
+          "3.129.123.235",
+          "3.130.95.182",
+          "3.134.44.134",
+          "3.142.111.40",
+          "3.143.19.65",
+          "3.143.53.1",
+          "3.22.139.176"
+        ]
+      }
+    ],
+    "addresses": [
+      "18.216.36.190",
+      "18.221.229.81",
+      "3.129.123.235",
+      "3.130.95.182",
+      "3.134.44.134",
+      "3.142.111.40",
+      "3.143.19.65",
+      "3.143.53.1",
+      "3.22.139.176"
+    ],
+    "consistent": true,
+    "www_via_wildcard": true
+  },
+  "hsts_preload": "absent",
+  "errors": [],
+  "warnings": [
+    "app.slack.com is not a zone apex (inside zone slack.com): delegation and DNSSEC zone checks skipped",
+    "apex has no AAAA record",
+    "www is answered by a wildcard record, not a real host",
+    "apex: certificate expires in 29 days"
+  ],
+  "ok": true,
+  "elapsed_ms": 1061
+}

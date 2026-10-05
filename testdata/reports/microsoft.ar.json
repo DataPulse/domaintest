@@ -1,0 +1,248 @@
+{
+  "ok": true,
+  "caa": {
+    "hosts": {
+      "www": {
+        "note": "no certificate observed",
+        "effective": [
+          "0 iodef \"mailto:caarecordaware@microsoft.com\"",
+          "0 contactemail \"caarecordaware@microsoft.com\""
+        ],
+        "published": []
+      },
+      "apex": {
+        "note": "no certificate observed",
+        "effective": [
+          "0 iodef \"mailto:caarecordaware@microsoft.com\"",
+          "0 contactemail \"caarecordaware@microsoft.com\""
+        ],
+        "published": [
+          "0 iodef \"mailto:caarecordaware@microsoft.com\"",
+          "0 contactemail \"caarecordaware@microsoft.com\""
+        ]
+      }
+    }
+  },
+  "dns": {
+    "www": {
+      "A": {
+        "trust": "insecure",
+        "status": "nxdomain"
+      },
+      "AAAA": {
+        "trust": "insecure",
+        "status": "nxdomain"
+      }
+    },
+    "apex": {
+      "A": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      },
+      "MX": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      },
+      "NS": {
+        "trust": "insecure",
+        "status": "ok",
+        "records": [
+          "ns1-02.azure-dns.com.",
+          "ns2-02.azure-dns.net.",
+          "ns3-02.azure-dns.org.",
+          "ns4-02.azure-dns.info."
+        ]
+      },
+      "TXT": {
+        "trust": "insecure",
+        "status": "ok",
+        "records": [
+          "v=DMARC1; p=reject; pct=100; rua=mailto:d@rua.agari.com; ruf=mailto:d@ruf.agari.com; fo=1"
+        ]
+      },
+      "AAAA": {
+        "trust": "insecure",
+        "status": "nxrrset"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    }
+  },
+  "web": {},
+  "mail": {
+    "mx": [],
+    "spf": {
+      "lookups": 0,
+      "records": 0,
+      "includes": [],
+      "problems": [],
+      "void_lookups": 0
+    },
+    "dkim": {
+      "revoked": [],
+      "wildcard": false,
+      "selectors_found": []
+    },
+    "dmarc": {
+      "pct": 100,
+      "rua": true,
+      "policy": "reject",
+      "present": true,
+      "records": 1,
+      "problems": [],
+      "unresolved": false
+    },
+    "mta_sts": {
+      "mx": [],
+      "record": false,
+      "policy_ok": false,
+      "mx_covered": false
+    },
+    "tls_rpt": false
+  },
+  "tlsa": {
+    "www": [],
+    "apex": [],
+    "result": "none",
+    "signed": false
+  },
+  "dnssec": {
+    "ds": false,
+    "state": "insecure",
+    "dnskey": false
+  },
+  "domain": "microsoft.ar",
+  "errors": [],
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "resolver": "127.0.0.1:8053",
+  "warnings": [
+    "apex has no A or AAAA records",
+    "www name does not exist",
+    "apex has no MX records",
+    "no SPF (v=spf1) record in apex TXT"
+  ],
+  "wildcard": {
+    "probes": [],
+    "status": "absent",
+    "addresses": [],
+    "consistent": null,
+    "determined_by": "www is NXDOMAIN, so no wildcard could have answered for it",
+    "www_via_wildcard": false
+  },
+  "delegation": {
+    "status": "match",
+    "child_ns": [
+      "ns1-02.azure-dns.com.",
+      "ns2-02.azure-dns.net.",
+      "ns3-02.azure-dns.org.",
+      "ns4-02.azure-dns.info."
+    ],
+    "parent_ns": [
+      "ns1-02.azure-dns.com.",
+      "ns2-02.azure-dns.net.",
+      "ns3-02.azure-dns.org.",
+      "ns4-02.azure-dns.info."
+    ],
+    "child_server": "ns4-02.azure-dns.info",
+    "parent_server": "f.dns.ar"
+  },
+  "elapsed_ms": 1865,
+  "nameservers": {
+    "glue": {
+      "missing": [],
+      "mismatch": [],
+      "required": []
+    },
+    "count": 4,
+    "servers": [
+      {
+        "aa": true,
+        "ip": "13.107.236.2",
+        "tcp": true,
+        "edns": true,
+        "name": "ns1-02.azure-dns.com",
+        "rcode": "NOERROR",
+        "serial": 1
+      },
+      {
+        "aa": true,
+        "ip": "2603:1061:0:700::2",
+        "tcp": true,
+        "edns": true,
+        "name": "ns1-02.azure-dns.com",
+        "rcode": "NOERROR",
+        "serial": 1
+      },
+      {
+        "aa": true,
+        "ip": "150.171.21.2",
+        "tcp": true,
+        "edns": true,
+        "name": "ns2-02.azure-dns.net",
+        "rcode": "NOERROR",
+        "serial": 1
+      },
+      {
+        "aa": true,
+        "ip": "2620:1ec:8ec:700::2",
+        "tcp": true,
+        "edns": true,
+        "name": "ns2-02.azure-dns.net",
+        "rcode": "NOERROR",
+        "serial": 1
+      },
+      {
+        "aa": true,
+        "ip": "204.14.183.2",
+        "tcp": true,
+        "edns": true,
+        "name": "ns3-02.azure-dns.org",
+        "rcode": "NOERROR",
+        "serial": 1
+      },
+      {
+        "aa": true,
+        "ip": "2a01:111:4000:700::2",
+        "tcp": true,
+        "edns": true,
+        "name": "ns3-02.azure-dns.org",
+        "rcode": "NOERROR",
+        "serial": 1
+      },
+      {
+        "aa": true,
+        "ip": "208.84.5.2",
+        "tcp": true,
+        "edns": true,
+        "name": "ns4-02.azure-dns.info",
+        "rcode": "NOERROR",
+        "serial": 1
+      },
+      {
+        "aa": true,
+        "ip": "2620:1ec:bda:700::2",
+        "tcp": true,
+        "edns": true,
+        "name": "ns4-02.azure-dns.info",
+        "rcode": "NOERROR",
+        "serial": 1
+      }
+    ],
+    "ns_cname": [],
+    "unresolved": [],
+    "unresolvable": [],
+    "ipv4_prefixes_24": 4,
+    "ipv6_prefixes_48": 4,
+    "serials_consistent": true
+  },
+  "timeout_sec": 3,
+  "hsts_preload": "absent",
+  "dns_concurrency": 4,
+  "tcp_timeout_sec": 2,
+  "quic_timeout_sec": 2
+}
