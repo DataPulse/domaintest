@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/netip"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -50,6 +51,7 @@ type Report struct {
 	TCPTimeoutSec        int             `json:"tcp_timeout_sec"`
 	DNSConcurrency       int             `json:"dns_concurrency"`
 	QuicTimeoutSec       int             `json:"quic_timeout_sec"`
+	MaxTimeSec           int             `json:"max_time_sec"`
 	DNS                  DNSSection      `json:"dns"`
 	DNSSEC               DNSSECReport    `json:"dnssec"`
 	Delegation           Delegation      `json:"delegation"`
@@ -64,14 +66,21 @@ type Report struct {
 	HSTSPreloadCoveredBy string          `json:"hsts_preload_covered_by,omitempty"`
 	HSTSPreloadPolicy    string          `json:"hsts_preload_policy,omitempty"`
 	HSTSPreloadError     string          `json:"hsts_preload_error,omitempty"`
-	Errors               []string        `json:"errors"`
-	Warnings             []string        `json:"warnings"`
+	// HSTSPreloadIncludeSubdomains is whether the entry that preloads the
+	// domain covers its subdomains, www among them; absent when the domain
+	// is not preloaded.
+	HSTSPreloadIncludeSubdomains *bool    `json:"hsts_preload_include_subdomains,omitempty"`
+	Errors                       []string `json:"errors"`
+	Warnings                     []string `json:"warnings"`
 	// Findings is every result with a stable code and a severity (fail,
 	// warn, info). fail entries are exactly Errors and warn entries exactly
 	// Warnings, in the same order; info entries appear only here.
-	Findings  []Finding `json:"findings"`
-	OK        bool      `json:"ok"`
-	ElapsedMs int64     `json:"elapsed_ms"`
+	Findings []Finding `json:"findings"`
+	OK       bool      `json:"ok"`
+	// DeadlineReached is set when the run hit max_time_sec: checks still
+	// running then were cut off, and their results say only that.
+	DeadlineReached bool  `json:"deadline_reached,omitempty"`
+	ElapsedMs       int64 `json:"elapsed_ms"`
 }
 
 // DNSSection holds the record lookups.
@@ -188,6 +197,7 @@ func buildFindings(rep *Report) {
 		// would only restate this one. The resolver's own reachability is
 		// kept: it is about the probe, not the domain.
 		f.reachabilityFindings(rep.DNS.ResolverReachable)
+		f.deadlineFindings(rep)
 		f.fail("zone_unreachable", "", "no delegated nameserver answers for the zone: %s", describeSilentServers(rep.Nameservers))
 		f.finish(rep)
 		return
@@ -198,10 +208,20 @@ func buildFindings(rep *Report) {
 		f.delegationFindings(rep)
 	}
 	f.reachabilityFindings(rep.DNS.ResolverReachable)
+	f.deadlineFindings(rep)
 	f.webFindings("apex", rep.Web.Apex)
 	f.webFindings("www", rep.Web.WWW)
 	f.deepFindings(rep)
 	f.finish(rep)
+}
+
+// deadlineFindings says when the run was cut off. It is about the probe,
+// not the domain, so it is info: each check that did not finish already
+// reports its own timeout.
+func (f *findings) deadlineFindings(rep *Report) {
+	if rep.DeadlineReached {
+		f.info("run_deadline_reached", "", "the run reached its %d-second deadline; checks still running then were cut short", rep.MaxTimeSec)
+	}
 }
 
 // finish copies the collected findings into the report.
@@ -276,21 +296,8 @@ func (f *findings) dnsFindings(rep *Report) {
 	// A name with nothing at it is one fact, and the rest of the checks
 	// only restate it. A reserved name is excluded: not existing in the
 	// global DNS is the definition of the name, not a fault in it.
-	if rep.ReservedName == "" {
-		switch {
-		case apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain:
-			f.fail("apex_nxdomain", "apex", "apex %s does not exist (NXDOMAIN)", rep.Domain)
-			return
-		case noRecordsAtAll(apex):
-			// The zone denied every type without saying NXDOMAIN, which
-			// is what compact denial of existence looks like: Cloudflare
-			// and other signed zones answer NODATA rather than admit a
-			// name is absent. The name has nothing either way, and the
-			// verdict must follow that fact rather than the phrasing of
-			// the denial.
-			f.fail("apex_empty", "apex", "apex %s has no records of any type", rep.Domain)
-			return
-		}
+	if rep.ReservedName == "" && f.apexMissing(rep) {
+		return
 	}
 	// A bogus or SERVFAIL verdict already explains every failed lookup.
 	// A reserved name folds its lookup failures the way a bogus zone does:
@@ -302,6 +309,34 @@ func (f *findings) dnsFindings(rep *Report) {
 	for _, t := range wwwTypes {
 		f.lookupFindings("www", t, rep.DNS.WWW[t], folded)
 	}
+	f.zoneKindFindings(rep)
+	f.presenceWarnings(rep)
+}
+
+// apexMissing reports, and says, when the apex does not exist or has
+// nothing at it.
+func (f *findings) apexMissing(rep *Report) bool {
+	apex := rep.DNS.Apex
+	switch {
+	case apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain:
+		f.fail("apex_nxdomain", "apex", "apex %s does not exist (NXDOMAIN)", rep.Domain)
+		return true
+	case noRecordsAtAll(apex):
+		// The zone denied every type without saying NXDOMAIN, which is
+		// what compact denial of existence looks like: Cloudflare and
+		// other signed zones answer NODATA rather than admit a name is
+		// absent. The name has nothing either way, and the verdict must
+		// follow that fact rather than the phrasing of the denial.
+		f.fail("apex_empty", "apex", "apex %s has no records of any type", rep.Domain)
+		return true
+	}
+	return false
+}
+
+// zoneKindFindings says what kind of name this is when it is not an
+// ordinary zone apex, and fails a zone apex without NS records.
+func (f *findings) zoneKindFindings(rep *Report) {
+	apex := rep.DNS.Apex
 	switch {
 	case rep.ReservedName != "":
 		f.info("reserved_name", "", "%s is reserved by %s and is not served by the global DNS: delegation and DNSSEC checks do not apply", rep.Domain, rep.ReservedName)
@@ -312,7 +347,6 @@ func (f *findings) dnsFindings(rep *Report) {
 	case !apex["NS"].HasRecords() && apex["NS"].Answered():
 		f.fail("ns_absent", "apex", "apex has no NS records")
 	}
-	f.presenceWarnings(rep)
 }
 
 // noRecordsAtAll reports whether every apex lookup answered and none of
@@ -412,7 +446,7 @@ func (f *findings) noAddress(label string) {
 
 func hasSPF(txt []string) bool {
 	for _, t := range txt {
-		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(t)), "v=spf1") {
+		if isSPFRecord(t) {
 			return true
 		}
 	}
@@ -470,19 +504,31 @@ func (f *findings) reachabilityFindings(reach map[string]string) {
 func (f *findings) webFindings(label string, h *HostWeb) {
 	addrs := h.addrs()
 	for _, a := range addrs {
-		switch {
-		case a.HTTP == PortSkipped && a.HTTPS == PortSkipped:
-			// Not a connectivity failure: the probe declined to connect
-			// because the address is reserved. Reporting it as "no
-			// listener" sends anyone triaging it after a problem that
-			// does not exist.
-			f.info("address_not_probed_reserved", label, "%s %s: not probed (reserved address)", label, a.IP)
-		case a.HTTP != PortOpen && a.HTTPS != PortOpen:
-			f.warn("web_no_listener", label, "%s %s: no listener on 80 or 443 (%s/%s)", label, a.IP, a.HTTP, a.HTTPS)
-		case a.HTTPS != PortOpen:
-			f.warn("https_unreachable", label, "%s %s: HTTP on 80 answers but HTTPS on 443 does not (%s)", label, a.IP, a.HTTPS)
-		}
+		f.listenerFindings(label, a)
 	}
+	f.quicFindings(label, addrs)
+}
+
+// listenerFindings reports an address that answered on neither port, or
+// on 80 only.
+func (f *findings) listenerFindings(label string, a AddrWeb) {
+	switch {
+	case a.HTTP == PortSkipped && a.HTTPS == PortSkipped:
+		// Not a connectivity failure: the probe declined to connect
+		// because the address is reserved. Reporting it as "no
+		// listener" sends anyone triaging it after a problem that
+		// does not exist.
+		f.info("address_not_probed_reserved", label, "%s %s: not probed (reserved address)", label, a.IP)
+	case a.HTTP != PortOpen && a.HTTPS != PortOpen:
+		f.warn("web_no_listener", label, "%s %s: no listener on 80 or 443 (%s/%s)", label, a.IP, a.HTTP, a.HTTPS)
+	case a.HTTPS != PortOpen:
+		f.warn("https_unreachable", label, "%s %s: HTTP on 80 answers but HTTPS on 443 does not (%s)", label, a.IP, a.HTTPS)
+	}
+}
+
+// quicFindings notes the addresses without QUIC on a host where another
+// address has it.
+func (f *findings) quicFindings(label string, addrs []AddrWeb) {
 	if !anyQUIC(addrs) {
 		return
 	}
@@ -554,6 +600,7 @@ func (f *findings) deepFindings(rep *Report) {
 	apexPreloaded, wwwPreloaded := preloadCovers(rep)
 	f.httpFindings("apex", rep.Web.Apex, apexPreloaded)
 	f.httpFindings("www", rep.Web.WWW, wwwPreloaded)
+	f.consistencyFindings(rep)
 	f.mailFindings(rep.Mail)
 	f.nsFindings(rep.Nameservers)
 	f.caaFindings(rep.CAA)
@@ -596,9 +643,32 @@ func (f *findings) tlsFindings(label string, h *HostWeb, sibling *HostWeb) {
 	f.expiryFindings(label, addrs)
 	f.coverageFindings(label, addrs, sibling)
 	f.versionFindings(label, addrs)
-	if h.CertConsistent != nil && !*h.CertConsistent {
-		f.warn("cert_mismatch_between_addresses", label, "%s: addresses serve different certificates", label)
+	// cert_consistent records whether the leaves are identical. A CDN
+	// rotating valid certificates across its fleet serves different leaves
+	// to no effect on any client, so only a difference a client would see
+	// is a warning: one address's chain failing where another's passes, or
+	// covering other names.
+	if h.CertConsistent != nil && !*h.CertConsistent && certProfilesDiffer(addrs) {
+		f.warn("cert_mismatch_between_addresses", label, "%s: addresses serve certificates that differ in validity or in the names they cover", label)
 	}
+}
+
+// certProfilesDiffer reports whether addresses differ in what their
+// certificates mean to a client: the chain verdict, or whether the leaf
+// covers the apex and www.
+func certProfilesDiffer(addrs []AddrWeb) bool {
+	first := ""
+	for _, a := range addrs {
+		if a.TLS == nil || a.TLS.Cert == nil {
+			continue
+		}
+		p := fmt.Sprintf("%s/%t/%t", a.TLS.Chain, a.TLS.Cert.CoversApex, a.TLS.Cert.CoversWWW)
+		if first != "" && p != first {
+			return true
+		}
+		first = p
+	}
+	return false
 }
 
 // chainFindings reports each distinct chain problem once for the host,
@@ -706,6 +776,8 @@ func hasValidCert(h *HostWeb) bool {
 	return false
 }
 
+func isTrue(b *bool) bool { return b != nil && *b }
+
 // versionFindings aggregates protocol facts per host.
 func (f *findings) versionFindings(label string, addrs []AddrWeb) {
 	old10, old11, no13, total := 0, 0, 0, 0
@@ -714,10 +786,10 @@ func (f *findings) versionFindings(label string, addrs []AddrWeb) {
 			continue
 		}
 		total++
-		if a.TLS.TLS10 {
+		if isTrue(a.TLS.TLS10) {
 			old10++
 		}
-		if a.TLS.TLS11 {
+		if isTrue(a.TLS.TLS11) {
 			old11++
 		}
 		if a.TLS.Version != "" && a.TLS.Version != "TLS 1.3" {
@@ -820,14 +892,14 @@ func probeRefused(status int) bool {
 }
 
 // preloadCovers reports whether the HSTS preload list covers the apex and
-// the www host. www is known to be covered only through an ancestor entry,
-// whose include_subdomains is what made it cover the apex too; the report
-// does not record whether the apex's own entry includes subdomains.
+// the www host. www is covered when the entry that preloads the apex
+// includes subdomains: an ancestor entry always does, and the apex's own
+// entry does when it says so (every hstspreload.org submission must).
 func preloadCovers(rep *Report) (apex, www bool) {
 	if rep.HSTSPreload != PreloadPreloaded {
 		return false, false
 	}
-	return true, rep.HSTSPreloadCoveredBy != ""
+	return true, rep.HSTSPreloadCoveredBy != "" || isTrue(rep.HSTSPreloadIncludeSubdomains)
 }
 
 // cleartextFindings warns once per host when port 80 serves content or
@@ -864,24 +936,101 @@ func (f *findings) cleartextFindings(label string, addrs []AddrWeb, preloaded bo
 }
 
 func (f *findings) redirectFindings(label string, chains map[string]*RedirectChain) {
+	// Families whose chains looped the same way are one finding: listing
+	// the identical loop once per family only repeats it.
+	loops := map[string][]string{}
+	var order []string
 	for _, fam := range sortedChainKeys(chains) {
-		c := chains[fam]
-		switch {
-		case len(c.Hops) == 0:
-			// The entry point did not answer; port 80's state already says so.
-		case c.Loop || c.Ended == RedirectLoop:
-			// A loop provably never resolves, however long you follow it.
-			f.fail("redirect_loop", label, "%s (%s): redirect loop %s%s", label, fam, describeHops(c.Hops), loopTarget(c.Hops))
-		case c.Ended == RedirectHopLimit:
-			// We stopped following, so whether the chain ends is unknown.
-			// Asserting a fault from that is the vacuous negative again.
-			f.warn("redirect_hop_limit", label, "%s (%s): still redirecting after %d hops, so the destination is unknown: %s", label, fam, len(c.Hops), describeHops(c.Hops))
-		case c.Error != "":
-			f.warn("redirect_broken", label, "%s (%s): redirect chain broke: %s", label, fam, c.Error)
-		case probeRefused(c.Hops[len(c.Hops)-1].Status):
-			f.info("http_probe_refused", label, "%s (%s): redirect chain ends in HTTP %d at %s: the server refused the probe, so the destination was not verified", label, fam, c.Hops[len(c.Hops)-1].Status, c.FinalURL)
-		case c.Hops[len(c.Hops)-1].Status >= 400:
-			f.warn("redirect_ends_error", label, "%s (%s): redirect chain ends in HTTP %d at %s", label, fam, c.Hops[len(c.Hops)-1].Status, c.FinalURL)
+		d, looped := f.chainFinding(label, fam, chains[fam])
+		if !looped {
+			continue
+		}
+		if _, ok := loops[d]; !ok {
+			order = append(order, d)
+		}
+		loops[d] = append(loops[d], fam)
+	}
+	f.downgradeFindings(label, chains)
+	for _, d := range order {
+		// A loop is what the server sent during this run. A server that
+		// answers the same URL differently from one request to the next
+		// may not loop on another run; http_response_inconsistent says
+		// when this run itself saw that.
+		f.fail("redirect_loop", label, "%s (%s): redirect loop %s", label, strings.Join(loops[d], ", "), d)
+	}
+}
+
+// downgradeFindings reports a chain that went from https back to http:
+// whatever HSTS and the scheme upgrade protected is given up at that hop.
+// Families that downgraded at the same hop are one finding.
+func (f *findings) downgradeFindings(label string, chains map[string]*RedirectChain) {
+	byHop := map[string][]string{}
+	var order []string
+	for _, fam := range sortedChainKeys(chains) {
+		hop := downgradeHop(chains[fam].Hops)
+		if hop == "" {
+			continue
+		}
+		if _, ok := byHop[hop]; !ok {
+			order = append(order, hop)
+		}
+		byHop[hop] = append(byHop[hop], fam)
+	}
+	for _, hop := range order {
+		f.warn("redirect_downgrade", label, "%s (%s): redirect from https to http: %s", label, strings.Join(byHop[hop], ", "), hop)
+	}
+}
+
+// downgradeHop is the first hop whose https URL redirected to an http
+// one, as "from -> to", or "".
+func downgradeHop(hops []RedirectHop) string {
+	for _, h := range hops {
+		from, err := url.Parse(h.URL)
+		if err != nil || from.Scheme != "https" || !isRedirect(h.Status) || h.Location == "" {
+			continue
+		}
+		to, err := from.Parse(h.Location)
+		if err == nil && to.Scheme == "http" {
+			return h.URL + " -> " + to.String()
+		}
+	}
+	return ""
+}
+
+// chainFinding reports how one family's chain ended. A loop is returned
+// rather than reported, so that identical loops can be merged.
+func (f *findings) chainFinding(label, fam string, c *RedirectChain) (loop string, looped bool) {
+	switch {
+	case len(c.Hops) == 0:
+		// The entry point did not answer; port 80's state already says so.
+	case c.Loop || c.Ended == RedirectLoop:
+		return describeHops(c.Hops) + loopTarget(c.Hops), true
+	case c.Ended == RedirectHopLimit:
+		// We stopped following, so whether the chain ends is unknown.
+		// Asserting a fault from that is the vacuous negative again.
+		f.warn("redirect_hop_limit", label, "%s (%s): still redirecting after %d hops, so the destination is unknown: %s", label, fam, len(c.Hops), describeHops(c.Hops))
+	case c.Error != "":
+		f.warn("redirect_broken", label, "%s (%s): redirect chain broke: %s", label, fam, c.Error)
+	case probeRefused(c.Hops[len(c.Hops)-1].Status):
+		f.info("http_probe_refused", label, "%s (%s): redirect chain ends in HTTP %d at %s: the server refused the probe, so the destination was not verified", label, fam, c.Hops[len(c.Hops)-1].Status, c.FinalURL)
+	case c.Hops[len(c.Hops)-1].Status >= 400:
+		f.warn("redirect_ends_error", label, "%s (%s): redirect chain ends in HTTP %d at %s", label, fam, c.Hops[len(c.Hops)-1].Status, c.FinalURL)
+	}
+	return "", false
+}
+
+// consistencyFindings compares every response the run saw for one URL:
+// the per-address probes and the redirect-chain hops ask the same
+// question, and a server that gives more than one answer to it is
+// reported, as is a probe sent back to the URL it asked for. Nothing is
+// fetched again; this is the run's own evidence.
+func (f *findings) consistencyFindings(rep *Report) {
+	for _, g := range collectWebObservations(rep.Domain, rep.Web) {
+		if tally := answerTally(g.obs); len(tally) > 1 {
+			f.warn("http_response_inconsistent", g.host, "%s: %s answered differently within one run: %s", g.host, g.url, strings.Join(tally, "; "))
+		}
+		if self, probes := selfRedirects(g.obs); len(self) > 0 {
+			f.fail("redirect_self", g.host, "%s: %s redirects to itself on %s", g.host, g.url, describeSources(self, probes))
 		}
 	}
 }
@@ -967,7 +1116,8 @@ func (f *findings) dmarcFindings(d DMARC) {
 		f.info("dmarc_partial_pct", "", "DMARC applies to only %d%% of mail (pct=%d)", d.Pct, d.Pct)
 	}
 	for _, p := range d.Problems {
-		f.fail(dmarcProblemCode(p), "", "DMARC: %s", p)
+		code, sev := dmarcProblemClass(p)
+		f.add(sev, code, "", "DMARC: %s", p)
 	}
 }
 
@@ -1004,6 +1154,8 @@ var spfClasses = []spfClass{
 	{prefix: "include:", substr: " TXT answer is ", code: "spf_include_txt_over_udp_limit", sev: SeverityInfo},
 	{prefix: "include:", substr: " is not a valid domain name", code: "spf_include_invalid", sev: SeverityWarn},
 	{prefix: "include:", substr: " has no SPF record", code: "spf_include_missing", sev: SeverityWarn},
+	{prefix: "include:", substr: " could not be checked", code: "spf_include_unchecked", sev: SeverityWarn},
+	{prefix: "include loop ", code: "spf_include_loop", sev: SeverityFail},
 }
 
 // spfProblemClass returns the code and severity of one SPF problem. An
@@ -1040,17 +1192,23 @@ func mxProblemCode(p string) string {
 	return "mx_invalid"
 }
 
-// dmarcProblemCode names one DMARC record problem; every one of them fails.
-func dmarcProblemCode(p string) string {
+// dmarcProblemClass names one DMARC record problem and its severity.
+// A malformed pct or sp leaves the record's policy in force, so those are
+// warnings; anything that makes receivers ignore the record fails.
+func dmarcProblemClass(p string) (code, sev string) {
 	switch {
 	case strings.HasPrefix(p, "multiple DMARC records"):
-		return "dmarc_multiple"
+		return "dmarc_multiple", SeverityFail
 	case p == "missing p= tag":
-		return "dmarc_policy_missing"
+		return "dmarc_policy_missing", SeverityFail
 	case strings.HasPrefix(p, "unknown policy"):
-		return "dmarc_policy_unknown"
+		return "dmarc_policy_unknown", SeverityFail
+	case strings.HasPrefix(p, "unknown subdomain policy"):
+		return "dmarc_subdomain_policy_unknown", SeverityWarn
+	case strings.HasPrefix(p, "invalid pct="):
+		return "dmarc_pct_invalid", SeverityWarn
 	}
-	return "dmarc_invalid"
+	return "dmarc_invalid", SeverityFail
 }
 
 func (f *findings) mtaSTSFindings(m *MTASTS) {
@@ -1065,7 +1223,9 @@ func (f *findings) mtaSTSFindings(m *MTASTS) {
 	switch {
 	case m.Error != "":
 		f.add(sev, prefix+"failed", "", "MTA-STS: %s", m.Error)
-	case !m.MXCovered:
+	case !m.MXCovered && m.Mode != "none":
+		// mode none withdraws the policy (RFC 8461 §5): its mx lines
+		// govern nothing.
 		f.add(sev, prefix+"mx_uncovered", "", "MTA-STS policy mx patterns do not cover every MX host")
 	}
 }
@@ -1183,18 +1343,26 @@ func serialList(servers []NSServer) string {
 
 // diversityFindings warns only when prefixes were actually counted. A null
 // count means nothing was examined and says nothing about diversity.
+// serverFamilies counts the audited nameserver addresses per family.
+func serverFamilies(servers []NSServer) (v4, v6 int) {
+	for _, s := range servers {
+		ip, err := netip.ParseAddr(s.IP)
+		switch {
+		case err != nil:
+		case ip.Is4():
+			v4++
+		default:
+			v6++
+		}
+	}
+	return v4, v6
+}
+
 func (f *findings) diversityFindings(n *NSReport) {
 	if n.IPv4Prefixes24 == nil || n.IPv6Prefixes48 == nil {
 		return
 	}
-	v4, v6 := 0, 0
-	for _, s := range n.Servers {
-		if ip, err := netip.ParseAddr(s.IP); err == nil && ip.Is4() {
-			v4++
-		} else if err == nil {
-			v6++
-		}
-	}
+	v4, v6 := serverFamilies(n.Servers)
 	if v4 >= 2 && *n.IPv4Prefixes24 == 1 {
 		f.warn("ns_same_v4_24", "", "all IPv4 nameserver addresses share one /24")
 	}

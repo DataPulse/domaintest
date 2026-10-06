@@ -2,7 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"io"
+	"net/http"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -120,10 +125,118 @@ func TestEvaluateSPF_Problems(t *testing.T) {
 	r = evaluateSPF("x.example", Lookup{Status: StatusOK, Records: []string{"v=spf1 redirect=_spf.google.com"}}, lookup)
 	check(t, "redirect followed", r.Includes[0], "_spf.google.com")
 	check(t, "redirect counts as all", contains(r.Problems, "no all mechanism"), false)
-	// A loop between includes terminates.
+	// A loop between includes terminates, and is permerror: a receiver
+	// following it runs out of lookups.
 	loopy := fixtureLookup(t, map[string]string{})
 	r = evaluateSPF("loop.example", Lookup{Status: StatusOK, Records: []string{"v=spf1 include:loop.example -all"}}, loopy)
-	check(t, "self include ignored", r.Lookups, 1)
+	check(t, "self include stops", r.Lookups, 1)
+	check(t, "loop reported", r.Problems, []string{"include loop loop.example -> loop.example (permerror: SPF fails entirely)"})
+}
+
+// txtLookup serves SPF records from a table; a name not in it is NODATA,
+// and one mapped to nil timed out.
+func txtLookup(records map[string][]string) lookupFn {
+	return func(name, qtype string) Lookup {
+		recs, ok := records[name]
+		switch {
+		case !ok:
+			return Lookup{Name: name, Type: qtype, Status: StatusNXRRSet}
+		case recs == nil:
+			return Lookup{Name: name, Type: qtype, Status: StatusTimeout}
+		}
+		return Lookup{Name: name, Type: qtype, Status: StatusOK, Records: recs}
+	}
+}
+
+func spfApex(record string) Lookup {
+	return Lookup{Status: StatusOK, Records: []string{record}}
+}
+
+// RFC 7208 §4.6.4 charges every evaluation. Two includes that share a
+// subtree pay for it twice, so a record can be over the limit while each
+// branch looks small; counting the shared part once said it was within.
+func TestEvaluateSPF_SharedSubtreeCountsEveryTime(t *testing.T) {
+	lookup := txtLookup(map[string][]string{
+		"a.example":      {"v=spf1 include:shared.example -all"},
+		"b.example":      {"v=spf1 include:shared.example -all"},
+		"shared.example": {"v=spf1 a mx include:deep.example -all"},
+		"deep.example":   {"v=spf1 ip4:192.0.2.1 -all"},
+	})
+	r := evaluateSPF("x.example", spfApex("v=spf1 a include:a.example include:b.example -all"), lookup)
+	check(t, "lookups", r.Lookups, 11)
+	check(t, "over the limit", contains(r.Problems, "11 DNS lookups exceed the limit of 10 (permerror"), true)
+	check(t, "each include listed once", r.Includes, []string{"a.example", "shared.example", "deep.example", "b.example"})
+}
+
+// RFC 7208 §6.1: a record with an all mechanism ignores its redirect.
+func TestEvaluateSPF_RedirectIgnoredWhenAllPresent(t *testing.T) {
+	lookup := txtLookup(map[string][]string{"big.example": {"v=spf1 a a a a a a a a a a a -all"}})
+	r := evaluateSPF("x.example", spfApex("v=spf1 ip4:192.0.2.1 -all redirect=big.example"), lookup)
+	check(t, "no lookups", r.Lookups, 0)
+	check(t, "not followed", r.Includes, []string{})
+	check(t, "all", r.All, "-all")
+	check(t, "no problems", r.Problems, []string{})
+}
+
+// The all a redirect target ends with is the domain's: +all there opens
+// the domain to every sender exactly as if the apex said it.
+func TestEvaluateSPF_AllThroughRedirect(t *testing.T) {
+	lookup := txtLookup(map[string][]string{
+		"open.example":    {"v=spf1 +all"},
+		"neutral.example": {"v=spf1 ?all"},
+	})
+	r := evaluateSPF("x.example", spfApex("v=spf1 redirect=open.example"), lookup)
+	check(t, "effective all", r.All, "+all")
+	check(t, "pass all", r.Problems, []string{"+all authorises every sender (no protection), reached through redirect=open.example"})
+	code, sev := spfProblemClass(r.Problems[0])
+	check(t, "still spf_pass_all", code+"/"+sev, "spf_pass_all/fail")
+
+	r = evaluateSPF("x.example", spfApex("v=spf1 redirect=neutral.example"), lookup)
+	check(t, "neutral", r.Problems, []string{"?all is neutral (no protection), reached through redirect=neutral.example"})
+
+	// An include that passes everyone matches every sender.
+	r = evaluateSPF("x.example", spfApex("v=spf1 include:open.example -all"), lookup)
+	check(t, "include of +all", r.Problems, []string{"+all authorises every sender (no protection), reached through include:open.example"})
+	// An include's ?all only fails to match; it opens nothing.
+	r = evaluateSPF("x.example", spfApex("v=spf1 include:neutral.example -all"), lookup)
+	check(t, "include of ?all", r.Problems, []string{})
+}
+
+// A void lookup is an answer with nothing in it. A lookup that never
+// completed is not one: three slow includes are not three empty ones.
+func TestEvaluateSPF_TimeoutIsNotVoid(t *testing.T) {
+	lookup := txtLookup(map[string][]string{"slow1.example": nil, "slow2.example": nil, "slow3.example": nil})
+	r := evaluateSPF("x.example", spfApex("v=spf1 include:slow1.example include:slow2.example include:slow3.example -all"), lookup)
+	check(t, "no void lookups", r.VoidLookups, 0)
+	check(t, "no void finding", contains(r.Problems, "void lookups"), false)
+	check(t, "said unchecked", contains(r.Problems, "include:slow1.example could not be checked: its TXT lookup did not complete"), true)
+	code, _ := spfProblemClass(r.Problems[0])
+	check(t, "unchecked is a warning", code, "spf_include_unchecked")
+
+	// A TXT answer without SPF in it is not void either: records came back.
+	lookup = txtLookup(map[string][]string{"tokens.example": {"google-site-verification=x"}})
+	r = evaluateSPF("x.example", spfApex("v=spf1 include:tokens.example -all"), lookup)
+	check(t, "answered without spf", []any{r.VoidLookups, r.Problems}, []any{0, []string{"include:tokens.example has no SPF record"}})
+}
+
+// "v=spf1" must be followed by a space or nothing. A record split into
+// strings without one concatenates to "v=spf1include:...", which receivers
+// do not recognise as SPF.
+func TestIsSPFRecord(t *testing.T) {
+	for r, want := range map[string]bool{
+		"v=spf1 -all":            true,
+		"V=SPF1 include:x -all":  true,
+		"v=spf1":                 true,
+		" v=spf1 -all":           true,
+		"v=spf1include:x -all":   false,
+		"v=spf10 -all":           false,
+		"spf2.0/pra include:x":   false,
+		"google-site-verify=abc": false,
+	} {
+		check(t, r, isSPFRecord(r), want)
+	}
+	r := evaluateSPF("x.example", spfApex("v=spf1include:x.example -all"), txtLookup(nil))
+	check(t, "not an SPF record", r.Records, 0)
 }
 
 func TestEvaluateSPF_AnswerSize(t *testing.T) {
@@ -408,4 +521,94 @@ func TestParseDMARC_UnansweredIsNotAbsence(t *testing.T) {
 	g := &findings{}
 	g.dmarcFindings(denied)
 	check(t, "absence reported", contains(g.warnings, "no DMARC record"), true)
+}
+
+// Tag values are case-insensitive; a malformed pct or sp is reported, as a
+// warning, since the record's policy still applies.
+func TestParseDMARC_CaseAndValidation(t *testing.T) {
+	rec := func(r string) Lookup { return Lookup{Status: StatusOK, Records: []string{r}} }
+	d := parseDMARC(rec("v=DMARC1; p=Reject; sp=Quarantine; rua=mailto:x@example.com"))
+	check(t, "policy folded", []string{d.Policy, d.SubdomainPolicy}, []string{"reject", "quarantine"})
+	check(t, "no problems", d.Problems, []string{})
+
+	d = parseDMARC(rec("v=DMARC1; p=reject; pct=abc"))
+	check(t, "bad pct defaults", d.Pct, 100)
+	check(t, "bad pct", d.Problems, []string{"invalid pct=abc (not a whole number from 0 to 100)"})
+	d = parseDMARC(rec("v=DMARC1; p=reject; pct=150"))
+	check(t, "out of range pct", d.Problems, []string{"invalid pct=150 (not a whole number from 0 to 100)"})
+	d = parseDMARC(rec("v=DMARC1; p=reject; pct=0"))
+	check(t, "pct 0 is valid", []any{d.Pct, d.Problems}, []any{0, []string{}})
+
+	d = parseDMARC(rec("v=DMARC1; p=reject; sp=deny"))
+	check(t, "bad sp", d.Problems, []string{"unknown subdomain policy sp=deny"})
+
+	for p, want := range map[string]string{
+		"invalid pct=abc (not a whole number from 0 to 100)": "dmarc_pct_invalid/warn",
+		"unknown subdomain policy sp=deny":                   "dmarc_subdomain_policy_unknown/warn",
+		"unknown policy p=deny":                              "dmarc_policy_unknown/fail",
+	} {
+		code, sev := dmarcProblemClass(p)
+		check(t, p, code+"/"+sev, want)
+	}
+}
+
+// The policy host may publish several addresses. One that is down must
+// not make the policy unreachable when another serves it.
+func TestFetchMTASTSPolicy_TriesEveryAddress(t *testing.T) {
+	ca := newTestCA(t, "Policy Test CA")
+	withRoots(t, ca.pool)
+	leaf, key := ca.issue(t, certSpec{sans: []string{"mta-sts.example.com"}, issuer: ca})
+	srv := tlsServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "version: STSv1\nmode: enforce\nmx: mx.example.com\nmax_age: 86400\n")
+	}), []*x509.Certificate{leaf, ca.cert}, key, tls.VersionTLS12, tls.VersionTLS13)
+	d := newMappedDialer()
+	d.mapTarget("1.0.0.1", 443, srv) // the second address serves; the first refuses
+	old := mtaSTSDialer
+	mtaSTSDialer = d
+	t.Cleanup(func() { mtaSTSDialer = old })
+
+	lookup := func(name, qtype string) Lookup {
+		if qtype == "A" {
+			return Lookup{Name: name, Type: qtype, Status: StatusOK, Records: []string{"1.1.1.1", "1.0.0.1"}}
+		}
+		return Lookup{Name: name, Type: qtype, Status: StatusNXRRSet}
+	}
+	body, err := fetchMTASTSPolicy(context.Background(), "example.com", 2*time.Second, lookup)
+	check(t, "fetched", err, nil)
+	check(t, "policy", strings.Contains(body, "mode: enforce"), true)
+}
+
+// A policy host that resolves only to reserved addresses is not contacted.
+func TestFetchMTASTSPolicy_ReservedOnly(t *testing.T) {
+	lookup := func(name, qtype string) Lookup {
+		if qtype == "A" {
+			return Lookup{Name: name, Type: qtype, Status: StatusOK, Records: []string{"169.254.169.254"}}
+		}
+		return Lookup{Name: name, Type: qtype, Status: StatusNXRRSet}
+	}
+	_, err := fetchMTASTSPolicy(context.Background(), "example.com", time.Second, lookup)
+	check(t, "refused", err != nil && strings.Contains(err.Error(), "mta-sts.example.com has only reserved addresses (169.254.169.254"), true)
+}
+
+func TestDialFirst(t *testing.T) {
+	a, b := netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2")
+	d := &fakeDialer{open: map[string]bool{"192.0.2.2:443": true}, hang: map[string]bool{"192.0.2.1:443": true}}
+	start := time.Now()
+	c, err := dialFirst(context.Background(), d, []netip.Addr{a, b}, 443)
+	check(t, "connected", err == nil && c != nil, true)
+	check(t, "did not wait for the hung address", time.Since(start) < time.Second, true)
+	if c != nil {
+		_ = c.Close()
+	}
+	_, err = dialFirst(context.Background(), &fakeDialer{}, []netip.Addr{a, b}, 443)
+	check(t, "all refused", err != nil, true)
+}
+
+// mode none withdraws a policy, so its mx lines are not judged.
+func TestMTASTSFindings_ModeNone(t *testing.T) {
+	var f findings
+	f.mtaSTSFindings(&MTASTS{Record: true, Mode: "none", PolicyOK: true, MXCovered: false})
+	check(t, "no finding", len(f.list), 0)
+	f.mtaSTSFindings(&MTASTS{Record: true, Mode: "testing", PolicyOK: true, MXCovered: false})
+	check(t, "testing still judged", findingCodes(&f), []string{"warn:mta_sts_mx_uncovered"})
 }

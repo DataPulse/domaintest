@@ -58,6 +58,25 @@ type preloadRecord struct {
 // preloadList maps a preloaded name to its record.
 type preloadList struct {
 	entries map[string]preloadRecord
+	// fetched is when the list was downloaded: the cache header's time, or
+	// now for a fresh fetch. Zero means unknown, which counts as stale.
+	fetched time.Time
+	// note says what went wrong around a list that was still obtained: a
+	// cache that could not be written, or a refresh that failed so an
+	// older cache answered.
+	note string
+}
+
+// preloadCacheMaxAge is how long a cached list is used before it is
+// fetched again. Chromium changes the list every few days; a name takes
+// months to reach browsers once added, so a week's lag changes nothing
+// that matters while bounding how stale a long-lived host's cache gets.
+const preloadCacheMaxAge = 7 * 24 * time.Hour
+
+// fresh reports whether the list is recent enough to use without
+// refetching.
+func (l *preloadList) fresh(now time.Time) bool {
+	return !l.fetched.IsZero() && now.Sub(l.fetched) < preloadCacheMaxAge
 }
 
 // bulkPolicyPrefix marks the policies of entries submitted through
@@ -190,7 +209,7 @@ func parsePreloadJSON(body []byte) (*preloadList, error) {
 	if err := json.Unmarshal(stripLineComments(body), &doc); err != nil {
 		return nil, fmt.Errorf("parsing the preload list: %w", err)
 	}
-	l := &preloadList{entries: make(map[string]preloadRecord, len(doc.Entries))}
+	l := &preloadList{entries: make(map[string]preloadRecord, len(doc.Entries)), fetched: time.Now()}
 	for _, e := range doc.Entries {
 		if e.Mode != "force-https" || e.Name == "" {
 			continue
@@ -273,7 +292,7 @@ func unmarshalCache(body []byte) (*preloadList, error) {
 	if nl < 0 || !strings.HasPrefix(text, cacheHeaderPrefix) {
 		return nil, errors.New("not a domaintest preload cache of this version")
 	}
-	l := &preloadList{entries: map[string]preloadRecord{}}
+	l := &preloadList{entries: map[string]preloadRecord{}, fetched: cacheTime(text[:nl])}
 	for _, line := range strings.Split(text[nl+1:], "\n") {
 		if line == "" {
 			continue
@@ -288,6 +307,16 @@ func unmarshalCache(body []byte) (*preloadList, error) {
 		return nil, errors.New("the preload cache holds no entries")
 	}
 	return l, nil
+}
+
+// cacheTime reads the fetch time from a cache header line, zero when it
+// has none it can read.
+func cacheTime(header string) time.Time {
+	ts, err := time.Parse(time.RFC3339, strings.TrimSpace(strings.TrimPrefix(header, cacheHeaderPrefix)))
+	if err != nil {
+		return time.Time{}
+	}
+	return ts
 }
 
 // parseCacheLine reads one "name\t0|1\tpolicy" line. The policy field may
@@ -362,7 +391,10 @@ var systemLockDir = "/run/lock"
 func lockPath(cachePath string) string {
 	if info, err := os.Stat(systemLockDir); err == nil && info.IsDir() {
 		p := filepath.Join(systemLockDir, "domaintest-hsts.lock")
-		if f, err := os.OpenFile(p, os.O_CREATE|os.O_RDWR, 0o666); err == nil {
+		// Read-only is all flock needs, and it is what lets a run share a
+		// lock file a root warm-up created 0644: opening it read-write
+		// failed, and the run silently took a different lock.
+		if f, err := os.OpenFile(p, os.O_CREATE|os.O_RDONLY, 0o666); err == nil {
 			f.Close()
 			return p
 		}
@@ -380,7 +412,7 @@ func acquireLock(ctx context.Context, path string) (func(), error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o666)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDONLY, 0o666)
 	if err != nil {
 		return nil, err
 	}
@@ -408,32 +440,69 @@ func acquireLock(ctx context.Context, path string) (func(), error) {
 // ------------------------------------------------------------- population
 
 // loadPreloadList returns the list for this run: the cache when it holds
-// one, otherwise a single fetch serialised across processes by an flock.
-// The second cache read matters: while this process waited for the lock,
-// another may have populated it.
+// a fresh one, otherwise a single fetch serialised across processes by an
+// flock. The second cache read matters: while this process waited for the
+// lock, another may have refreshed it. When a refresh fails, a stale cache
+// still answers, and says so in its note.
 func loadPreloadList(ctx context.Context, cachePath string, timeout time.Duration) (*preloadList, error) {
-	if l, err := readPreloadCache(cachePath); err == nil {
-		return l, nil
-	}
 	if cachePath == "" || cachePath == noCachePath {
 		return preloadListFetcher(ctx, timeout)
+	}
+	if l := cachedList(cachePath); l != nil && l.fresh(time.Now()) {
+		return l, nil
 	}
 	release, err := acquireLock(ctx, lockPath(cachePath))
 	if err != nil {
 		return nil, fmt.Errorf("waiting for the preload cache lock: %w", err)
 	}
 	defer release()
-	if l, err := readPreloadCache(cachePath); err == nil {
-		return l, nil
+	return refreshPreloadList(ctx, cachePath, timeout)
+}
+
+// refreshPreloadList fetches and caches the list, under the lock.
+func refreshPreloadList(ctx context.Context, cachePath string, timeout time.Duration) (*preloadList, error) {
+	stale := cachedList(cachePath)
+	if stale != nil && stale.fresh(time.Now()) {
+		return stale, nil
 	}
 	l, err := preloadListFetcher(ctx, timeout)
-	if err != nil {
+	switch {
+	case err != nil && stale != nil:
+		stale.note = fmt.Sprintf("the preload list could not be refreshed, so a copy from %s answered: %v", stale.fetched.UTC().Format(time.RFC3339), err)
+		return stale, nil
+	case err != nil:
 		return nil, err
 	}
-	// A cache that cannot be written is not fatal: this run still answers
-	// from the list it just fetched and the next run retries.
-	_ = writePreloadCache(cachePath, l)
+	if err := writePreloadCache(cachePath, l); err != nil {
+		// This run still answers from the list it fetched; the next run
+		// retries the write. The path is left out: it names the host.
+		l.note = "the preload cache could not be written: " + fsCause(err)
+	}
 	return l, nil
+}
+
+// cachedList is the cache's list, or nil when there is no usable cache;
+// the caller then fetches, which is the handling for every reason a cache
+// can be unusable (absent, damaged, an older format).
+func cachedList(path string) *preloadList {
+	l, err := readPreloadCache(path)
+	if err != nil {
+		return nil
+	}
+	return l
+}
+
+// fsCause is a filesystem error without the path it names.
+func fsCause(err error) string {
+	var pe *os.PathError
+	if errors.As(err, &pe) {
+		return pe.Op + ": " + pe.Err.Error()
+	}
+	var le *os.LinkError
+	if errors.As(err, &le) {
+		return le.Op + ": " + le.Err.Error()
+	}
+	return err.Error()
 }
 
 // warmPreloadCache populates the cache and reports where it put things, for
@@ -450,7 +519,7 @@ func warmPreloadCache(ctx context.Context, cachePath string) (string, error) {
 		return "", fmt.Errorf("waiting for the preload cache lock %s: %w", lock, err)
 	}
 	defer release()
-	if _, err := readPreloadCache(cachePath); err == nil {
+	if l := cachedList(cachePath); l != nil && l.fresh(time.Now()) {
 		return fmt.Sprintf("preload cache already present at %s (lock %s)", cachePath, lock), nil
 	}
 	l, err := preloadListFetcher(wctx, warmTimeout)

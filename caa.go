@@ -155,20 +155,26 @@ type servedCert struct {
 
 // caaVerdict judges one served certificate against the CAA records that
 // apply to its host. Without CAA records any CA may issue (permitted
-// true, RFC 8659 §4).
-func caaVerdict(rec Lookup, effective []string, cert servedCert) *CAAVerdict {
+// true, RFC 8659 §4). known says whether the effective set was actually
+// established: every lookup it depends on answered.
+func caaVerdict(rec Lookup, effective []string, known bool, cert servedCert) *CAAVerdict {
 	v := &CAAVerdict{Published: nonNil(rec.Records), Effective: nonNil(effective), Issuer: cert.issuer}
 	parsed := parseCAA(effective)
 	switch {
-	case !rec.Answered() && len(effective) == 0:
+	case !known:
 		// "Any CA may issue" is a security-relevant all-clear, and it must
 		// come from a zone that answered, never from a query that failed.
-		v.Note = "the CAA lookup did not complete, so no restriction can be ruled out"
+		v.Note = unknownCAANote(rec)
 	case cert.issuer == "":
 		v.Note = "no certificate observed"
 	case len(parsed) == 0:
 		v.Note = "no CAA records; any CA may issue"
 		v.Permitted = boolPtr(true)
+	case criticalUnknownTag(parsed) != "":
+		// RFC 8659 §4.1: a CA must not issue when a critical property
+		// it does not understand is present.
+		v.Note = "critical CAA property " + criticalUnknownTag(parsed) + " is not one any CA understands, so none may issue"
+		v.Permitted = boolPtr(false)
 	default:
 		ids := caaIDsFor(cert.issuer)
 		if ids == nil {
@@ -180,6 +186,32 @@ func caaVerdict(rec Lookup, effective []string, cert servedCert) *CAAVerdict {
 	return v
 }
 
+func unknownCAANote(rec Lookup) string {
+	if rec.Answered() {
+		return "no CAA records here, and the apex CAA lookup did not complete, so no restriction can be ruled out"
+	}
+	return "the CAA lookup did not complete, so no restriction can be ruled out"
+}
+
+// knownCAATags are the property tags defined for CAA: RFC 8659 (issue,
+// issuewild, iodef), RFC 8657 has none of its own, and the IANA registry
+// adds contactemail, contactphone, issuemail and issuevmc.
+var knownCAATags = map[string]bool{
+	"issue": true, "issuewild": true, "iodef": true,
+	"contactemail": true, "contactphone": true, "issuemail": true, "issuevmc": true,
+}
+
+// criticalUnknownTag returns the first property with the critical flag
+// (128) set and a tag outside the registry, or "".
+func criticalUnknownTag(records []caaRecord) string {
+	for _, r := range records {
+		if r.Flags&128 != 0 && !knownCAATags[r.Tag] {
+			return r.Tag
+		}
+	}
+	return ""
+}
+
 func boolPtr(b bool) *bool { return &b }
 
 // assessCAA builds the CAA report with one verdict per host. The www name
@@ -187,14 +219,15 @@ func boolPtr(b bool) *bool { return &b }
 // apex set, since RFC 8659 climbs to the closest ancestor with a CAA set.
 func assessCAA(apexRec, wwwRec Lookup, apexCert, wwwCert servedCert) CAAReport {
 	// The climb to the parent is only legitimate when www actually
-	// answered that it has no CAA of its own. A lookup that failed tells
-	// us nothing about what www publishes.
-	wwwEffective := wwwRec.Records
+	// answered that it has no CAA of its own, and its result is only known
+	// when the apex answered too: a lookup that failed tells us nothing
+	// about what that name publishes.
+	wwwEffective, wwwKnown := wwwRec.Records, wwwRec.HasRecords()
 	if len(wwwEffective) == 0 && wwwRec.Answered() {
-		wwwEffective = apexRec.Records
+		wwwEffective, wwwKnown = apexRec.Records, apexRec.Answered()
 	}
 	return CAAReport{Hosts: map[string]*CAAVerdict{
-		"apex": caaVerdict(apexRec, apexRec.Records, apexCert),
-		"www":  caaVerdict(wwwRec, wwwEffective, wwwCert),
+		"apex": caaVerdict(apexRec, apexRec.Records, apexRec.Answered(), apexCert),
+		"www":  caaVerdict(wwwRec, wwwEffective, wwwKnown, wwwCert),
 	}}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -298,31 +299,58 @@ func glueArgs(parentServer, family string, timeoutSec int, domain string) []stri
 }
 
 // checkGlue compares the parent's ADDITIONAL glue with the child's own
-// addresses for in-bailiwick nameservers (names ending in the domain).
-func checkGlue(msgs []digMessage, domain string, addrs map[string][]netip.Addr) *GlueReport {
-	if len(msgs) == 0 || msgs[0].Error != "" {
+// addresses for in-bailiwick nameservers (names at or under the domain).
+// names is the whole NS set: a name whose own address lookup failed still
+// needs glue, and is usually unresolvable precisely because it has none.
+// A parent answer that is not a referral (REFUSED, SERVFAIL, or no NS
+// records for the zone) says nothing about glue, and gives nil.
+func checkGlue(msgs []digMessage, domain string, names []string, addrs map[string][]netip.Addr) *GlueReport {
+	if len(msgs) == 0 || !isReferral(msgs[0]) {
 		return nil
 	}
-	g := &GlueReport{Required: []string{}, Missing: []string{}, Mismatch: []string{}}
-	glue := glueAddresses(msgs[0])
 	fqdn := fqdnOf(domain)
 	if fqdn == "" {
 		return nil
 	}
-	suffix := "." + fqdn
-	for _, n := range sortedAddrKeys(addrs) {
-		if !strings.HasSuffix(n, suffix) {
-			continue
-		}
+	g := &GlueReport{Required: []string{}, Missing: []string{}, Mismatch: []string{}}
+	glue := glueAddresses(msgs[0])
+	for _, n := range inBailiwick(names, fqdn) {
 		g.Required = append(g.Required, n)
 		if len(glue[n]) == 0 {
 			g.Missing = append(g.Missing, n)
 			continue
 		}
 		g.Mismatch = append(g.Mismatch, glueMismatches(n, addrs[n], glue[n])...)
-		g.Mismatch = nonNil(g.Mismatch)
 	}
 	return g
+}
+
+// isReferral reports whether a parent's answer delegates the zone: no
+// error, and NS records in it.
+func isReferral(m digMessage) bool {
+	if m.Error != "" || m.Status != "NOERROR" {
+		return false
+	}
+	for _, rr := range append(append([]RR{}, m.Authority...), m.Answer...) {
+		if rr.Type == "NS" {
+			return true
+		}
+	}
+	return false
+}
+
+// inBailiwick returns the NS names at or under the zone, sorted and once
+// each, in absolute form.
+func inBailiwick(names []string, fqdn string) []string {
+	var out []string
+	for _, n := range names {
+		abs := fqdnOf(n)
+		if (abs == fqdn || strings.HasSuffix(abs, "."+fqdn)) && !slices.Contains(out, abs) {
+			out = append(out, abs)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // glueAddresses indexes the A/AAAA glue of a referral by owner name.

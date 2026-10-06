@@ -26,15 +26,38 @@ func (execRunner) Run(ctx context.Context, name string, args ...string) ([]byte,
 		return nil, nil, errors.New("runner: nil context")
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout, stderr := &cappedBuffer{max: maxToolOutput}, &cappedBuffer{max: maxToolOutput}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	err := cmd.Run()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("%s: %w", name, ctxErr)
 	}
 	return stdout.Bytes(), stderr.Bytes(), err
 }
+
+// maxToolOutput bounds what is kept of one tool's stdout or stderr. The
+// largest real output, a dig +trace or a nameserver audit, is tens of
+// kilobytes; a tool that runs away (or a quicprobe stderr echoing a
+// hostile server) cannot fill memory or the report.
+const maxToolOutput = 1 << 20
+
+// cappedBuffer keeps the first max bytes written to it and discards the
+// rest, while still accepting every write so the process is not killed by
+// a broken pipe.
+type cappedBuffer struct {
+	buf bytes.Buffer
+	max int
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	if room := b.max - b.buf.Len(); room > 0 {
+		b.buf.Write(p[:min(len(p), room)])
+	}
+	return len(p), nil
+}
+
+func (b *cappedBuffer) Bytes() []byte { return b.buf.Bytes() }
 
 // isTimeout reports whether err (or ctx) indicates the tool was cut off by
 // its deadline.

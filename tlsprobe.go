@@ -13,9 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"net/netip"
 	"strings"
 	"time"
@@ -40,7 +38,7 @@ var tlsRoots *x509.CertPool
 
 // aiaFetch retrieves a DER/PEM certificate from an Authority Information
 // Access URL. Replaceable in tests.
-var aiaFetch = fetchAIA
+var aiaFetch = fetchAIACached
 
 // CertInfo describes the leaf certificate a server presented.
 type CertInfo struct {
@@ -64,12 +62,16 @@ type TLSResult struct {
 	// the most urgent one, so an operator who fixed it could still be left
 	// with a broken site: badssl's fallback is both expired and served for
 	// a name it does not cover.
-	Problems    []string  `json:"chain_problems"`
-	Version     string    `json:"version,omitempty"`
-	ALPN        string    `json:"alpn,omitempty"`
-	Cipher      string    `json:"cipher,omitempty"`
-	TLS10       bool      `json:"tls10"`
-	TLS11       bool      `json:"tls11"`
+	Problems []string `json:"chain_problems"`
+	Version  string   `json:"version,omitempty"`
+	ALPN     string   `json:"alpn,omitempty"`
+	Cipher   string   `json:"cipher,omitempty"`
+	// TLS10 and TLS11 say whether the server completes a handshake capped
+	// at that version: null when the question was never put (no
+	// connection, or no answer before the deadline), which is not a
+	// refusal.
+	TLS10       *bool     `json:"tls10"`
+	TLS11       *bool     `json:"tls11"`
 	Cert        *CertInfo `json:"cert,omitempty"`
 	ChainLength int       `json:"chain_length,omitempty"`
 	Error       string    `json:"error,omitempty"`
@@ -92,7 +94,7 @@ func tlsConfig(host string, minVer, maxVer uint16) *tls.Config {
 // probeTLS performs the handshake on an already-connected socket and
 // returns the TLS connection (for the HTTPS request that follows) together
 // with the analysis. The caller owns conn.
-func probeTLS(conn net.Conn, host, apex, www string, deadline time.Time) (*tls.Conn, TLSResult) {
+func probeTLS(ctx context.Context, conn net.Conn, host, apex, www string, deadline time.Time) (*tls.Conn, TLSResult) {
 	_ = conn.SetDeadline(deadline)
 	tc := tls.Client(conn, tlsConfig(host, 0, 0))
 	if err := tc.Handshake(); err != nil {
@@ -111,7 +113,7 @@ func probeTLS(conn net.Conn, host, apex, www string, deadline time.Time) (*tls.C
 		res.Problems = []string{ChainInvalid}
 		return tc, res
 	}
-	res.Chain, res.Error = classifyChain(state.PeerCertificates, host)
+	res.Chain, res.Error = classifyChain(ctx, state.PeerCertificates, host)
 	res.Problems = chainProblems(res.Chain, state.PeerCertificates[0], host)
 	res.pkixValid = res.Chain == ChainValid
 	info := certInfo(state.PeerCertificates[0], apex, www)
@@ -137,7 +139,7 @@ func formatTLSVersion(v uint16) string {
 // classifyChain verifies the presented chain for host and names the
 // problem. Expiry is checked explicitly first so that an expired cert on a
 // wrong host is reported as expired, the more urgent fact.
-func classifyChain(chain []*x509.Certificate, host string) (string, string) {
+func classifyChain(ctx context.Context, chain []*x509.Certificate, host string) (string, string) {
 	leaf := chain[0]
 	now := time.Now()
 	switch {
@@ -150,7 +152,7 @@ func classifyChain(chain []*x509.Certificate, host string) (string, string) {
 	if err == nil {
 		return ChainValid, ""
 	}
-	return classifyVerifyError(err, chain, host)
+	return classifyVerifyError(ctx, err, chain, host)
 }
 
 // chainProblems collects every defect of the leaf, not just the one that
@@ -191,7 +193,7 @@ func verifyChain(leaf *x509.Certificate, intermediates []*x509.Certificate, host
 	return err
 }
 
-func classifyVerifyError(err error, chain []*x509.Certificate, host string) (string, string) {
+func classifyVerifyError(ctx context.Context, err error, chain []*x509.Certificate, host string) (string, string) {
 	var hostErr x509.HostnameError
 	var authErr x509.UnknownAuthorityError
 	leaf := chain[0]
@@ -201,7 +203,7 @@ func classifyVerifyError(err error, chain []*x509.Certificate, host string) (str
 	case errors.As(err, &authErr) && isSelfSigned(leaf):
 		return ChainSelfSigned, "self-signed certificate"
 	case errors.As(err, &authErr):
-		if completed := completeViaAIA(leaf, chain[1:], host); completed {
+		if completed := completeViaAIA(ctx, leaf, chain[1:], host); completed {
 			return ChainIncomplete, "server did not send the intermediate certificate (fetched via AIA: " + leaf.IssuingCertificateURL[0] + ")"
 		}
 		return ChainUntrustedRoot, scrubProbeError(err.Error())
@@ -223,35 +225,17 @@ func isSelfSigned(c *x509.Certificate) bool {
 // completeViaAIA reports whether the chain becomes valid once the issuer
 // certificate named in the leaf's AIA extension is added: the classic
 // "works in browsers, fails elsewhere" incomplete chain.
-func completeViaAIA(leaf *x509.Certificate, intermediates []*x509.Certificate, host string) bool {
+func completeViaAIA(ctx context.Context, leaf *x509.Certificate, intermediates []*x509.Certificate, host string) bool {
 	if len(leaf.IssuingCertificateURL) == 0 {
 		return false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, aiaTimeout)
 	defer cancel()
 	issuer, err := aiaFetch(ctx, leaf.IssuingCertificateURL[0])
 	if err != nil {
 		return false
 	}
 	return verifyChain(leaf, append(append([]*x509.Certificate{}, intermediates...), issuer), host) == nil
-}
-
-// fetchAIA downloads a certificate (DER or PEM) from url.
-func fetchAIA(ctx context.Context, url string) (*x509.Certificate, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-	if err != nil {
-		return nil, err
-	}
-	return parseCertificate(body)
 }
 
 // parseCertificate accepts DER or PEM.
@@ -325,7 +309,7 @@ func keyDescription(c *x509.Certificate) string {
 
 // probeOldVersions opens two fresh connections and reports whether the
 // server still accepts TLS 1.0 and TLS 1.1.
-func probeOldVersions(ctx context.Context, d dialer, ip netip.Addr, host string, timeout time.Duration) (tls10, tls11 bool) {
+func probeOldVersions(ctx context.Context, d dialer, ip netip.Addr, host string, timeout time.Duration) (tls10, tls11 *bool) {
 	parallel(
 		func() { tls10 = acceptsVersion(ctx, d, ip, host, tls.VersionTLS10, timeout) },
 		func() { tls11 = acceptsVersion(ctx, d, ip, host, tls.VersionTLS11, timeout) },
@@ -333,17 +317,29 @@ func probeOldVersions(ctx context.Context, d dialer, ip netip.Addr, host string,
 	return tls10, tls11
 }
 
-func acceptsVersion(ctx context.Context, d dialer, ip netip.Addr, host string, ver uint16, timeout time.Duration) bool {
+// acceptsVersion is true when a handshake capped at ver completes, false
+// when the server turns it down, and nil when the question was never put:
+// a connection that could not be made, or a handshake still unanswered at
+// the deadline, says nothing about which versions the server accepts.
+func acceptsVersion(ctx context.Context, d dialer, ip netip.Addr, host string, ver uint16, timeout time.Duration) *bool {
 	dctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	conn, err := d.DialContext(dctx, tcpNetwork(ip), netip.AddrPortFrom(ip, 443).String())
 	if err != nil {
-		return false
+		return nil
 	}
 	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(timeout))
+	_ = conn.SetDeadline(ioDeadline(ctx, timeout))
 	tc := tls.Client(conn, tlsConfig(host, ver, ver))
-	return tc.Handshake() == nil
+	err = tc.Handshake()
+	var ne net.Error
+	switch {
+	case err == nil:
+		return boolPtr(true)
+	case ctx.Err() != nil, errors.As(err, &ne) && ne.Timeout():
+		return nil
+	}
+	return boolPtr(false)
 }
 
 func tcpNetwork(ip netip.Addr) string {

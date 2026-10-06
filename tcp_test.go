@@ -155,3 +155,18 @@ type timeoutErr struct{}
 func (*timeoutErr) Error() string   { return "i/o timeout" }
 func (*timeoutErr) Timeout() bool   { return true }
 func (*timeoutErr) Temporary() bool { return true }
+
+// A probe's I/O stops at its own timeout or the run deadline, whichever
+// comes first.
+func TestIODeadline(t *testing.T) {
+	d := ioDeadline(context.Background(), 2*time.Second)
+	check(t, "own timeout without a run deadline", time.Until(d) > 1900*time.Millisecond, true)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	d = ioDeadline(ctx, 2*time.Second)
+	check(t, "run deadline first", time.Until(d) <= 100*time.Millisecond, true)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Hour)
+	defer cancel2()
+	d = ioDeadline(ctx2, time.Second)
+	check(t, "own timeout first", time.Until(d) <= time.Second, true)
+}

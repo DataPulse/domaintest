@@ -307,7 +307,7 @@ func TestIntegration_GoogleTLSAndCAA(t *testing.T) {
 	check(t, "chain", a.TLS.Chain, ChainValid)
 	check(t, "tls 1.3", a.TLS.Version, "TLS 1.3")
 	// Google still accepts TLS 1.0 and 1.1 on the apex; the tool reports it.
-	check(t, "old versions still accepted (warned)", a.TLS.TLS10 && contains(notes(rep), "TLS 1.0/1.1 still accepted"), true)
+	check(t, "old versions still accepted (warned)", isTrue(a.TLS.TLS10) && contains(notes(rep), "TLS 1.0/1.1 still accepted"), true)
 	check(t, "https status is a redirect to www", a.HTTPSRes.Status, 301)
 	check(t, "http answers with a redirect", isRedirect(a.HTTPRes.Status), true)
 	check(t, "redirect chain ends at www", strings.Contains(rep.Web.Apex.Redirects[familyIPv4].FinalURL+rep.Web.Apex.Redirects[familyIPv4].External, "www.google.com"), true)

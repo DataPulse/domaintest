@@ -8,10 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -235,7 +239,7 @@ func TestRun_WebDomainFullProbe(t *testing.T) {
 	check(t, "v4 hsts", a4.HTTPSRes.HSTS, &HSTS{MaxAge: 31536000, IncludeSubdomains: true, Preload: true})
 	check(t, "v4 tls chain", a4.TLS.Chain, ChainValid)
 	check(t, "v4 tls version", a4.TLS.Version, "TLS 1.3")
-	check(t, "v4 old versions rejected", a4.TLS.TLS10 || a4.TLS.TLS11, false)
+	check(t, "v4 old versions rejected", []any{a4.TLS.TLS10, a4.TLS.TLS11}, []any{boolPtr(false), boolPtr(false)})
 	check(t, "v4 cert covers both", []bool{a4.TLS.Cert.CoversApex, a4.TLS.Cert.CoversWWW}, []bool{true, true})
 	check(t, "v4 quic", a4.QUIC.Supported, true)
 	a6 := apex.IPv6[0]
@@ -276,7 +280,7 @@ func TestRun_WebProblems(t *testing.T) {
 	check(t, "cleartext warning", contains(notes(rep), "apex: HTTP serves content in the clear"), true)
 	check(t, "short hsts warning", contains(notes(rep), "apex: HSTS max-age 300 is under 180 days"), true)
 	check(t, "expired cert covers apex only but www has its own valid cert: no coverage warning", contains(notes(rep), "does not cover"), false)
-	check(t, "certificates differ", contains(notes(rep), "addresses serve different certificates"), true)
+	check(t, "certificates differ", contains(notes(rep), "addresses serve certificates that differ in validity or in the names they cover"), true)
 	check(t, "expired chain recorded", rep.Web.Apex.IPv4[0].TLS.Chain, ChainExpired)
 	check(t, "cert consistent false", *rep.Web.Apex.CertConsistent, false)
 }
@@ -572,6 +576,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	rep := g.s.run()
 	check(t, "preloaded", rep.HSTSPreload, PreloadPreloaded)
 	check(t, "no covered-by for an exact entry", rep.HSTSPreloadCoveredBy, "")
+	check(t, "entry includes subdomains", rep.HSTSPreloadIncludeSubdomains, boolPtr(true))
 	check(t, "header meets requirements", contains(notes(rep), "preload"), false)
 
 	// Covered by an ancestor with include_subdomains.
@@ -580,6 +585,7 @@ func TestRun_PreloadStatuses(t *testing.T) {
 	rep = g.s.run()
 	check(t, "preloaded via ancestor", rep.HSTSPreload, PreloadPreloaded)
 	check(t, "covered by", rep.HSTSPreloadCoveredBy, "com")
+	check(t, "an ancestor covers through include_subdomains", rep.HSTSPreloadIncludeSubdomains, boolPtr(true))
 	check(t, "no policy on the stub entry", rep.HSTSPreloadPolicy, "")
 
 	// Preloaded but the served header has decayed (cloudflare.com's case).
@@ -910,4 +916,113 @@ func TestProbeWeb_NoWWWForAHostInsideAZone(t *testing.T) {
 	rep = apex.run()
 	check(t, "apex is a zone", rep.NotAZone, false)
 	check(t, "www still warned about", contains(notes(rep), "www has no A or AAAA records"), true)
+}
+
+// A run that reaches its deadline stops, says so, and still returns its
+// report: scrape kills a run at 20 s and keeps nothing, so a report cut
+// short is worth more than none.
+func TestRun_DeadlineCutsTheRunShort(t *testing.T) {
+	s := jschmidtScenario(t)
+	s.cfg.MaxTimeSec = 1
+	b := &budgetRunner{inner: s.r, left: map[string]time.Duration{}, delay: func(string) time.Duration { return time.Minute }}
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	rep := run(ctx, s.cfg, b, s.dialer)
+	if el := time.Since(start); el > 2*time.Second {
+		t.Errorf("run took %v after a 300ms deadline", el)
+	}
+	check(t, "deadline reached", rep.DeadlineReached, true)
+	check(t, "said once, as info", findingsWithCode(rep, "run_deadline_reached"), []string{
+		"info : the run reached its 1-second deadline; checks still running then were cut short",
+	})
+}
+
+func TestRun_NoDeadlineNoFinding(t *testing.T) {
+	rep := jschmidtScenario(t).run()
+	check(t, "deadline not reached", rep.DeadlineReached, false)
+	check(t, "no finding", findingsWithCode(rep, "run_deadline_reached"), []string(nil))
+}
+
+// When the trace finds the delegated servers silent, the nameserver audit
+// runs before the probes and can spend its whole allowance waiting on
+// them. The probes after it must still get theirs: sharing one budget left
+// QUIC, HTTP and the preload lookup with the scraps.
+func TestRun_SilentDelegationAuditHasItsOwnBudget(t *testing.T) {
+	g := googleScenario(t)
+	s := g.s
+	s.cfg.TimeoutSec, s.cfg.TCPTimeoutSec, s.cfg.QuicTimeoutSec = 2, 1, 2
+	full := fixture(t, "trace/google.txt")
+	cut := full[:strings.Index(full, ";; Received 287 bytes from 192.41.162.30")]
+	cut += ";; Received 287 bytes from 192.41.162.30#53(l.gtld-servers.net) in 36 ms\n\n;; communications error to 216.239.32.10#53: timed out\n"
+	s.r.on("dig", traceArgs(familyIPv4, s.cfg.TimeoutSec, s.cfg.Domain), fakeCall{stdout: cut})
+	s.r.on("dig", authArgs("l.gtld-servers.net", familyIPv4, s.cfg.TimeoutSec, s.cfg.Domain), fakeCall{stdout: fixture(t, "dig/jschmidt_at_org_referral.yaml")})
+	s.glue("l.gtld-servers.net", "dig/ns/glue_google_at_gtld.yaml", t)
+	var audits atomic.Int32
+	b := &budgetRunner{inner: s.r, left: map[string]time.Duration{}, delay: func(key string) time.Duration {
+		// One server answers; the rest are silent until their query times out.
+		if strings.Contains(key, "+norecurse") && strings.Contains(key, "SOA") && audits.Add(1) > 1 {
+			return time.Minute
+		}
+		return 0
+	}}
+	rep := run(context.Background(), s.cfg, b, s.dialer)
+	check(t, "delegation silent", rep.Delegation.Status, DelegationNoChildAnswer)
+	check(t, "zone still answers", zoneUnreachable(rep), false)
+	var quic time.Duration
+	for _, c := range s.r.called("quicprobe") {
+		quic = b.budgetFor(c)
+		break
+	}
+	if quic < time.Duration(s.cfg.QuicTimeoutSec)*time.Second {
+		t.Errorf("quicprobe got %v after the audit, want its full allowance", quic)
+	}
+	check(t, "web probed", rep.Web.Apex != nil && rep.Web.Apex.IPv4[0].HTTPS == PortOpen, true)
+}
+
+// peakDialer refuses every connection after a short wait and records how
+// many dials to port 443 were in flight at once.
+type peakDialer struct {
+	mu        sync.Mutex
+	open, max int
+}
+
+func (d *peakDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	if strings.HasSuffix(address, ":443") {
+		d.mu.Lock()
+		d.open++
+		d.max = max(d.max, d.open)
+		d.mu.Unlock()
+		defer func() { d.mu.Lock(); d.open--; d.mu.Unlock() }()
+	}
+	select {
+	case <-time.After(20 * time.Millisecond):
+	case <-ctx.Done():
+	}
+	return nil, &net.OpError{Op: "dial", Net: network, Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}
+}
+
+// A zone may publish any number of addresses. Probing them all at once
+// opened four sockets and a quicprobe process apiece, past the default
+// file-descriptor limit at a few hundred.
+func TestProbeWeb_CapsConcurrentAddresses(t *testing.T) {
+	var recs []string
+	for i := range 40 {
+		recs = append(recs, fmt.Sprintf("1.1.%d.1", i))
+	}
+	cfg := baseConfig("example.com", "")
+	r := newFakeRunner()
+	r.fallback = func(tool string, _ []string) (fakeCall, bool) {
+		return fakeCall{stdout: fixture(t, "quicprobe/example_unsupported.json")}, tool == "quicprobe"
+	}
+	dns := dnsResults{
+		apex: map[string]Lookup{"A": {Status: StatusOK, Records: recs}, "AAAA": {Status: StatusNXRRSet}},
+		www:  map[string]Lookup{"A": {Status: StatusNXDomain}, "AAAA": {Status: StatusNXDomain}},
+	}
+	d := &peakDialer{}
+	web := probeWeb(context.Background(), cfg, r, d, dns, &Report{})
+	check(t, "every address probed", len(web.Apex.IPv4), 40)
+	if d.max > maxAddressProbes || d.max == 0 {
+		t.Errorf("%d addresses probed at once, want at most %d", d.max, maxAddressProbes)
+	}
 }

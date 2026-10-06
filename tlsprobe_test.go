@@ -30,7 +30,7 @@ func TestProbeTLS_ValidChain(t *testing.T) {
 	leaf, key := ca.issue(t, certSpec{sans: []string{"example.test", "www.example.test"}, issuer: ca, org: "Example Org"})
 	srv := tlsServer(t, okHandler(nil), []*x509.Certificate{leaf, ca.cert}, key, tls.VersionTLS12, tls.VersionTLS13)
 
-	tc, res := probeTLS(dialServer(t, srv), "example.test", "example.test", "www.example.test", time.Now().Add(2*time.Second))
+	tc, res := probeTLS(context.Background(), dialServer(t, srv), "example.test", "example.test", "www.example.test", time.Now().Add(2*time.Second))
 	if tc == nil {
 		t.Fatalf("handshake failed: %+v", res)
 	}
@@ -78,7 +78,7 @@ func TestClassifyChain_Problems(t *testing.T) {
 		{"wildcard does not cover apex", []*x509.Certificate{wildcard, ca.cert}, "example.test", ChainHostnameMismatch},
 	}
 	for _, c := range cases {
-		got, detail := classifyChain(c.chain, c.host)
+		got, detail := classifyChain(context.Background(), c.chain, c.host)
 		check(t, c.name, got, c.want)
 		if got != ChainValid && detail == "" {
 			t.Errorf("%s: expected a detail message", c.name)
@@ -106,23 +106,23 @@ func TestClassifyChain_IncompleteViaAIA(t *testing.T) {
 	}
 	t.Cleanup(func() { aiaFetch = old })
 
-	got, detail := classifyChain([]*x509.Certificate{leaf}, "example.test")
+	got, detail := classifyChain(context.Background(), []*x509.Certificate{leaf}, "example.test")
 	check(t, "incomplete chain", got, ChainIncomplete)
 	check(t, "aia url used", fetched, "http://aia.test/inter.der")
 	check(t, "detail names AIA", strings.Contains(detail, "AIA"), true)
 
 	aiaFetch = func(context.Context, string) (*x509.Certificate, error) { return nil, errors.New("unreachable") }
-	got, _ = classifyChain([]*x509.Certificate{leaf}, "example.test")
+	got, _ = classifyChain(context.Background(), []*x509.Certificate{leaf}, "example.test")
 	check(t, "untrusted when AIA fails", got, ChainUntrustedRoot)
 
 	leaf.IssuingCertificateURL = nil
-	got, _ = classifyChain([]*x509.Certificate{leaf}, "example.test")
+	got, _ = classifyChain(context.Background(), []*x509.Certificate{leaf}, "example.test")
 	check(t, "untrusted without AIA", got, ChainUntrustedRoot)
 }
 
 func TestProbeTLS_HandshakeFailure(t *testing.T) {
 	srv := plainServer(t, okHandler(nil)) // speaks HTTP, not TLS
-	tc, res := probeTLS(dialServer(t, srv), "example.test", "example.test", "www.example.test", time.Now().Add(2*time.Second))
+	tc, res := probeTLS(context.Background(), dialServer(t, srv), "example.test", "example.test", "www.example.test", time.Now().Add(2*time.Second))
 	check(t, "no conn", tc == nil, true)
 	check(t, "chain", res.Chain, ChainHandshakeFailed)
 	check(t, "error set", res.Error != "", true)
@@ -138,17 +138,22 @@ func TestProbeOldVersions(t *testing.T) {
 	ip := netip.MustParseAddr("192.0.2.10")
 	d.mapTarget(ip.String(), 443, oldSrv)
 	tls10, tls11 := probeOldVersions(context.Background(), d, ip, "example.test", 2*time.Second)
-	check(t, "old server accepts 1.0", tls10, true)
-	check(t, "old server accepts 1.1", tls11, true)
+	check(t, "old server accepts 1.0 and 1.1", []any{tls10, tls11}, []any{boolPtr(true), boolPtr(true)})
 
 	d.mapTarget(ip.String(), 443, modern)
 	tls10, tls11 = probeOldVersions(context.Background(), d, ip, "example.test", 2*time.Second)
-	check(t, "modern rejects 1.0", tls10, false)
-	check(t, "modern rejects 1.1", tls11, false)
+	check(t, "modern rejects 1.0 and 1.1", []any{tls10, tls11}, []any{boolPtr(false), boolPtr(false)})
 
+	// A connection that could not be made never asked the question: that
+	// is not a refusal, and must not read as one.
 	unmapped := netip.MustParseAddr("192.0.2.11")
 	tls10, tls11 = probeOldVersions(context.Background(), d, unmapped, "example.test", time.Second)
-	check(t, "refused counts as not accepted", tls10 || tls11, false)
+	check(t, "untested is null", tls10 == nil && tls11 == nil, true)
+
+	// Nor is a handshake nobody answered before the deadline.
+	silent := &silentDialer{t: t}
+	tls10 = acceptsVersion(context.Background(), silent, netip.MustParseAddr("192.0.2.12"), "example.test", tls.VersionTLS10, 200*time.Millisecond)
+	check(t, "unanswered is null", tls10 == nil, true)
 }
 
 func TestFormatTLSVersionAndKeys(t *testing.T) {
@@ -193,4 +198,14 @@ func TestChainProblems_MultipleDefects(t *testing.T) {
 	// A valid certificate has nothing to report and never null.
 	good, _ := ca.issue(t, certSpec{sans: []string{"example.com"}, issuer: ca, notBefore: past, notAfter: time.Now().Add(24 * time.Hour)})
 	check(t, "clean", chainProblems(ChainValid, good, "example.com"), []string{})
+}
+
+// silentDialer connects to a peer that accepts the connection and then
+// never reads or writes, like a server stalled behind a middlebox.
+type silentDialer struct{ t *testing.T }
+
+func (d *silentDialer) DialContext(context.Context, string, string) (net.Conn, error) {
+	c1, c2 := net.Pipe()
+	d.t.Cleanup(func() { _ = c2.Close() })
+	return c1, nil
 }

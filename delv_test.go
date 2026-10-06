@@ -373,3 +373,20 @@ func TestTrustForKey_Variants(t *testing.T) {
 	check(t, "unsigned additional data", trustForKey("negative_response_unsigned_additional_data"), TrustInsecure)
 	check(t, "unknown", trustForKey("something_else"), Trust(""))
 }
+
+// A TXT or CAA value is kept as printed. Rebuilding the rdata from its
+// fields collapsed the double space inside the quotes below, so the record
+// read back differently and its wire length came out short.
+func TestParseRR_KeepsSpacesInsideQuotes(t *testing.T) {
+	rr, ok := parseRR(`example.com. 300 IN TXT "a  b" "c	d"`)
+	check(t, "parsed", ok, true)
+	check(t, "txt", rr.RData, "a  bc\td")
+	check(t, "wire length", rr.RDLen, 1+4+1+3)
+
+	rr, _ = parseRR(`example.com. 300 IN CAA 0 iodef "mailto:a  b@example.com"`)
+	check(t, "caa", rr.RData, `0 iodef "mailto:a  b@example.com"`)
+
+	rr, _ = parseRR(`org. RRSIG SOA 8 1 900 20260101000000 20251201000000 1 org. AAAA`)
+	check(t, "abbreviated record", []string{rr.Type, rr.RData}, []string{"RRSIG", "SOA 8 1 900 20260101000000 20251201000000 1 org. AAAA"})
+	check(t, "fields helper at the end", afterFields("a b", 2), "")
+}

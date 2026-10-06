@@ -34,7 +34,12 @@ const (
 	defaultTimeoutSec     = 3
 	defaultTCPTimeoutSec  = 2
 	defaultQuicTimeoutSec = 2
-	usage                 = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
+	// defaultMaxTimeSec bounds a whole run. scrape kills a worker's run at
+	// 20 s and keeps no partial output, so a run must finish, report in
+	// hand, before then: the deadline cuts off whatever is still running
+	// and the report says so.
+	defaultMaxTimeSec = 18
+	usage             = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
 )
 
 // config is the parsed command line.
@@ -49,6 +54,7 @@ type config struct {
 	// in full by every non-QUIC site.
 	QuicTimeoutSec int
 	TCPTimeoutSec  int
+	MaxTimeSec     int    // whole-run deadline; 0 is none
 	DNSConcurrency int    // most delv/dig processes at once; 0 is unlimited
 	HSTSPreload    bool   // consult the HSTS preload list (on by default; -no-hsts-preload disables)
 	HSTSCache      string // path to the cached preload list; "-" disables caching
@@ -122,12 +128,26 @@ func (r resolver) String() string {
 	}
 }
 
-// valueFlags take an argument, so the token after them is not positional.
-var valueFlags = map[string]bool{"-t": true, "-tcp-timeout": true, "-quic-timeout": true, "-dns-concurrency": true, "-quicprobe": true, "-delv": true, "-dig": true, "-hsts-cache": true}
+// takesValue reports whether a flag token is a defined non-boolean flag
+// written without "=", so that the token after it is its value and not a
+// positional. It reads the flag set itself: a hand-kept list of value
+// flags fell behind when -max-time was added, and "-max-time 0 x.org"
+// then took 0 for the domain.
+func takesValue(fs *flag.FlagSet, a string) bool {
+	if strings.Contains(a, "=") {
+		return false
+	}
+	f := fs.Lookup(strings.TrimLeft(a, "-"))
+	if f == nil {
+		return false
+	}
+	b, isBool := f.Value.(interface{ IsBoolFlag() bool })
+	return !isBool || !b.IsBoolFlag()
+}
 
 // splitArgs separates argv into flag tokens, the @server and positionals so
 // that, like dig, the domain and @server may appear anywhere.
-func splitArgs(args []string) (flagArgs, positional []string, server string, err error) {
+func splitArgs(fs *flag.FlagSet, args []string) (flagArgs, positional []string, server string, err error) {
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
@@ -140,7 +160,7 @@ func splitArgs(args []string) (flagArgs, positional []string, server string, err
 			}
 		case strings.HasPrefix(a, "-") && len(a) > 1:
 			flagArgs = append(flagArgs, a)
-			if valueFlags[a] && i+1 < len(args) {
+			if takesValue(fs, a) && i+1 < len(args) {
 				i++
 				flagArgs = append(flagArgs, args[i])
 			}
@@ -171,17 +191,17 @@ func hyphenDomain(fs *flag.FlagSet, args []string) error {
 }
 
 func parseArgs(args []string) (config, error) {
-	flagArgs, positional, server, err := splitArgs(args)
+	cfg := config{}
+	fs, only4, only6, noPreload := newFlagSet(&cfg)
+	flagArgs, positional, server, err := splitArgs(fs, args)
 	if err != nil {
 		return config{}, err
 	}
-	cfg := config{}
 	if server != "" {
 		if cfg.Resolver, err = parseResolver(server); err != nil {
 			return config{}, err
 		}
 	}
-	fs, only4, only6, noPreload := newFlagSet(&cfg)
 	if err := hyphenDomain(fs, flagArgs); err != nil {
 		return config{}, err
 	}
@@ -250,6 +270,7 @@ func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
 	fs.IntVar(&cfg.TimeoutSec, "t", defaultTimeoutSec, "per-probe timeout in seconds")
 	fs.IntVar(&cfg.QuicTimeoutSec, "quic-timeout", defaultQuicTimeoutSec, "QUIC handshake timeout in seconds")
 	fs.IntVar(&cfg.TCPTimeoutSec, "tcp-timeout", defaultTCPTimeoutSec, "TCP connect timeout in seconds")
+	fs.IntVar(&cfg.MaxTimeSec, "max-time", defaultMaxTimeSec, "deadline for the whole run in seconds (0 for none)")
 	fs.IntVar(&cfg.DNSConcurrency, "dns-concurrency", defaultDNSConcurrency(), "most DNS tool processes to run at once (0 for unlimited)")
 	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
 	fs.StringVar(&cfg.HSTSCache, "hsts-cache", "", "path to the cached HSTS preload list (default: user cache dir; \"-\" disables caching)")
@@ -279,6 +300,9 @@ func validateTimeouts(cfg config) error {
 		if c.secs <= 0 {
 			return fmt.Errorf("%s must be a positive number of seconds", c.flag)
 		}
+	}
+	if cfg.MaxTimeSec < 0 {
+		return errors.New("-max-time must be zero (no deadline) or a positive number of seconds")
 	}
 	return nil
 }
@@ -332,6 +356,15 @@ func main() {
 	os.Exit(realMain(os.Args[1:], os.Stdout, os.Stderr))
 }
 
+// runContext is the context a run works under: the -max-time deadline, or
+// none when it is zero.
+func runContext(cfg config) (context.Context, context.CancelFunc) {
+	if cfg.MaxTimeSec == 0 {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithTimeout(context.Background(), time.Duration(cfg.MaxTimeSec)*time.Second)
+}
+
 // realMain is main without os.Exit so tests can drive it.
 func realMain(args []string, stdout, stderr io.Writer) int {
 	cfg, err := parseArgs(args)
@@ -350,7 +383,9 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "domaintest: %v\n", err)
 		return 2
 	}
-	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	ctx, cancel := runContext(cfg)
+	defer cancel()
+	rep := run(ctx, cfg, execRunner{}, &netDialer{})
 	if err := writeReport(stdout, rep, cfg.Pretty); err != nil {
 		fmt.Fprintf(stderr, "domaintest: %v\n", err)
 		return 2

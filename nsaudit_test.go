@@ -189,19 +189,42 @@ func TestCheckGlue(t *testing.T) {
 		"ns9.google.com.": {netip.MustParseAddr("192.0.2.9")},
 		"ns.other.net.":   {netip.MustParseAddr("192.0.2.1")},
 	}
-	g := checkGlue(msgs, "google.com", addrs)
+	names := []string{"ns1.google.com.", "ns2.google.com.", "ns9.google.com.", "ns.other.net."}
+	g := checkGlue(msgs, "google.com", names, addrs)
 	check(t, "required in-bailiwick", g.Required, []string{"ns1.google.com.", "ns2.google.com.", "ns9.google.com."})
 	check(t, "missing glue", g.Missing, []string{"ns9.google.com."})
 	check(t, "no mismatch for real servers", len(g.Mismatch), 0)
 
 	addrs["ns1.google.com."] = []netip.Addr{netip.MustParseAddr("192.0.2.77")}
-	g = checkGlue(msgs, "google.com", addrs)
+	g = checkGlue(msgs, "google.com", names, addrs)
 	check(t, "mismatch", g.Mismatch, []string{"ns1.google.com. 192.0.2.77"})
 
-	check(t, "error message gives nil", checkGlue([]digMessage{{Error: "x"}}, "google.com", addrs), (*GlueReport)(nil))
-	check(t, "no messages gives nil", checkGlue(nil, "google.com", addrs), (*GlueReport)(nil))
-	out := checkGlue(parseDigYAML(fixture(t, "dig/jschmidt_at_org_referral.yaml")), "jschmidt.org", map[string][]netip.Addr{"ns-507.awsdns-63.com.": {netip.MustParseAddr("205.251.193.251")}})
+	check(t, "error message gives nil", checkGlue([]digMessage{{Error: "x"}}, "google.com", names, addrs), (*GlueReport)(nil))
+	check(t, "no messages gives nil", checkGlue(nil, "google.com", names, addrs), (*GlueReport)(nil))
+	out := checkGlue(parseDigYAML(fixture(t, "dig/jschmidt_at_org_referral.yaml")), "jschmidt.org", []string{"ns-507.awsdns-63.com."}, map[string][]netip.Addr{"ns-507.awsdns-63.com.": {netip.MustParseAddr("205.251.193.251")}})
 	check(t, "out-of-bailiwick needs no glue", len(out.Required), 0)
+}
+
+// An in-bailiwick nameserver without glue usually cannot be resolved at
+// all, which is why it is missing from the resolved addresses. It still
+// needs glue, and its absence is exactly the finding.
+func TestCheckGlue_UnresolvedInBailiwickName(t *testing.T) {
+	msgs := parseDigYAML(fixture(t, "dig/ns/glue_google_at_gtld.yaml"))
+	addrs := map[string][]netip.Addr{"ns1.google.com.": {netip.MustParseAddr("216.239.32.10")}}
+	g := checkGlue(msgs, "google.com", []string{"ns1.google.com.", "ns-lost.google.com.", "google.com."}, addrs)
+	check(t, "required includes the unresolved and the apex", g.Required, []string{"google.com.", "ns-lost.google.com.", "ns1.google.com."})
+	check(t, "missing", g.Missing, []string{"google.com.", "ns-lost.google.com."})
+}
+
+// A parent that refuses or fails has said nothing about glue: reporting
+// every in-bailiwick name as missing glue would be a false fail.
+func TestCheckGlue_ParentErrorIsNotMissingGlue(t *testing.T) {
+	names := []string{"ns1.google.com."}
+	for _, status := range []string{"REFUSED", "SERVFAIL"} {
+		check(t, status, checkGlue([]digMessage{{Status: status}}, "google.com", names, nil), (*GlueReport)(nil))
+	}
+	// NOERROR without NS records is not a referral either.
+	check(t, "no NS", checkGlue([]digMessage{{Status: "NOERROR"}}, "google.com", names, nil), (*GlueReport)(nil))
 }
 
 // no_soa says the zone has no SOA at that server. A truncated UDP answer

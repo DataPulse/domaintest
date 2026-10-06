@@ -44,7 +44,7 @@ func httpRequest(conn net.Conn, host, path string, deadline time.Time) HTTPResul
 		return HTTPResult{Error: "write: " + scrubProbeError(err.Error())}
 	}
 	br := bufio.NewReaderSize(io.LimitReader(conn, maxHeaderBytes), 4096)
-	resp, err := http.ReadResponse(br, nil)
+	resp, err := readFinalResponse(br)
 	if err != nil {
 		return HTTPResult{Error: "read: " + scrubProbeError(err.Error())}
 	}
@@ -56,15 +56,38 @@ func httpRequest(conn net.Conn, host, path string, deadline time.Time) HTTPResul
 	return res
 }
 
+// maxInterimResponses bounds how many 1xx responses are skipped before
+// the final one; the header cap bounds their size.
+const maxInterimResponses = 8
+
+// readFinalResponse reads past interim 1xx responses (100 Continue, 103
+// Early Hints) to the response the request actually got. Taking a 103 as
+// the answer read a redirecting site as serving content, and took its
+// HSTS from hints that are not the response's headers.
+func readFinalResponse(br *bufio.Reader) (*http.Response, error) {
+	for range maxInterimResponses {
+		resp, err := http.ReadResponse(br, nil)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode >= 200 || resp.StatusCode < 100 || resp.StatusCode == http.StatusSwitchingProtocols {
+			return resp, nil
+		}
+		_ = resp.Body.Close()
+	}
+	return nil, fmt.Errorf("more than %d interim responses", maxInterimResponses)
+}
+
 // parseHSTS parses "max-age=N; includeSubDomains; preload" case-insensitively.
 func parseHSTS(header string) *HSTS {
 	h := &HSTS{}
 	for _, part := range strings.Split(header, ";") {
+		// RFC 6797 §6.1 allows whitespace around "=": "max-age = 31536000".
 		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
-		switch strings.ToLower(kv[0]) {
+		switch strings.ToLower(strings.TrimSpace(kv[0])) {
 		case "max-age":
 			if len(kv) == 2 {
-				h.MaxAge, _ = strconv.ParseInt(strings.Trim(kv[1], `"`), 10, 64)
+				h.MaxAge, _ = strconv.ParseInt(strings.Trim(strings.TrimSpace(kv[1]), `"`), 10, 64)
 			}
 		case "includesubdomains":
 			h.IncludeSubdomains = true
@@ -135,19 +158,8 @@ func followRedirects(ctx context.Context, d dialer, scheme, host string, hosts h
 	current := scheme + "://" + host + "/"
 	seen := map[string]bool{}
 	for hop := 0; hop <= maxRedirectHops; hop++ {
-		if seen[current] {
-			chain.Loop, chain.Ended = true, RedirectLoop
-			return chain
-		}
-		seen[current] = true
-		u, err := url.Parse(current)
-		if err != nil {
-			chain.Error, chain.Ended = "bad URL "+current, RedirectFailed
-			return chain
-		}
-		ip, ok := hosts[bareName(u.Hostname())]
+		u, ip, ok := chain.admit(current, seen, hosts)
 		if !ok {
-			chain.External, chain.Ended = current, RedirectExternal
 			return chain
 		}
 		res := fetchHead(ctx, d, u, ip, timeout)
@@ -156,23 +168,63 @@ func followRedirects(ctx context.Context, d dialer, scheme, host string, hosts h
 			return chain
 		}
 		chain.Hops = append(chain.Hops, RedirectHop{URL: current, Status: res.Status, Location: clipLocation(res.Location)})
-		if !isRedirect(res.Status) || res.Location == "" {
-			chain.FinalURL, chain.Ended = current, RedirectFinal
+		if current, ok = chain.next(u, res); !ok {
 			return chain
 		}
-		if len(res.Location) > maxLocationBytes {
-			chain.Error, chain.Ended = fmt.Sprintf("Location header is %d bytes, over the %d-byte limit", len(res.Location), maxLocationBytes), RedirectFailed
-			return chain
-		}
-		next, err := u.Parse(res.Location)
-		if err != nil {
-			chain.Error, chain.Ended = "bad Location "+res.Location, RedirectFailed
-			return chain
-		}
-		current = next.String()
 	}
 	chain.Error, chain.Ended = fmt.Sprintf("more than %d redirects", maxRedirectHops), RedirectHopLimit
 	return chain
+}
+
+// admit decides whether the chain goes on to current, and where it
+// connects if so. A URL already visited closes a loop: URLs are compared
+// as requests, so http://Example.com:80/ and http://example.com/ are one
+// visit. A target outside the known hosts ends the chain as external.
+func (c *RedirectChain) admit(current string, seen map[string]bool, hosts hostAddrs) (*url.URL, netip.Addr, bool) {
+	key, ok := urlKey(current)
+	if !ok {
+		key = current
+	}
+	if seen[key] {
+		c.Loop, c.Ended = true, RedirectLoop
+		return nil, netip.Addr{}, false
+	}
+	seen[key] = true
+	u, err := url.Parse(current)
+	switch {
+	case err != nil:
+		c.Error, c.Ended = "bad URL "+current, RedirectFailed
+		return nil, netip.Addr{}, false
+	case u.Scheme != "http" && u.Scheme != "https":
+		c.Error, c.Ended = "redirect to a non-HTTP URL "+current, RedirectFailed
+		return nil, netip.Addr{}, false
+	}
+	ip, ok := hosts[bareName(u.Hostname())]
+	if !ok {
+		c.External, c.Ended = current, RedirectExternal
+		return nil, netip.Addr{}, false
+	}
+	return u, ip, true
+}
+
+// next is the URL a response sends the chain to, or false when the chain
+// ends at it: a final answer, or a Location that cannot be followed.
+func (c *RedirectChain) next(u *url.URL, res HTTPResult) (string, bool) {
+	current := u.String()
+	switch {
+	case !isRedirect(res.Status) || res.Location == "":
+		c.FinalURL, c.Ended = c.Hops[len(c.Hops)-1].URL, RedirectFinal
+		return current, false
+	case len(res.Location) > maxLocationBytes:
+		c.Error, c.Ended = fmt.Sprintf("Location header is %d bytes, over the %d-byte limit", len(res.Location), maxLocationBytes), RedirectFailed
+		return current, false
+	}
+	n, err := u.Parse(res.Location)
+	if err != nil {
+		c.Error, c.Ended = "bad Location "+res.Location, RedirectFailed
+		return current, false
+	}
+	return n.String(), true
 }
 
 // clipLocation bounds a Location for the report, saying how long the
@@ -196,9 +248,11 @@ func fetchHead(ctx context.Context, d dialer, u *url.URL, ip netip.Addr, timeout
 		port = 443
 	}
 	if p := u.Port(); p != "" {
-		if n, err := strconv.Atoi(p); err == nil {
-			port = uint16(n)
+		n, err := parsePort(p)
+		if err != nil {
+			return HTTPResult{Error: err.Error()}
 		}
+		port = n
 	}
 	dctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -207,7 +261,7 @@ func fetchHead(ctx context.Context, d dialer, u *url.URL, ip netip.Addr, timeout
 		return HTTPResult{Error: "connect: " + classifyDialErrorText(err)}
 	}
 	defer conn.Close()
-	deadline := time.Now().Add(timeout)
+	deadline := ioDeadline(ctx, timeout)
 	if u.Scheme == "https" {
 		_ = conn.SetDeadline(deadline)
 		tc := tls.Client(conn, tlsConfig(u.Hostname(), 0, 0))
@@ -225,4 +279,14 @@ func fetchHead(ctx context.Context, d dialer, u *url.URL, ip netip.Addr, timeout
 
 func classifyDialErrorText(err error) string {
 	return string(classifyDialError(err)) + ": " + scrubProbeError(err.Error())
+}
+
+// parsePort reads a URL port: a decimal from 1 to 65535. A larger number
+// would otherwise wrap silently in a uint16 and connect somewhere else.
+func parsePort(p string) (uint16, error) {
+	n, err := strconv.Atoi(p)
+	if err != nil || n < 1 || n > 65535 {
+		return 0, fmt.Errorf("invalid port %q", p)
+	}
+	return uint16(n), nil
 }

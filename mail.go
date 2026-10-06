@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/netip"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -51,13 +52,20 @@ func parseDMARC(l Lookup) DMARC {
 	if len(dmarc) > 1 {
 		d.Problems = append(d.Problems, "multiple DMARC records (invalid, receivers ignore all)")
 	}
-	tags := parseTags(dmarc[0])
-	d.Policy = tags["p"]
-	d.SubdomainPolicy = tags["sp"]
+	applyDMARCTags(&d, parseTags(dmarc[0]))
+	return d
+}
+
+// applyDMARCTags reads the policy tags of the record in force.
+func applyDMARCTags(d *DMARC, tags map[string]string) {
+	// Tag values are case-insensitive (RFC 7489 §6.3): p=Reject is reject.
+	d.Policy = strings.ToLower(tags["p"])
+	d.SubdomainPolicy = strings.ToLower(tags["sp"])
 	d.RUA = tags["rua"] != ""
 	if v, ok := tags["pct"]; ok {
-		if n, err := strconv.Atoi(v); err == nil {
-			d.Pct = n
+		d.Pct, ok = parsePct(v)
+		if !ok {
+			d.Problems = append(d.Problems, "invalid pct="+v+" (not a whole number from 0 to 100)")
 		}
 	}
 	switch d.Policy {
@@ -67,7 +75,24 @@ func parseDMARC(l Lookup) DMARC {
 	default:
 		d.Problems = append(d.Problems, "unknown policy p="+d.Policy)
 	}
-	return d
+	if d.SubdomainPolicy != "" && !validDMARCPolicy(d.SubdomainPolicy) {
+		d.Problems = append(d.Problems, "unknown subdomain policy sp="+d.SubdomainPolicy)
+	}
+}
+
+func validDMARCPolicy(p string) bool {
+	return p == "none" || p == "quarantine" || p == "reject"
+}
+
+// parsePct reads a pct tag. A value that is not a whole number from 0 to
+// 100 is reported and treated as the default, 100: that is what a
+// receiver that ignores the malformed tag applies.
+func parsePct(v string) (int, bool) {
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 || n > 100 {
+		return 100, false
+	}
+	return n, true
 }
 
 // parseTags splits "k=v; k2=v2" style records (DMARC, DKIM, MTA-STS, TLSRPT).
@@ -112,7 +137,6 @@ type SPFResult struct {
 // spfEvaluator walks include/redirect chains counting DNS-querying terms.
 type spfEvaluator struct {
 	lookup   lookupFn
-	visited  map[string]bool
 	lookups  int
 	void     int
 	includes []string
@@ -126,20 +150,24 @@ func evaluateSPF(domain string, txt Lookup, lookup lookupFn) SPFResult {
 	if len(spf) == 0 {
 		return res
 	}
-	e := &spfEvaluator{lookup: lookup, visited: map[string]bool{domain: true}}
+	e := &spfEvaluator{lookup: lookup}
 	if len(spf) > 1 {
-		e.problems = append(e.problems, "multiple SPF records (permerror: SPF fails entirely)")
+		e.problem("multiple SPF records (permerror: SPF fails entirely)")
 	}
 	res.AnswerOctets = txt.udpAnswerOctets()
 	e.apexSize(res.AnswerOctets)
-	res.All = e.walk(spf[0], domain, 0)
+	var via string
+	res.All, via = e.walk(spf[0], []string{bareName(domain)})
+	if res.All != "" {
+		e.noteAll(res.All[:1], via)
+	}
 	res.Lookups, res.VoidLookups = e.lookups, e.void
 	res.Includes = nonNil(e.includes)
 	if e.lookups > spfLookupLimit {
-		e.problems = append(e.problems, fmt.Sprintf("%d DNS lookups exceed the limit of %d (permerror: SPF fails entirely)", e.lookups, spfLookupLimit))
+		e.problem(fmt.Sprintf("%d DNS lookups exceed the limit of %d (permerror: SPF fails entirely)", e.lookups, spfLookupLimit))
 	}
 	if e.void > spfVoidLimit {
-		e.problems = append(e.problems, fmt.Sprintf("%d void lookups exceed the limit of %d", e.void, spfVoidLimit))
+		e.problem(fmt.Sprintf("%d void lookups exceed the limit of %d", e.void, spfVoidLimit))
 	}
 	res.Problems = nonNil(e.problems)
 	return res
@@ -148,11 +176,28 @@ func evaluateSPF(domain string, txt Lookup, lookup lookupFn) SPFResult {
 func spfRecords(txt []string) []string {
 	var out []string
 	for _, r := range txt {
-		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(r)), "v=spf1") {
+		if isSPFRecord(r) {
 			out = append(out, strings.TrimSpace(r))
 		}
 	}
 	return out
+}
+
+// problem records one problem once: a domain included twice is evaluated
+// twice, but its defects are the same defects.
+func (e *spfEvaluator) problem(p string) {
+	if !slices.Contains(e.problems, p) {
+		e.problems = append(e.problems, p)
+	}
+}
+
+// isSPFRecord reports whether a TXT string is an SPF record: "v=spf1"
+// followed by a space or nothing (RFC 7208 §4.5). "v=spf1include:x", which
+// a record split into strings at the wrong place concatenates to, is not
+// one, and receivers ignore it.
+func isSPFRecord(r string) bool {
+	s := strings.ToLower(strings.TrimSpace(r))
+	return s == "v=spf1" || strings.HasPrefix(s, "v=spf1 ")
 }
 
 // spfTerm is one mechanism or modifier.
@@ -182,35 +227,73 @@ func parseSPFTerms(record string) []spfTerm {
 	return terms
 }
 
-// walk evaluates one record for domain at depth and returns the qualifier
-// of its all mechanism ("" when none).
-func (e *spfEvaluator) walk(record, domain string, depth int) string {
-	all := ""
-	terminated := false
-	for _, t := range parseSPFTerms(record) {
-		switch {
-		case t.name == "all" && !t.modifier:
-			all, terminated = t.qualifier+"all", true
-			e.noteAll(t.qualifier, depth)
-		case t.name == "redirect" && t.modifier:
-			terminated = true
-			e.follow(t, depth)
-		case t.name == "include" && !t.modifier:
-			e.follow(t, depth)
-		default:
-			e.term(t, domain)
+// walk evaluates one record. path is the chain of domains that led here,
+// the apex first. It returns the qualified all mechanism that ends the
+// evaluation ("" when none) and, when that came from a redirect target,
+// the redirect that led there.
+func (e *spfEvaluator) walk(record string, path []string) (all, via string) {
+	terms := parseSPFTerms(record)
+	own := recordAll(terms)
+	all = own
+	hasRedirect := false
+	for _, t := range terms {
+		if t.name != "redirect" || !t.modifier {
+			e.mechanism(t, path)
+			continue
+		}
+		hasRedirect = true
+		// RFC 7208 §6.1: a record with an all mechanism ignores its redirect.
+		if own == "" {
+			all, via = e.redirect(t, path)
 		}
 	}
-	if depth == 0 && !terminated {
-		e.problems = append(e.problems, "record has no all mechanism or redirect (default neutral)")
+	if len(path) == 1 && own == "" && !hasRedirect {
+		e.problem("record has no all mechanism or redirect (default neutral)")
 	}
-	return all
+	return all, via
 }
 
-// follow counts an include/redirect and walks its target.
-func (e *spfEvaluator) follow(t spfTerm, depth int) {
+// redirect follows a redirect modifier: the target's evaluation replaces
+// the record's, so its all is the record's.
+func (e *spfEvaluator) redirect(t spfTerm, path []string) (all, via string) {
+	target := spfTarget(t)
 	e.lookups++
-	e.descend(strings.TrimPrefix(t.arg, ":"), depth)
+	if a := e.descend(target, path); a != "" {
+		return a, "redirect=" + target
+	}
+	return "", ""
+}
+
+// mechanism accounts for one term other than redirect.
+func (e *spfEvaluator) mechanism(t spfTerm, path []string) {
+	switch {
+	case t.name == "include" && !t.modifier:
+		// An include whose record passes everyone matches every sender,
+		// so the including record authorises them all.
+		target := spfTarget(t)
+		e.lookups++
+		if e.descend(target, path) == "+all" {
+			e.noteAll("+", "include:"+target)
+		}
+	case t.name == "all" && !t.modifier:
+	default:
+		e.term(t, path[len(path)-1])
+	}
+}
+
+// recordAll is the qualified all mechanism of a record, "" when it has
+// none.
+func recordAll(terms []spfTerm) string {
+	for _, t := range terms {
+		if t.name == "all" && !t.modifier {
+			return t.qualifier + "all"
+		}
+	}
+	return ""
+}
+
+func spfTarget(t spfTerm) string {
+	return strings.TrimPrefix(t.arg, ":")
 }
 
 // term accounts for a mechanism that does not reference another record.
@@ -220,22 +303,26 @@ func (e *spfEvaluator) term(t spfTerm, domain string) {
 		e.lookups++
 	case t.name == "ptr":
 		e.lookups++
-		e.problems = append(e.problems, "ptr mechanism is deprecated (RFC 7208 §5.5)")
+		e.problem("ptr mechanism is deprecated (RFC 7208 §5.5)")
 	case t.name == "ip4", t.name == "ip6", t.modifier:
 	default:
-		e.problems = append(e.problems, "unknown mechanism "+t.name+" in "+domain)
+		e.problem("unknown mechanism " + t.name + " in " + domain)
 	}
 }
 
-func (e *spfEvaluator) noteAll(qualifier string, depth int) {
-	if depth > 0 {
-		return
+// noteAll reports an all that leaves senders unprotected. via names the
+// redirect or include it was reached through, "" when the apex record
+// carries it.
+func (e *spfEvaluator) noteAll(qualifier, via string) {
+	suffix := ""
+	if via != "" {
+		suffix = ", reached through " + via
 	}
 	switch qualifier {
 	case "+":
-		e.problems = append(e.problems, "+all authorises every sender (no protection)")
+		e.problem("+all authorises every sender (no protection)" + suffix)
 	case "?":
-		e.problems = append(e.problems, "?all is neutral (no protection)")
+		e.problem("?all is neutral (no protection)" + suffix)
 	}
 }
 
@@ -245,9 +332,9 @@ func (e *spfEvaluator) noteAll(qualifier string, depth int) {
 func (e *spfEvaluator) apexSize(octets int) {
 	switch {
 	case octets > spfAnswerLimit:
-		e.problems = append(e.problems, fmt.Sprintf("apex TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP", octets, spfAnswerLimit))
+		e.problem(fmt.Sprintf("apex TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP", octets, spfAnswerLimit))
 	case octets > spfAnswerWarn:
-		e.problems = append(e.problems, fmt.Sprintf("apex TXT answer is %d octets, close to the %d-octet UDP limit (RFC 7208 §3.4): one more TXT record may push it over", octets, spfAnswerLimit))
+		e.problem(fmt.Sprintf("apex TXT answer is %d octets, close to the %d-octet UDP limit (RFC 7208 §3.4): one more TXT record may push it over", octets, spfAnswerLimit))
 	}
 }
 
@@ -256,41 +343,58 @@ func (e *spfEvaluator) apexSize(octets int) {
 // domain owner's to trim.
 func (e *spfEvaluator) includeSize(target string, l Lookup) {
 	if octets := l.udpAnswerOctets(); octets > spfAnswerLimit {
-		e.problems = append(e.problems, fmt.Sprintf("include:%s TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4)", target, octets, spfAnswerLimit))
+		e.problem(fmt.Sprintf("include:%s TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4)", target, octets, spfAnswerLimit))
 	}
 }
 
-// descend fetches an included domain's SPF and walks it. Macro targets
-// cannot be expanded and count as one lookup only.
-func (e *spfEvaluator) descend(target string, depth int) {
+// descend fetches an included or redirected-to domain's SPF and walks it,
+// returning the all its evaluation ends with. Every evaluation counts:
+// RFC 7208 §4.6.4 charges a domain included twice twice, so only the
+// current path is remembered, to stop a loop. Macro targets cannot be
+// expanded and count as one lookup only.
+func (e *spfEvaluator) descend(target string, path []string) string {
 	if strings.Contains(target, "%") || target == "" {
-		return
+		return ""
 	}
 	n, err := dnsName(target)
 	if err != nil {
-		e.problems = append(e.problems, fmt.Sprintf("include:%s is not a valid domain name (%v)", target, err))
-		return
+		e.problem(fmt.Sprintf("include:%s is not a valid domain name (%v)", target, err))
+		return ""
 	}
 	target = n.ASCII
-	if e.visited[target] || depth > 20 {
-		return
+	if slices.Contains(path, target) {
+		e.problem(fmt.Sprintf("include loop %s -> %s (permerror: SPF fails entirely)", strings.Join(path, " -> "), target))
+		return ""
 	}
-	e.visited[target] = true
-	e.includes = append(e.includes, target)
-	if e.lookups > spfLookupLimit*3 {
-		return // pathological tree; the limit finding already fires
+	e.noteInclude(target)
+	if e.lookups > spfLookupLimit*3 || len(path) > 20 {
+		return "" // pathological tree; the limit finding already fires
 	}
 	l := e.lookup(target, "TXT")
 	recs := spfRecords(l.Records)
-	if !l.HasRecords() || len(recs) == 0 {
+	switch {
+	case !l.Answered():
+		// Neither void nor missing: the question went unanswered.
+		e.problem("include:" + target + " could not be checked: its TXT lookup did not complete")
+		return ""
+	case !l.HasRecords():
 		e.void++
-		if l.Answered() {
-			e.problems = append(e.problems, "include:"+target+" has no SPF record")
-		}
-		return
+		e.problem("include:" + target + " has no SPF record")
+		return ""
+	case len(recs) == 0:
+		e.problem("include:" + target + " has no SPF record")
+		return ""
 	}
 	e.includeSize(target, l)
-	e.walk(recs[0], target, depth+1)
+	all, _ := e.walk(recs[0], append(slices.Clip(path), target))
+	return all
+}
+
+// noteInclude lists a target once, however often it is evaluated.
+func (e *spfEvaluator) noteInclude(target string) {
+	if !slices.Contains(e.includes, target) {
+		e.includes = append(e.includes, target)
+	}
 }
 
 // ------------------------------------------------------------------- MX
@@ -524,28 +628,37 @@ func matchesAny(patterns []string, host string) bool {
 // policyFetcher retrieves the MTA-STS policy text; replaceable in tests.
 var policyFetcher = fetchMTASTSPolicy
 
+// mtaSTSDialer connects the policy fetch; tests point it at local servers.
+var mtaSTSDialer dialer = &netDialer{}
+
 // fetchMTASTSPolicy GETs https://mta-sts.<domain>/.well-known/mta-sts.txt
 // with full certificate verification, as RFC 8461 requires. The host is
 // resolved through the tool's own validating lookups rather than the
 // system resolver, so the fetch sees the same DNS as every other check.
+// Every public address is tried at once and the first to connect serves
+// the fetch: a host with one dead address of several still has a policy.
+// Reserved addresses are never contacted, as for the web probes.
 func fetchMTASTSPolicy(ctx context.Context, domain string, timeout time.Duration, lookup lookupFn) (string, error) {
 	host := "mta-sts." + domain
-	addrs := append(lookup(host, "A").Addrs(), lookup(host, "AAAA").Addrs()...)
-	if len(addrs) == 0 {
+	all := append(lookup(host, "A").Addrs(), lookup(host, "AAAA").Addrs()...)
+	addrs, reserved := splitReserved(all)
+	switch {
+	case len(addrs) == 0 && len(reserved) > 0:
+		return "", fmt.Errorf("%s has only reserved addresses (%s)", host, strings.Join(reserved, ", "))
+	case len(addrs) == 0:
 		return "", fmt.Errorf("%s has no address", host)
 	}
-	dialer := &net.Dialer{Timeout: timeout}
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{RootCAs: tlsRoots, MinVersion: tls.VersionTLS12, ServerName: host},
-			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-				return dialer.DialContext(ctx, network, netip.AddrPortFrom(addrs[0], 443).String())
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				return dialFirst(ctx, mtaSTSDialer, addrs, 443)
 			},
 		},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://mta-sts."+domain+"/.well-known/mta-sts.txt", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+"/.well-known/mta-sts.txt", nil)
 	if err != nil {
 		return "", err
 	}
@@ -559,6 +672,43 @@ func fetchMTASTSPolicy(ctx context.Context, domain string, timeout time.Duration
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 	return string(body), err
+}
+
+// dialFirst connects to every address at once and returns the first
+// connection made, closing any that complete after it. It fails only when
+// every address does, with the last error.
+func dialFirst(ctx context.Context, d dialer, addrs []netip.Addr, port uint16) (net.Conn, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	type result struct {
+		conn net.Conn
+		err  error
+	}
+	results := make(chan result, len(addrs))
+	for _, ip := range addrs {
+		go func() {
+			c, err := d.DialContext(ctx, tcpNetwork(ip), netip.AddrPortFrom(ip, port).String())
+			results <- result{c, err}
+		}()
+	}
+	var won net.Conn
+	var lastErr error
+	for range addrs {
+		r := <-results
+		switch {
+		case r.err != nil:
+			lastErr = r.err
+		case won == nil:
+			won = r.conn
+			cancel() // the rest may stop trying
+		default:
+			_ = r.conn.Close() // a later winner is not needed
+		}
+	}
+	if won != nil {
+		return won, nil
+	}
+	return nil, lastErr
 }
 
 // checkMTASTS combines the record, the policy fetch and the MX comparison.

@@ -426,3 +426,79 @@ func withBackoff(t *testing.T, d time.Duration) {
 	fetchBackoff = d
 	t.Cleanup(func() { fetchBackoff = old })
 }
+
+// writeAgedCache writes a cache whose header says it was fetched age ago.
+func writeAgedCache(t *testing.T, path string, age time.Duration) {
+	t.Helper()
+	if err := os.WriteFile(path, marshalCache(fixtureList(t), time.Now().Add(-age)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A cache is used for a week, then fetched again: a host-level cache was
+// otherwise used forever.
+func TestLoadPreloadList_StaleCacheIsRefreshed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hsts-preload.tsv")
+	writeAgedCache(t, path, time.Hour)
+	calls := stubList(t, fixtureList(t), nil)
+	if _, err := loadPreloadList(context.Background(), path, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	check(t, "fresh cache used", calls.Load(), int32(0))
+
+	writeAgedCache(t, path, preloadCacheMaxAge+time.Hour)
+	l, err := loadPreloadList(context.Background(), path, time.Second)
+	check(t, "refreshed", []any{err, calls.Load(), l.note}, []any{nil, int32(1), ""})
+	back := cachedList(path)
+	check(t, "rewritten fresh", back != nil && back.fresh(time.Now()), true)
+}
+
+// A refresh that fails falls back to the stale copy and says so: an old
+// list answers better than none.
+func TestLoadPreloadList_FailedRefreshUsesStaleCache(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hsts-preload.tsv")
+	writeAgedCache(t, path, 30*24*time.Hour)
+	stubList(t, nil, errors.New("HTTP 503"))
+	l, err := loadPreloadList(context.Background(), path, time.Second)
+	check(t, "answered", err == nil && len(l.entries) > 0, true)
+	check(t, "says so", strings.HasPrefix(l.note, "the preload list could not be refreshed, so a copy from ") && strings.HasSuffix(l.note, " answered: HTTP 503"), true)
+}
+
+// A cache that cannot be written does not fail the run, but is no longer
+// silent: the report carries why, without the path.
+func TestLoadPreloadList_UnwritableCacheIsReported(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	if os.Getuid() == 0 {
+		t.Skip("root writes anywhere")
+	}
+	stubList(t, fixtureList(t), nil)
+	old := systemLockDir
+	systemLockDir = t.TempDir()
+	t.Cleanup(func() { systemLockDir = old })
+	l, err := loadPreloadList(context.Background(), filepath.Join(dir, "hsts-preload.tsv"), time.Second)
+	check(t, "list still produced", err == nil && len(l.entries) > 0, true)
+	check(t, "note", l.note, "the preload cache could not be written: open: permission denied")
+	check(t, "no path in the note", strings.Contains(l.note, dir), false)
+}
+
+// A lock file someone else created read-only (a root warm-up's 0644) is
+// still the lock: flock needs only a read-only descriptor.
+func TestLockPath_ReadOnlyLockFileIsShared(t *testing.T) {
+	old := systemLockDir
+	systemLockDir = t.TempDir()
+	t.Cleanup(func() { systemLockDir = old })
+	p := filepath.Join(systemLockDir, "domaintest-hsts.lock")
+	if err := os.WriteFile(p, nil, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	check(t, "shared lock", lockPath("/cache/x.tsv"), p)
+	release, err := acquireLock(context.Background(), p)
+	check(t, "lockable", err, nil)
+	if release != nil {
+		release()
+	}
+}

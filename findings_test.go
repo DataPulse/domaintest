@@ -308,20 +308,24 @@ func TestPreloadFindings_CoveredSubdomainOwesNoHeader(t *testing.T) {
 }
 
 // Port 80 on a preloaded host is never reached by a browser, so serving
-// it in the clear is a fact. www is known covered only through an
-// ancestor entry.
+// it in the clear is a fact. www is covered when the entry preloading the
+// apex includes subdomains: an ancestor's always does, the apex's own
+// entry when it says so.
 func TestCleartextFindings_PreloadDecides(t *testing.T) {
 	open80 := []AddrWeb{{IP: "192.0.2.1", HTTPRes: &HTTPResult{Status: 200}}}
 	for _, c := range []struct {
 		preload, coveredBy string
+		includeSub         *bool
 		apex, www          string
 	}{
-		{PreloadAbsent, "", "warn", "warn"},
-		{PreloadUnknown, "", "warn", "warn"},
-		{PreloadPreloaded, "", "info", "warn"},
-		{PreloadPreloaded, "google.com", "info", "info"},
+		{PreloadAbsent, "", nil, "warn", "warn"},
+		{PreloadUnknown, "", nil, "warn", "warn"},
+		{PreloadPreloaded, "", boolPtr(false), "info", "warn"},
+		{PreloadPreloaded, "", nil, "info", "warn"},
+		{PreloadPreloaded, "", boolPtr(true), "info", "info"},
+		{PreloadPreloaded, "google.com", boolPtr(true), "info", "info"},
 	} {
-		apex, www := preloadCovers(&Report{HSTSPreload: c.preload, HSTSPreloadCoveredBy: c.coveredBy})
+		apex, www := preloadCovers(&Report{HSTSPreload: c.preload, HSTSPreloadCoveredBy: c.coveredBy, HSTSPreloadIncludeSubdomains: c.includeSub})
 		f := &findings{}
 		f.cleartextFindings("apex", open80, apex)
 		f.cleartextFindings("www", open80, www)
@@ -344,7 +348,10 @@ func problemTemplates(t *testing.T, target string) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	line := regexp.MustCompile(regexp.QuoteMeta(target) + ` = append\(` + regexp.QuoteMeta(target) + `, (.*)\)$`)
+	// Problems are appended directly, or through a helper named for the
+	// singular (e.problem, which records each problem once).
+	q := regexp.QuoteMeta(target)
+	line := regexp.MustCompile(`^(?:` + q + ` = append\(` + q + `, |` + regexp.QuoteMeta(strings.TrimSuffix(target, "s")) + `\()(.*)\)$`)
 	literal := regexp.MustCompile(`"([^"]*)"`)
 	fill := strings.NewReplacer("%d", "600", "%s", "x.example", "%v", "bad label", "%%", "%")
 	var out []string
@@ -386,7 +393,7 @@ func TestProblemCodes_EveryTemplateClassified(t *testing.T) {
 		}
 	}
 	for _, p := range problemTemplates(t, "d.Problems") {
-		if dmarcProblemCode(p) == "dmarc_invalid" {
+		if code, _ := dmarcProblemClass(p); code == "dmarc_invalid" {
 			t.Errorf("DMARC problem has no code of its own: %q", p)
 		}
 	}
@@ -479,4 +486,24 @@ func TestTLSAFindings_UnknownSaysNothing(t *testing.T) {
 	g := &findings{}
 	g.tlsaFindings(&TLSAReport{Apex: []string{"3 1 1 ab"}, WWW: []string{}, Result: "unverified"})
 	check(t, "records in an unsigned zone", findingCodes(g), []string{"info:tlsa_unsigned_zone"})
+}
+
+// Different leaves that mean the same thing to a client (a CDN rotating
+// valid certificates for the same names) are a fact in cert_consistent,
+// not a warning. A difference a client would meet is.
+func TestTLSFindings_CertMismatchOnlyWhenItMatters(t *testing.T) {
+	leaf := func(fp, chain string, www bool) AddrWeb {
+		return AddrWeb{IP: "192.0.2." + fp, TLS: &TLSResult{Chain: chain, Version: "TLS 1.3",
+			Cert: &CertInfo{Fingerprint: fp, CoversApex: true, CoversWWW: www, DaysRemaining: 60}}}
+	}
+	differs := false
+	rotated := &HostWeb{IPv4: []AddrWeb{leaf("1", ChainValid, true), leaf("2", ChainValid, true)}, CertConsistent: &differs}
+	f := &findings{}
+	f.tlsFindings("apex", rotated, nil)
+	check(t, "rotation is not a warning", findingCodes(f), []string{})
+
+	narrower := &HostWeb{IPv4: []AddrWeb{leaf("1", ChainValid, true), leaf("2", ChainValid, false)}, CertConsistent: &differs}
+	g := &findings{}
+	g.tlsFindings("apex", narrower, nil)
+	check(t, "coverage differs", contains(g.warnings, "differ in validity or in the names they cover"), true)
 }

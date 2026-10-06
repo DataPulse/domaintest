@@ -288,8 +288,8 @@ func TestTLSFindings_Aggregation(t *testing.T) {
 	rep := healthyReport(t)
 	v4, v6 := googleAddrs(t)
 	valid := &CertInfo{DaysRemaining: 60, CoversApex: true, CoversWWW: false}
-	rep.Web.Apex.IPv4[0].TLS = &TLSResult{Chain: ChainValid, Version: "TLS 1.2", TLS10: true, Cert: valid}
-	rep.Web.Apex.IPv6[0].TLS = &TLSResult{Chain: ChainValid, Version: "TLS 1.3", TLS11: true, Cert: &CertInfo{DaysRemaining: 10, CoversApex: true, CoversWWW: false}}
+	rep.Web.Apex.IPv4[0].TLS = &TLSResult{Chain: ChainValid, Version: "TLS 1.2", TLS10: boolPtr(true), Cert: valid}
+	rep.Web.Apex.IPv6[0].TLS = &TLSResult{Chain: ChainValid, Version: "TLS 1.3", TLS11: boolPtr(true), Cert: &CertInfo{DaysRemaining: 10, CoversApex: true, CoversWWW: false}}
 	rep.Web.WWW = hostWeb([]netip.Addr{v4, v6}, map[portKey]PortState{{v4, 443}: PortOpen}, nil) // resolves, no cert
 	buildFindings(rep)
 	check(t, "ok", rep.OK, true)
@@ -519,8 +519,8 @@ func TestDelegationFindings_NoDataIsAnAnswer(t *testing.T) {
 	check(t, "silence still reported as silence", contains(rep.Errors, "did not answer the NS query"), true)
 }
 
-// A loop provably never resolves. Running out of hops only means the
-// follower stopped, so the destination is unknown and asserting a fault
+// A loop is what the server sent, and a client following it never arrives.
+// Running out of hops only means the follower stopped, so the destination is unknown and asserting a fault
 // from it is the vacuous negative in another guise.
 func TestRedirectFindings_HopLimitIsNotALoop(t *testing.T) {
 	hops := []RedirectHop{{URL: "http://x.example/", Status: 301}, {URL: "http://x.example/a", Status: 301}}

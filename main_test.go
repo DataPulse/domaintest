@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -194,7 +195,7 @@ func TestParseResolver(t *testing.T) {
 }
 
 func TestSplitArgs(t *testing.T) {
-	flags, pos, server, err := splitArgs([]string{"-t", "3", "a.org", "@1.1.1.1", "-pretty", "-quicprobe=/x", "-"})
+	flags, pos, server, err := splitArgs(newTestFlagSet(), []string{"-t", "3", "a.org", "@1.1.1.1", "-pretty", "-quicprobe=/x", "-"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,4 +436,47 @@ func TestHyphenDomain(t *testing.T) {
 			t.Errorf("%v: unexpected error %v", good, err)
 		}
 	}
+}
+
+func TestMaxTimeFlag(t *testing.T) {
+	cfg, err := parseArgs([]string{"example.com"})
+	check(t, "parse", err, nil)
+	check(t, "default", cfg.MaxTimeSec, defaultMaxTimeSec)
+	cfg, err = parseArgs([]string{"-max-time", "0", "example.com"})
+	check(t, "zero allowed", err == nil && cfg.MaxTimeSec == 0, true)
+	_, err = parseArgs([]string{"-max-time", "-1", "example.com"})
+	check(t, "negative rejected", err != nil && strings.Contains(err.Error(), "-max-time"), true)
+}
+
+func TestRunContext(t *testing.T) {
+	ctx, cancel := runContext(config{MaxTimeSec: 0})
+	_, has := ctx.Deadline()
+	cancel()
+	check(t, "zero is no deadline", has, false)
+	ctx, cancel = runContext(config{MaxTimeSec: 5})
+	dl, has := ctx.Deadline()
+	cancel()
+	check(t, "deadline set", has && time.Until(dl) > 4*time.Second && time.Until(dl) <= 5*time.Second, true)
+}
+
+func newTestFlagSet() *flag.FlagSet {
+	var cfg config
+	fs, _, _, _ := newFlagSet(&cfg)
+	return fs
+}
+
+// Every value flag consumes the token after it, whichever flag it is.
+func TestSplitArgs_EveryValueFlag(t *testing.T) {
+	fs := newTestFlagSet()
+	fs.VisitAll(func(f *flag.Flag) {
+		if !takesValue(fs, "-"+f.Name) {
+			return
+		}
+		_, pos, _, err := splitArgs(fs, []string{"-" + f.Name, "7", "x.org"})
+		check(t, f.Name+" positional", []any{err, pos}, []any{nil, []string{"x.org"}})
+	})
+	check(t, "bool flag takes no value", takesValue(fs, "-pretty"), false)
+	check(t, "double dash", takesValue(fs, "--max-time"), true)
+	check(t, "inline value", takesValue(fs, "-max-time=3"), false)
+	check(t, "unknown flag", takesValue(fs, "-nope"), false)
 }

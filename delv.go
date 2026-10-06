@@ -280,7 +280,10 @@ func parseRR(text string) (RR, bool) {
 		rr.Negative = true
 		rr.Type = strings.TrimPrefix(rr.Type, `\-`)
 	}
-	rr.RData = strings.Join(f[i:], " ")
+	// The rdata is taken from the line as printed, not rebuilt from its
+	// fields: rejoining them collapsed runs of spaces inside a quoted TXT
+	// or CAA value, changing the record and undercounting its length.
+	rr.RData = afterFields(text, i)
 	switch rr.Type {
 	case "TXT":
 		strs := txtStrings(rr.RData)
@@ -292,6 +295,21 @@ func parseRR(text string) (RR, bool) {
 		rr.RDLen = wireNameLen(rr.RData)
 	}
 	return rr, true
+}
+
+// afterFields returns text with its first n whitespace-separated fields
+// and the whitespace around them removed, everything after kept verbatim.
+func afterFields(text string, n int) string {
+	rest := text
+	for k := 0; k < n; k++ {
+		rest = strings.TrimLeft(rest, " \t")
+		j := strings.IndexAny(rest, " \t")
+		if j < 0 {
+			return ""
+		}
+		rest = rest[j:]
+	}
+	return strings.TrimSpace(rest)
 }
 
 // joinTXT concatenates the quoted character-strings of a TXT rdata into one
@@ -321,18 +339,30 @@ func txtStrings(rdata string) []string {
 			}
 			inQuote = !inQuote
 		case !inQuote:
-		case c == '\\' && i+3 < len(rdata) && isDigits(rdata[i+1:i+4]):
-			n, _ := strconv.Atoi(rdata[i+1 : i+4])
-			b.WriteByte(byte(n))
-			i += 3
-		case c == '\\' && i+1 < len(rdata):
-			i++
-			b.WriteByte(rdata[i])
+		case c == '\\':
+			i = decodeEscape(rdata, i, &b)
 		default:
 			b.WriteByte(c)
 		}
 	}
 	return out
+}
+
+// decodeEscape writes the byte the escape at rdata[i] stands for (\DDD or
+// \X) and returns the index of the escape's last character. A backslash
+// with nothing after it is kept as itself.
+func decodeEscape(rdata string, i int, b *strings.Builder) int {
+	switch {
+	case i+3 < len(rdata) && isDigits(rdata[i+1:i+4]):
+		n, _ := strconv.Atoi(rdata[i+1 : i+4])
+		b.WriteByte(byte(n))
+		return i + 3
+	case i+1 < len(rdata):
+		b.WriteByte(rdata[i+1])
+		return i + 1
+	}
+	b.WriteByte('\\')
+	return i
 }
 
 func isDigits(s string) bool {

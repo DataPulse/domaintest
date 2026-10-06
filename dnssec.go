@@ -48,7 +48,7 @@ func classifyDNSSEC(ds, dnskey Lookup, apex map[string]Lookup, probe bogusProbe)
 	}
 	switch {
 	case rep.DS && rep.DNSKEY:
-		rep.State = DNSSECSecure
+		signedState(&rep, dnskey.Trust)
 	case rep.DNSKEY:
 		rep.State = DNSSECIsland
 		rep.Detail = "zone publishes DNSKEY but parent has no DS"
@@ -59,6 +59,23 @@ func classifyDNSSEC(ds, dnskey Lookup, apex map[string]Lookup, probe bogusProbe)
 		rep.State = DNSSECInsecure
 	}
 	return rep
+}
+
+// signedState judges a zone that publishes DS and DNSKEY by whether the
+// validator actually validated its keys. Both can be present and the zone
+// still not be secure: a DS whose algorithm or digest the validator does
+// not support makes it treat the zone as unsigned (RFC 4035 §5.2).
+func signedState(rep *DNSSECReport, trust Trust) {
+	switch trust {
+	case TrustSecure:
+		rep.State = DNSSECSecure
+	case TrustInsecure:
+		rep.State = DNSSECInsecure
+		rep.Detail = "DS and DNSKEY are published, but the validator treated the zone as unsigned"
+	default:
+		rep.State = DNSSECUnknown
+		rep.Detail = "DS and DNSKEY are published, but the validator reported no validation status for the DNSKEY answer"
+	}
 }
 
 // classifyByTrust derives a state from the validation status of the

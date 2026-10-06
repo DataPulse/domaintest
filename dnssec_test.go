@@ -199,3 +199,25 @@ func TestClassifyByTrust(t *testing.T) {
 	failed := lookups(t, map[string]string{"A": "delv/timeout.yaml"})
 	check(t, "nothing answered", classifyByTrust(failed).State, DNSSECUnknown)
 }
+
+// DS and DNSKEY both present does not make a zone secure: a DS whose
+// algorithm or digest the validator does not support makes it treat the
+// zone as unsigned, and delv then labels the DNSKEY answer unsigned. The
+// state follows what the validator did, not what is published.
+func TestClassifyDNSSEC_PublishedButNotValidated(t *testing.T) {
+	apex := lookups(t, map[string]string{
+		"A": "delv/jschmidt_a_nxrrset.yaml", "AAAA": "delv/jschmidt_aaaa_nxrrset.yaml",
+		"MX": "delv/jschmidt_mx.yaml", "TXT": "delv/jschmidt_txt.yaml", "NS": "delv/jschmidt_ns.yaml",
+	})
+	ds := parseDelvYAML(fixture(t, "delv/jschmidt_ds.yaml"), "DS")
+	raw := fixture(t, "delv/jschmidt_dnskey.yaml")
+	unsigned := parseDelvYAML(strings.Replace(raw, "fully_validated:", "unsigned_answer:", 1), "DNSKEY")
+	rep := classifyDNSSEC(ds, unsigned, apex, nil)
+	check(t, "insecure", rep.State, DNSSECInsecure)
+	check(t, "published", []bool{rep.DS, rep.DNSKEY}, []bool{true, true})
+	check(t, "says why", rep.Detail, "DS and DNSKEY are published, but the validator treated the zone as unsigned")
+
+	unlabelled := parseDelvYAML(strings.Replace(raw, "fully_validated:", "answer:", 1), "DNSKEY")
+	rep = classifyDNSSEC(ds, unlabelled, apex, nil)
+	check(t, "no status is unknown, not secure", rep.State, DNSSECUnknown)
+}

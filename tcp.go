@@ -153,7 +153,7 @@ func probeHTTPPort(ctx context.Context, d dialer, ip netip.Addr, host string, ti
 		return st, nil
 	}
 	defer conn.Close()
-	res := httpRequest(conn, host, "/", time.Now().Add(timeout))
+	res := httpRequest(conn, host, "/", ioDeadline(ctx, timeout))
 	return st, &res
 }
 
@@ -163,12 +163,24 @@ func probeHTTPSPort(ctx context.Context, d dialer, ip netip.Addr, host, apex, ww
 		return st, nil, nil
 	}
 	defer conn.Close()
-	tc, tlsRes := probeTLS(conn, host, apex, www, time.Now().Add(timeout))
+	tc, tlsRes := probeTLS(ctx, conn, host, apex, www, ioDeadline(ctx, timeout))
 	var httpRes *HTTPResult
 	if tc != nil && tlsRes.Chain != ChainHandshakeFailed {
-		r := httpRequest(tc, host, "/", time.Now().Add(timeout))
+		r := httpRequest(tc, host, "/", ioDeadline(ctx, timeout))
 		httpRes = &r
 		tlsRes.TLS10, tlsRes.TLS11 = probeOldVersions(ctx, d, ip, host, timeout)
 	}
 	return st, &tlsRes, httpRes
+}
+
+// ioDeadline is when a probe's reads and writes must stop: its own timeout
+// from now, or the run's deadline when that comes first. A deadline set
+// from the clock alone would let a handshake begun just before the run
+// deadline outlive it.
+func ioDeadline(ctx context.Context, timeout time.Duration) time.Time {
+	d := time.Now().Add(timeout)
+	if cd, ok := ctx.Deadline(); ok && cd.Before(d) {
+		return cd
+	}
+	return d
 }

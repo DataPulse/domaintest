@@ -147,6 +147,33 @@ func TestAssessCAA_UnansweredIsNotUnrestricted(t *testing.T) {
 	check(t, "no climb from a failed lookup", mixed.Hosts["www"].Effective, []string{})
 	check(t, "www unknown", mixed.Hosts["www"].Permitted == nil, true)
 	check(t, "apex still judged", *mixed.Hosts["apex"].Permitted, false)
+
+	// The reverse: www answered that it has no CAA, but the apex lookup
+	// failed. What governs www is the apex set, which is unknown, so www
+	// must not be declared unrestricted either.
+	reverse := assessCAA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusNXRRSet}, cert, cert)
+	check(t, "www not cleared", reverse.Hosts["www"].Permitted == nil, true)
+	check(t, "www says why", reverse.Hosts["www"].Note, "no CAA records here, and the apex CAA lookup did not complete, so no restriction can be ruled out")
+	check(t, "apex unknown too", reverse.Hosts["apex"].Permitted == nil, true)
+}
+
+// RFC 8659 §4.1: a property with the critical flag that a CA does not
+// understand forbids issuance outright, whatever the issue records say.
+func TestCAA_CriticalUnknownTagForbids(t *testing.T) {
+	cert := servedCert{issuer: "Let's Encrypt"}
+	apex := Lookup{Status: StatusOK, Records: []string{`0 issue "letsencrypt.org"`, `128 tbs "unknown"`}}
+	rep := assessCAA(apex, Lookup{Status: StatusNXRRSet}, cert, cert)
+	for _, host := range []string{"apex", "www"} {
+		check(t, host+" forbidden", *rep.Hosts[host].Permitted, false)
+		check(t, host+" note", rep.Hosts[host].Note, "critical CAA property tbs is not one any CA understands, so none may issue")
+	}
+	// A critical flag on a known property changes nothing, and an unknown
+	// property without it is ignored.
+	for _, extra := range []string{`128 issue "letsencrypt.org"`, `0 tbs "unknown"`, `128 iodef "mailto:a@example.com"`} {
+		apex := Lookup{Status: StatusOK, Records: []string{`0 issue "letsencrypt.org"`, extra}}
+		rep := assessCAA(apex, Lookup{Status: StatusNXRRSet}, cert, cert)
+		check(t, extra+" permitted", *rep.Hosts["apex"].Permitted, true)
+	}
 }
 
 // A CA that issues under several brands honours each brand's CAA
@@ -155,7 +182,7 @@ func TestAssessCAA_UnansweredIsNotUnrestricted(t *testing.T) {
 // issuance and was reported as a CAA violation.
 func TestCAAIssuers_BrandIdentifiers(t *testing.T) {
 	permitted := func(org string, records []string) *bool {
-		v := caaVerdict(Lookup{Status: StatusOK, Records: records}, records, servedCert{issuer: org})
+		v := caaVerdict(Lookup{Status: StatusOK, Records: records}, records, true, servedCert{issuer: org})
 		return v.Permitted
 	}
 	for _, c := range []struct {

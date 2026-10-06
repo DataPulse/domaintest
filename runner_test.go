@@ -91,3 +91,21 @@ func TestLimitRunner_ReleasesOnError(t *testing.T) {
 		}
 	}
 }
+
+func TestCappedBuffer(t *testing.T) {
+	b := &cappedBuffer{max: 5}
+	n, err := b.Write([]byte("abc"))
+	check(t, "first write", []any{n, err}, []any{3, nil})
+	n, err = b.Write([]byte("defgh"))
+	check(t, "accepted in full", []any{n, err}, []any{5, nil})
+	check(t, "kept up to the cap", string(b.Bytes()), "abcde")
+	_, _ = b.Write([]byte("more"))
+	check(t, "nothing past the cap", string(b.Bytes()), "abcde")
+}
+
+// A tool that writes far more than the cap still finishes normally.
+func TestExecRunner_OutputIsCapped(t *testing.T) {
+	out, _, err := execRunner{}.Run(context.Background(), "sh", "-c", "head -c 3000000 /dev/zero")
+	check(t, "ran", err, nil)
+	check(t, "capped", len(out), maxToolOutput)
+}

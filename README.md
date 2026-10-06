@@ -4,7 +4,7 @@ Checks the technical configuration of a domain name and prints one compact
 JSON report.
 
 ```
-domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
+domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
 domaintest -warm-hsts-cache
 domaintest -version
 ```
@@ -37,7 +37,11 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    (`reserved_addresses`, ports `skipped`).
 2. **DNSSEC state**: `secure`, `insecure`, `island` (DNSKEY but no DS),
    `bogus` (validation fails; confirmed with `dig +cd` and the resolver's
-   Extended DNS Error), `servfail`, or `unknown`.
+   Extended DNS Error), `servfail`, or `unknown`. A published DS and
+   DNSKEY are not enough for `secure`: the validator must have validated
+   the DNSKEY answer. A DS whose algorithm or digest the validator does
+   not support makes it treat the zone as unsigned, which is reported as
+   `insecure` with a detail saying so.
 3. **Delegation**: `dig +trace` from `a.root-servers.net` compares the NS
    set the parent zone delegates to with the NS set the zone itself serves.
    Status `same_servers` means the parent zone's servers also host the
@@ -70,14 +74,21 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    authoritatively: a single unresponsive anycast node behind a healthy
    quorum is a flaky node, not a broken delegation. Fewer
    than two nameservers is an error; all IPv4 addresses in one /24 or all
-   IPv6 in one /48 is a warning. For in-bailiwick nameservers the parent's
+   IPv6 in one /48 is a warning. For in-bailiwick nameservers (names at or
+   under the zone, whether or not they resolved: one without glue usually
+   cannot be resolved at all) the parent's
    glue is compared with the zone's own addresses (missing glue is an
-   error, a differing address a warning). No zone transfer is ever
+   error, a differing address a warning). A parent answer that is not a
+   referral, such as REFUSED or SERVFAIL, says nothing about glue, and
+   `glue` is then omitted. No zone transfer is ever
    requested.
 5. **Web reachability**: TCP connect to ports 80 and 443 on every A and
    AAAA address of the apex and `www.` (probed separately, since the TLS
    name and Host header differ even when addresses are shared). Port 25 is
-   deliberately not probed.
+   deliberately not probed. At most 16 addresses are probed at once across
+   both names, and at most 16 `quicprobe` processes run at once, so a zone
+   publishing hundreds of addresses cannot exhaust the host's sockets or
+   processes. What each external tool prints is kept up to 1 MB.
 6. **TLS on 443**, on every address that answered (`tls`): the served
    chain is classified as `valid`, `expired`, `not_yet_valid`,
    `hostname_mismatch`, `self_signed`, `incomplete_chain`,
@@ -96,7 +107,12 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    server merely omitted the intermediate and the result is
    `incomplete_chain`, with the URL that was fetched named in `error`.
    If it still does not verify, or there is no AIA URL, or the fetch
-   fails, the result is `untrusted_root`. A CA's name cannot distinguish
+   fails, the result is `untrusted_root`. The AIA URL is written by
+   whoever made the leaf, and any server can present a leaf it made, so
+   the fetch is held to the rules of the other probes: plain `http` only,
+   a public address only (never a reserved one, such as a cloud metadata
+   address), no redirects, 64 KB at most, inside the run's deadline, and
+   each URL fetched once per run. A CA's name cannot distinguish
    these: `incomplete-chain.badssl.com` is issued by something calling
    itself Let's Encrypt and chains to a root in no trust store, so it is
    correctly `untrusted_root`. The AIA URL appears only in `tls.error` on
@@ -113,13 +129,20 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    whether it covers the apex and www, key type and SHA-256 fingerprint are
    reported. A valid certificate on one name that does not cover the other
    resolving name is a warning, as is a host whose addresses serve
-   different certificates. Two extra handshakes test whether TLS 1.0 and
-   TLS 1.1 are still accepted (warnings), and negotiating less than TLS 1.3
-   is a warning. Only `http/1.1` is offered via ALPN so that the HTTP
+   certificates that differ in validity or in the names they cover.
+   `cert_consistent` records whether the leaves are identical; a CDN
+   rotating valid certificates for the same names serves different leaves
+   to no effect, and that is not a warning. Two extra handshakes test whether TLS 1.0 and
+   TLS 1.1 are still accepted (`tls10`, `tls11`: true when the handshake
+   completes, false when the server refuses it, null when it was never
+   tested because no connection was made or nothing answered before the
+   deadline; info), and negotiating less than TLS 1.3
+   is info. Only `http/1.1` is offered via ALPN so that the HTTP
    request below can reuse the connection.
 7. **HTTP** (`http` on 80, `https` on 443, per address): one `GET /` with
    the proper Host header; status, Location and Server header are
-   recorded, plus the parsed `Strict-Transport-Security` header
+   recorded from the final response (interim 1xx responses such as 103
+   Early Hints are skipped), plus the parsed `Strict-Transport-Security` header
    (`max_age`, `include_subdomains`, `preload`). Every address answering
    5xx on a port is an error, some of them a warning, every address 4xx a
    warning. Port 80 serving content instead of redirecting to https is a
@@ -131,7 +154,10 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    addresses removed). When an ancestor entry rather than the name itself
    makes it preloaded, `hsts_preload_covered_by` names that ancestor, so a
    name under `app`, `bank`, `dev` or `page` reads preloaded with the TLD
-   as the cover. A preloaded domain whose served header no longer meets the
+   as the cover. `hsts_preload_include_subdomains` says whether the entry
+   that preloads the name covers its subdomains (always true through an
+   ancestor), and so whether www is preloaded too: port 80 on a preloaded
+   www is info (`http_cleartext_preloaded`), as on the apex. A preloaded domain whose served header no longer meets the
    preload bar (max-age of a year, includeSubDomains, preload), or a header
    that carries `preload` without meeting it, is a warning.
    `-no-hsts-preload` skips the check entirely.
@@ -140,35 +166,69 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    Location headers up to ten hops while the target stays apex or www.
    Ordinary sites chain four to six (scheme upgrade, apex to www, path
    normalisation, locale, session), so a lower limit fails normal domains;
-   browsers allow 20 and curl 50. A loop is an error, since it provably
-   never resolves however long you follow it. Running out of hops is a
+   browsers allow 20 and curl 50. A loop is an error: it is what the
+   server sent during this run, and a client following it would never
+   arrive. A loop over both families that took the same path is one
+   finding naming both. Running out of hops is a
    warning: the follower stopped, so whether the chain ends is unknown,
    and asserting a fault from that would be the vacuous negative again.
    A chain that breaks after it started or ends in 4xx/5xx is a warning,
-   and an external target is recorded as `external` and not followed. A chain is a property of the name, so
+   and an external target is recorded as `external` and not followed. A
+   hop from https back to http is `redirect_downgrade` (warn), once per
+   host for the families that did it. A Location with a scheme other than
+   http or https, or a port outside 1-65535, ends the chain broken. A chain is a property of the name, so
    it is followed once per family, unlike the per-address probes above.
    Each hop records `url`, `status` and the `location` the server sent
    (verbatim, relative or absolute), and a loop's message ends with the
    URL that closed it, so a page redirecting to itself
    (`https://x/ (301) -> https://x/`) reads differently from a chain sent
    back a step. The follower defends itself: at most ten hops, a stop at
-   the first repeated URL, a per-hop timeout inside the probe budget, 64 KB
+   the first repeated URL (compared as a request, so a host name's case or
+   a default port spelled out does not hide a loop), a per-hop timeout inside the probe budget, 64 KB
    of response head, and only apex and www are ever contacted. A Location
    over 4096 bytes is not followed: the chain ends broken and the hop
    records it clipped, with the original length, so a hostile server
    cannot bloat the report.
+
+   **Consistency.** A run asks the same URL several times: once at each
+   address, and again as a hop of each family's chain. A server should
+   give one answer to one request. When those answers differ in status or
+   in where a redirect points, `http_response_inconsistent` (warn) names
+   the URL and every answer with its count, such as
+   `https://example.com/ answered differently within one run: 200 (13 of 14); 301 -> https://example.com/ (1 of 14)`.
+   A per-address probe sent back to the URL it asked for is
+   `redirect_self` (fail). Both compare only what the run already saw;
+   nothing is fetched again, so a server that varies may look consistent
+   on one run and not on the next. Redirects are compared by scheme, host,
+   port and path: a query string often carries a per-request token, and a
+   default port, a relative Location or the host's case changes nothing.
+   A refusal (401, 403, 407, 417, 429) answers the client rather than the
+   URL and is not compared. Seen on ip-house.com (2026-10-05), whose
+   CloudFront cache key ignored the Host header: the apex was sometimes
+   served www's redirect, pointing at itself, and www sometimes the apex's
+   page.
 9. **QUIC / HTTP3** via the sibling `quicprobe` tool, on every address of
    both names, so every address carries a `quic` object and the "QUIC/h3
    works on another probed address" warning means what it says.
 10. **Mail** (`mail`, zone apexes only; absent for a host inside a zone,
     like `nameservers`, since mail policy lives at the zone): DMARC at
     `_dmarc` (missing or `p=none` warn,
-    multiple or unparsable records error, `pct` below 100 warns); SPF is
+    multiple or unparsable records error, `pct` below 100 warns; tag values
+    are case-insensitive, so `p=Reject` is reject, and a malformed `pct` or
+    `sp` warns); SPF is
     evaluated, not just found: include/redirect chains are followed and
     DNS-querying terms counted (more than 10 is a permerror and an error,
-    as are multiple records, `+all` and unknown mechanisms; `?all`, `ptr`,
-    a missing `all`, more than two void lookups and includes without SPF
-    warn). Answer size is checked against RFC 7208 §3.4: the apex TXT
+    as are multiple records, `+all`, an include loop and unknown
+    mechanisms; `?all`, `ptr`, a missing `all`, more than two void lookups
+    and includes without SPF warn). Every evaluation is charged as RFC 7208
+    §4.6.4 requires, so a domain included from two places costs its
+    lookups twice. A `redirect` is ignored when the record has an `all`
+    (§6.1), and the `all` a redirect target ends with is the domain's: it
+    is reported in `all`, and `+all` or `?all` reached that way, or `+all`
+    in an included record, is judged as if the apex said it. A void lookup
+    is an answer with no records; a lookup that never completed is not
+    one, and is reported as unchecked instead. A TXT string is SPF only
+    when `v=spf1` is followed by a space or nothing. Answer size is checked against RFC 7208 §3.4: the apex TXT
     reply a resolver without EDNS would get (header, question and every
     TXT record at the name, since verification tokens ride along) is
     reported as `txt_answer_octets` and warns above 450 octets and again
@@ -185,8 +245,10 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     and, when present, the policy at
     `https://mta-sts.<domain>/.well-known/mta-sts.txt` fetched with full
     certificate verification, its host resolved through the tool's own
-    validating lookups rather than the system resolver, and compared with
-    the MX set (problems are errors in `enforce` mode, warnings otherwise);
+    validating lookups rather than the system resolver, every public
+    address tried at once (a reserved one is never contacted), and compared with
+    the MX set (problems are errors in `enforce` mode, warnings otherwise;
+    `mode: none` withdraws the policy, so its mx lines are not judged);
     TLS-RPT presence. A null MX is reported as "accepts no mail". No SMTP
     connection is made. No finding ever names the resolver used.
 11. **CAA** (`caa`): the certificate each host actually served is compared
@@ -202,7 +264,11 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     absent only when nothing could be judged: no certificate observed, or
     an issuer not in the table, with the note saying which. A wildcard
     certificate is checked against `issuewild` when the set has one, so a
-    CA allowed to issue may still be forbidden to issue wildcards. A CA
+    CA allowed to issue may still be forbidden to issue wildcards. A
+    property with the critical flag (128) and a tag no CA defines forbids
+    every CA (RFC 8659 §4.1). "Any CA may issue" is only said from lookups
+    that answered: a www with no records of its own takes the apex set, so
+    when the apex lookup failed, www is unknown too. A CA
     the records forbid is an error naming the host.
 12. **DANE / TLSA** (`tlsa`): `_443._tcp.` records for apex and www are
     matched against every address's served chain per usage, selector and
@@ -251,12 +317,20 @@ cache.
 - **Path**: `-hsts-cache`, defaulting to
   `<user cache dir>/domaintest/hsts-preload.tsv`, i.e. `$XDG_CACHE_HOME` or
   `$HOME/.cache`. `-hsts-cache -` disables caching and fetches every run.
-- **Lifetime**: none. There is no expiry, because the intended deployment
-  replaces its hosts every few hours; the cache dies with the host. Delete
+- **Lifetime**: seven days, from the fetch time in the cache header. The
+  intended deployment replaces its hosts every few hours, so the cache
+  usually dies with the host first; a long-lived host refetches weekly. A
+  refresh that fails falls back to the older copy, and
+  `hsts_preload_error` says so while `hsts_preload` still answers. Delete
   the file to force a refresh.
+- **Write failures**: a cache that cannot be written does not fail the
+  run, which answers from the list it fetched, but `hsts_preload_error`
+  carries the reason (without the path) so it is not silent.
 - **Concurrency**: population is serialised with an exclusive `flock` on
   `/run/lock/domaintest-hsts.lock`, falling back to `<cache>.lock` when that
-  directory is missing or unwritable, as in a container. Parallel runs on a
+  directory is missing or unwritable, as in a container. The lock file is
+  opened read-only, which is all `flock` needs, so a run shares the lock a
+  root warm-up created. Parallel runs on a
   cold host therefore cause exactly one download.
 - **Transient failures**: a 5xx from googlesource is retried up to three
   times with a short backoff, still inside the caller's budget, because
@@ -306,18 +380,20 @@ header: `version` (the build, as `-version` prints it) and `timestamp`
 (when the probe began, UTC, RFC 3339 to the second, such as
 `2026-10-05T19:42:07Z`; it finished `elapsed_ms` later). The other
 top-level keys are `domain`, `unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
-`tcp_timeout_sec`, `quic_timeout_sec`, `not_a_zone` and `enclosing_zone`
+`tcp_timeout_sec`, `quic_timeout_sec`, `max_time_sec`, `not_a_zone` and `enclosing_zone`
 (hosts only), `dns`, `dnssec`, `delegation`, `web`, `mail`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
 `dns_concurrency`, `reserved_addresses` (when any), `hsts_preload`,
-`hsts_preload_covered_by` and `hsts_preload_error` (unless disabled),
-`errors`, `warnings`, `findings`, `ok`, `elapsed_ms`.
+`hsts_preload_covered_by`, `hsts_preload_include_subdomains` and
+`hsts_preload_error` (unless disabled),
+`errors`, `warnings`, `findings`, `ok`, `deadline_reached` (only when
+true), `elapsed_ms`.
 
 Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has
 `ip`, `80`, `443` (open / refused / timeout / unreachable / error /
 skipped), `http` and `https` (status, location, server, hsts, error),
-`tls` (chain, chain_problems, version, alpn, cipher, tls10, tls11, cert,
-chain_length, error), `tlsa` (match / mismatch / none, only when TLSA records exist) and
+`tls` (chain, chain_problems, version, alpn, cipher, tls10 and tls11
+(null when untested), cert, chain_length, error), `tlsa` (match / mismatch / none, only when TLSA records exist) and
 `quic` (every address: supported, alpn, tls_version, server_addr,
 handshake_ms, and on failure `reason`, `error` and, for `tls_rejected`,
 `tls_alert` / `tls_alert_code`). `reason` is one of `timeout` (nothing
@@ -362,8 +438,8 @@ not a finding.
 Conventions inside the new sections: arrays are always present (empty
 rather than null), booleans are always present, strings are omitted when
 empty, and an object is omitted only when the whole check did not apply
-(`glue` when the parent could not be asked or no nameserver address was
-known to compare it against, `tls` when 443 did not answer, `quic` when
+(`glue` when the parent could not be asked or did not answer with a
+referral, `tls` when 443 did not answer, `quic` when
 quicprobe was not run).
 
 A name whose NS answer traversed a CNAME is never treated as a zone apex.
@@ -479,9 +555,9 @@ set.
 
 | severity | codes |
 |---|---|
-| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` |
-| warn | `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_problem` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` |
-| info | `not_a_zone` `reserved_name` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` |
+| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `redirect_self` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_include_loop` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` |
+| warn | `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `redirect_downgrade` `http_response_inconsistent` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_include_unchecked` `spf_problem` `dmarc_pct_invalid` `dmarc_subdomain_policy_unknown` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` |
+| info | `not_a_zone` `reserved_name` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` `run_deadline_reached` |
 
 A zone no delegated nameserver answers for is reported as one finding,
 `zone_unreachable`, and the probe stops there. For this to apply, the
@@ -574,7 +650,18 @@ nameserver audit, late lookups) is capped at `max(3 × -tcp-timeout,
 -quic-timeout + 1) + 1`. With the defaults (`-t 3 -tcp-timeout 2
 -quic-timeout 2`) that is 6 + 3 + 7 = 16 s, reached only when every server
 in every phase hangs; a dead resolver measures about 4 s and a healthy
-domain about 3 s.
+domain about 3 s. When the delegated nameservers were silent to the
+trace, the nameserver audit runs first under its own allowance of the
+same size, so the probes after it are not left with the remainder.
+
+`-max-time` (default 18 s, `0` for none) is a deadline for the whole run.
+The sums above are what each phase is allowed, and a server that is slow
+at every stage can add to them; scrape kills a run at 20 s and keeps no
+output, so the deadline makes sure a report is written first. Every
+subprocess, connection, handshake and request stops at it. A run that
+reaches it sets `"deadline_reached": true` and adds the info finding
+`run_deadline_reached`. Whatever was still running reports its own
+timeout. The report header carries the value as `max_time_sec`.
 
 A `delv` lookup that times out in the first half of its budget is retried
 once (`"retries": 1` in the record), so one dropped UDP query does not cost

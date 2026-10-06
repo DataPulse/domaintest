@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -161,4 +163,27 @@ func TestRedirectChain_EndedReason(t *testing.T) {
 	check(t, "and names where it went", c.External, "http://example.com/")
 	check(t, "with no final url", c.FinalURL, "")
 	check(t, "and is not an error", c.Error, "")
+}
+
+// A 103 Early Hints (or 100 Continue) is not the answer: the response
+// after it is.
+func TestHTTPRequest_SkipsInterimResponses(t *testing.T) {
+	c1, c2 := net.Pipe()
+	defer c1.Close()
+	go func() {
+		defer c2.Close()
+		buf := make([]byte, 4096)
+		_, _ = c2.Read(buf)
+		_, _ = io.WriteString(c2, "HTTP/1.1 103 Early Hints\r\nLink: </s.css>; rel=preload\r\nStrict-Transport-Security: max-age=1\r\n\r\n"+
+			"HTTP/1.1 301 Moved Permanently\r\nLocation: https://example.com/\r\nContent-Length: 0\r\n\r\n")
+	}()
+	res := httpRequest(c1, "example.com", "/", time.Now().Add(2*time.Second))
+	check(t, "final status", res.Status, 301)
+	check(t, "final location", res.Location, "https://example.com/")
+	check(t, "hints' headers are not the response's", res.HSTS == nil, true)
+}
+
+func TestParseHSTS_WhitespaceAroundEquals(t *testing.T) {
+	check(t, "spaced", parseHSTS(`max-age = 31536000 ; includeSubDomains`), &HSTS{MaxAge: 31536000, IncludeSubdomains: true})
+	check(t, "quoted and spaced", parseHSTS(`max-age= "600"`), &HSTS{MaxAge: 600})
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 	"os"
@@ -106,23 +107,22 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 		func() { dns = gatherDNS(ctx, cfg, dnsRunner, r) },
 	)
 	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach}
-	classifyZone(rep, cfg, dns, dnsRunner)
+	classifyZone(ctx, rep, cfg, dns, dnsRunner)
 
+	// When the delegated servers were silent to the trace, ask each of them
+	// before anything else. If none answers for the zone, nothing else can
+	// work, and the report is that one fact. The audit has its own budget:
+	// silent servers spend all of it, and the probes after it need theirs.
+	audited := false
+	if delegationSilent(rep.Delegation, dns.apex["NS"]) {
+		rep.Nameservers, audited = auditFirst(ctx, cfg, dnsRunner, dns, rep), true
+		if zoneUnreachable(rep) {
+			return finishReport(ctx, rep, start)
+		}
+	}
 	probeCtx, cancel := context.WithTimeout(ctx, probeBudget(cfg))
 	defer cancel()
 	dns.cache.setContext(probeCtx) // late lookups share the probe budget
-	// When the delegated servers were silent to the trace, ask each of them
-	// before anything else. If none answers for the zone, nothing else can
-	// work, and the report is that one fact.
-	audited := false
-	if delegationSilent(rep.Delegation, dns.apex["NS"]) {
-		rep.Nameservers, audited = auditNameservers(probeCtx, cfg, dnsRunner, dns, rep), true
-		if zoneUnreachable(rep) {
-			buildFindings(rep)
-			rep.ElapsedMs = time.Since(start).Milliseconds()
-			return rep
-		}
-	}
 	parallel(
 		func() { rep.Web = probeWeb(probeCtx, cfg, r, d, dns, rep) },
 		func() {
@@ -132,12 +132,29 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 		},
 		func() { rep.Mail = assessMail(probeCtx, cfg, dns, noMailPossible(rep, dns)) },
 		func() {
-			rep.HSTSPreload, rep.HSTSPreloadCoveredBy, rep.HSTSPreloadPolicy, rep.HSTSPreloadError = checkPreload(probeCtx, cfg)
+			p := checkPreload(probeCtx, cfg)
+			rep.HSTSPreload, rep.HSTSPreloadCoveredBy, rep.HSTSPreloadPolicy, rep.HSTSPreloadError = p.status, p.coveredBy, p.policy, p.problem
+			rep.HSTSPreloadIncludeSubdomains = p.includeSubdomains
 		},
 	)
 	rep.Wildcard = wildcardSection(dns, rep.Web)
 	rep.CAA, rep.TLSA = assessCertPolicies(dns, rep)
+	return finishReport(ctx, rep, start)
+}
 
+// auditFirst runs the nameserver audit ahead of the probes, under a budget
+// of its own.
+func auditFirst(ctx context.Context, cfg config, r Runner, dns dnsResults, rep *Report) *NSReport {
+	actx, cancel := context.WithTimeout(ctx, probeBudget(cfg))
+	defer cancel()
+	dns.cache.setContext(actx)
+	return auditNameservers(actx, cfg, r, dns, rep)
+}
+
+// finishReport records whether the run deadline cut the run short, builds
+// the findings and stamps the elapsed time.
+func finishReport(ctx context.Context, rep *Report, start time.Time) *Report {
+	rep.DeadlineReached = errors.Is(ctx.Err(), context.DeadlineExceeded)
 	buildFindings(rep)
 	rep.ElapsedMs = time.Since(start).Milliseconds()
 	return rep
@@ -159,6 +176,7 @@ func newReport(cfg config) *Report {
 		TimeoutSec:     cfg.TimeoutSec,
 		TCPTimeoutSec:  cfg.TCPTimeoutSec,
 		QuicTimeoutSec: cfg.QuicTimeoutSec,
+		MaxTimeSec:     cfg.MaxTimeSec,
 		DNSConcurrency: cfg.DNSConcurrency,
 	}
 }
@@ -174,7 +192,7 @@ func probeBudget(cfg config) time.Duration {
 }
 
 // classifyZone fills the not-a-zone and DNSSEC verdicts.
-func classifyZone(rep *Report, cfg config, dns dnsResults, r Runner) {
+func classifyZone(ctx context.Context, rep *Report, cfg config, dns dnsResults, r Runner) {
 	rep.PublicSuffix = !registrableDomain(cfg.Domain) && isPublicSuffix(cfg.Domain)
 	if rep.ReservedName = reservedName(cfg.Domain); rep.ReservedName != "" {
 		// The name is not in the global DNS, so neither a trust chain nor
@@ -188,7 +206,7 @@ func classifyZone(rep *Report, cfg config, dns dnsResults, r Runner) {
 		rep.Delegation = Delegation{Status: DelegationNotAZone, Error: "name is a host inside " + firstNonEmpty(rep.EnclosingZone, "another zone")}
 		return
 	}
-	bctx, cancel := context.WithTimeout(context.Background(), cfg.timeout())
+	bctx, cancel := context.WithTimeout(ctx, cfg.timeout())
 	defer cancel()
 	rep.DNSSEC = classifyDNSSEC(dns.ds, dns.dnskey, dns.apex,
 		newBogusProbe(bctx, r, cfg.DigPath, cfg.Resolver, cfg.TimeoutSec))
@@ -494,14 +512,18 @@ func probeWeb(ctx context.Context, cfg config, r Runner, d dialer, dns dnsResult
 
 	apex, www := cfg.Domain, "www."+cfg.Domain
 	hosts := hostAddrsByFamily(map[string][]netip.Addr{apex: apexAddrs, www: wwwAddrs})
+	// Both names share the caps: a zone publishing a hundred addresses
+	// must not open hundreds of sockets and processes at once.
+	slots := make(chan struct{}, maxAddressProbes)
+	r = limitRunner(r, maxQUICProbes)
 	var web WebSection
 	parallel(
-		func() { web.Apex = probeHost(ctx, cfg, r, d, apex, apexAddrs, reservedApex, hosts) },
+		func() { web.Apex = probeHost(ctx, cfg, r, d, apex, apexAddrs, reservedApex, hosts, slots) },
 		func() {
 			if !registrableDomain(cfg.Domain) {
 				return
 			}
-			web.WWW = probeHost(ctx, cfg, r, d, www, wwwAddrs, reservedWWW, hosts)
+			web.WWW = probeHost(ctx, cfg, r, d, www, wwwAddrs, reservedWWW, hosts, slots)
 		},
 	)
 	if web.WWW != nil && len(apexAll) > 0 && sameAddressSet(apexAll, wwwAll) {
@@ -509,6 +531,15 @@ func probeWeb(ctx context.Context, cfg config, r Runner, d dialer, dns dnsResult
 	}
 	return web
 }
+
+// maxAddressProbes is how many addresses are probed at once across both
+// names. One address holds up to four sockets (80, 443 and the two
+// legacy-TLS handshakes), so this bounds a run at about 64; real hosts
+// publish at most a dozen or so.
+const maxAddressProbes = 16
+
+// maxQUICProbes is how many quicprobe processes run at once.
+const maxQUICProbes = 16
 
 // hostAddrsByFamily builds, per family, the address the redirect follower
 // uses for each host.
@@ -527,7 +558,7 @@ func hostAddrsByFamily(addrs map[string][]netip.Addr) map[string]hostAddrs {
 
 // probeHost runs the per-address probes for one hostname and assembles
 // its HostWeb entry.
-func probeHost(ctx context.Context, cfg config, r Runner, d dialer, host string, addrs []netip.Addr, reserved []string, hosts map[string]hostAddrs) *HostWeb {
+func probeHost(ctx context.Context, cfg config, r Runner, d dialer, host string, addrs []netip.Addr, reserved []string, hosts map[string]hostAddrs, slots chan struct{}) *HostWeb {
 	if len(addrs) == 0 && len(reserved) == 0 {
 		return nil
 	}
@@ -535,7 +566,11 @@ func probeHost(ctx context.Context, cfg config, r Runner, d dialer, host string,
 	probes := make([]addrProbe, len(addrs))
 	var tasks []func()
 	for i, ip := range addrs {
-		tasks = append(tasks, func() { probes[i] = probeAddress(ctx, d, ip, host, apex, www, cfg.tcpTimeout()) })
+		tasks = append(tasks, func() {
+			slots <- struct{}{}
+			defer func() { <-slots }()
+			probes[i] = probeAddress(ctx, d, ip, host, apex, www, cfg.tcpTimeout())
+		})
 	}
 	var quic map[string]*QUICResult
 	tasks = append(tasks, func() { quic = quicAll(ctx, cfg, r, host, addrs) })
@@ -663,11 +698,11 @@ func auditNameservers(ctx context.Context, cfg config, r Runner, dns dnsResults,
 	}
 	ns := resolveNS(names, dns.cache.get)
 	auditAll(ctx, r, cfg.DigPath, &ns, cfg.Domain, cfg.Families, cfg.TimeoutSec)
-	// Glue can only be compared against addresses the child gave us. With
-	// none, an empty glue report would read as "checked, nothing missing".
-	if len(ns.addrs) > 0 && rep.Delegation.ParentServer != "" && rep.Delegation.Status != DelegationSameServers {
+	// Glue is checked against the NS names, resolved or not: a name under
+	// the zone that does not resolve is the one most likely to lack glue.
+	if rep.Delegation.ParentServer != "" && rep.Delegation.Status != DelegationSameServers {
 		msgs := runDig(ctx, r, cfg.DigPath, glueArgs(rep.Delegation.ParentServer, traceFamily(cfg), cfg.TimeoutSec, cfg.Domain)...)
-		ns.Glue = checkGlue(msgs, cfg.Domain, ns.addrs)
+		ns.Glue = checkGlue(msgs, cfg.Domain, names, ns.addrs)
 	}
 	return &ns
 }
@@ -708,18 +743,33 @@ func assessMail(ctx context.Context, cfg config, dns dnsResults, skip bool) *Mai
 // once per host when the cache is cold. The wait and the fetch share the
 // probe budget, so a cold or contended start costs this run its preload
 // value rather than delaying or failing the run.
-func checkPreload(ctx context.Context, cfg config) (status, coveredBy, policy, problem string) {
+func checkPreload(ctx context.Context, cfg config) preloadFacts {
 	if !cfg.HSTSPreload {
-		return "", "", "", ""
+		return preloadFacts{}
 	}
 	// Zero timeout: the probe context is the only bound, so the download is
 	// not held to the per-connection budget.
 	list, err := loadPreloadList(ctx, cfg.HSTSCache, 0)
 	if err != nil {
-		return PreloadUnknown, "", "", scrubResolver(err.Error())
+		return preloadFacts{status: PreloadUnknown, problem: scrubResolver(err.Error())}
 	}
-	status, coveredBy, policy = list.status(cfg.Domain)
-	return status, coveredBy, policy, ""
+	p := preloadFacts{problem: scrubResolver(list.note)}
+	p.status, p.coveredBy, p.policy = list.status(cfg.Domain)
+	switch {
+	case p.status != PreloadPreloaded:
+	case p.coveredBy != "":
+		// An ancestor covers the name only through include_subdomains.
+		p.includeSubdomains = boolPtr(true)
+	default:
+		p.includeSubdomains = boolPtr(list.entries[bareName(cfg.Domain)].includeSubdomains)
+	}
+	return p
+}
+
+// preloadFacts is what the preload list says about the domain.
+type preloadFacts struct {
+	status, coveredBy, policy, problem string
+	includeSubdomains                  *bool // set when preloaded
 }
 
 // wildcardSection evaluates the random-name probes and stamps www when its
@@ -774,7 +824,13 @@ func assessTLSA(apexRec, wwwRec Lookup, web WebSection) *TLSAReport {
 		}
 		return rep
 	}
-	anyMatch, anyChecked := false, false
+	rep.Result = tlsaResult(stampHosts(apexRec, wwwRec, web))
+	return rep
+}
+
+// stampHosts matches each host's served chains against its TLSA records,
+// reporting whether any address matched and whether any was checked.
+func stampHosts(apexRec, wwwRec Lookup, web WebSection) (anyMatch, anyChecked bool) {
 	for _, pair := range []struct {
 		h   *HostWeb
 		rec Lookup
@@ -786,15 +842,17 @@ func assessTLSA(apexRec, wwwRec Lookup, web WebSection) *TLSAReport {
 		m, c := stampHost(pair.h, records)
 		anyMatch, anyChecked = anyMatch || m, anyChecked || c
 	}
+	return anyMatch, anyChecked
+}
+
+func tlsaResult(anyMatch, anyChecked bool) string {
 	switch {
 	case !anyChecked:
-		rep.Result = "unverified"
+		return "unverified"
 	case anyMatch:
-		rep.Result = TLSAMatch
-	default:
-		rep.Result = TLSAMismatch
+		return TLSAMatch
 	}
-	return rep
+	return TLSAMismatch
 }
 
 // tlsaSigned is true when the answer, positive or negative, validated.
