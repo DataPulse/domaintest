@@ -41,17 +41,20 @@ type Report struct {
 	UnicodeDomain string `json:"unicode_domain,omitempty"`
 	// NotAZone is set when the name is a host inside a zone rather than a
 	// zone apex; EnclosingZone names that zone when a SOA revealed it.
-	NotAZone             bool                 `json:"not_a_zone,omitempty"`
-	ReservedName         string               `json:"reserved_name,omitempty"` // the RFC reserving this suffix
-	PublicSuffix         bool                 `json:"public_suffix,omitempty"` // the name is itself a public suffix, not a registrable domain
-	EnclosingZone        string               `json:"enclosing_zone,omitempty"`
-	Resolver             string               `json:"resolver"`
-	Families             []string             `json:"families"`
-	TimeoutSec           int                  `json:"timeout_sec"`
-	TCPTimeoutSec        int                  `json:"tcp_timeout_sec"`
-	DNSConcurrency       int                  `json:"dns_concurrency"`
-	QuicTimeoutSec       int                  `json:"quic_timeout_sec"`
-	MaxTimeSec           int                  `json:"max_time_sec"`
+	NotAZone       bool     `json:"not_a_zone,omitempty"`
+	ReservedName   string   `json:"reserved_name,omitempty"` // the RFC reserving this suffix
+	PublicSuffix   bool     `json:"public_suffix,omitempty"` // the name is itself a public suffix, not a registrable domain
+	EnclosingZone  string   `json:"enclosing_zone,omitempty"`
+	Resolver       string   `json:"resolver"`
+	Families       []string `json:"families"`
+	TimeoutSec     int      `json:"timeout_sec"`
+	TCPTimeoutSec  int      `json:"tcp_timeout_sec"`
+	DNSConcurrency int      `json:"dns_concurrency"`
+	QuicTimeoutSec int      `json:"quic_timeout_sec"`
+	MaxTimeSec     int      `json:"max_time_sec"`
+	// RedirectLog says whether redirect chains were followed (-redirectlog).
+	// Without it no host carries `redirects`, and no chain finding can fire.
+	RedirectLog          bool                 `json:"redirect_log"`
 	DNS                  DNSSection           `json:"dns"`
 	DNSSEC               DNSSECReport         `json:"dnssec"`
 	Delegation           Delegation           `json:"delegation"`

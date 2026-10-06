@@ -216,6 +216,7 @@ func googleScenario(t *testing.T) *googleWeb {
 
 func TestRun_WebDomainFullProbe(t *testing.T) {
 	g := googleScenario(t)
+	g.s.cfg.RedirectLog = true
 	rep := g.s.run()
 	check(t, "errors", rep.Errors, []string{})
 	// google.com publishes 17 apex TXT records (1176 octets without EDNS;

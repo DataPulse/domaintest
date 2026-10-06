@@ -301,7 +301,7 @@ func TestIntegration_MailPosture(t *testing.T) {
 }
 
 func TestIntegration_GoogleTLSAndCAA(t *testing.T) {
-	cfg := integrationConfig(t, "google.com")
+	cfg := integrationConfig(t, "-redirectlog", "google.com")
 	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
 	a := rep.Web.Apex.IPv4[0]
 	check(t, "chain", a.TLS.Chain, ChainValid)

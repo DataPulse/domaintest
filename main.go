@@ -39,7 +39,7 @@ const (
 	// hand, before then: the deadline cuts off whatever is still running
 	// and the report says so.
 	defaultMaxTimeSec = 18
-	usage             = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
+	usage             = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-redirectlog] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
 )
 
 // config is the parsed command line.
@@ -59,6 +59,7 @@ type config struct {
 	HSTSPreload    bool   // consult the HSTS preload list (on by default; -no-hsts-preload disables)
 	HSTSCache      string // path to the cached preload list; "-" disables caching
 	WarmHSTSCache  bool   // populate the cache and exit
+	RedirectLog    bool   // follow and report redirect chains (off by default)
 	ShowVersion    bool   // print the build version and exit
 	Pretty         bool
 	DelvPath       string
@@ -274,6 +275,7 @@ func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
 	fs.IntVar(&cfg.DNSConcurrency, "dns-concurrency", defaultDNSConcurrency(), "most DNS tool processes to run at once (0 for unlimited)")
 	fs.BoolVar(&cfg.Pretty, "pretty", false, "indent the JSON output")
 	fs.StringVar(&cfg.HSTSCache, "hsts-cache", "", "path to the cached HSTS preload list (default: user cache dir; \"-\" disables caching)")
+	fs.BoolVar(&cfg.RedirectLog, "redirectlog", false, "follow and report redirect chains per name and address family")
 	fs.BoolVar(&cfg.WarmHSTSCache, "warm-hsts-cache", false, "populate the HSTS preload cache and exit")
 	fs.BoolVar(&cfg.ShowVersion, "version", false, "print the build version and exit")
 	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")

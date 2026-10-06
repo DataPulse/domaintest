@@ -4,7 +4,7 @@ Checks the technical configuration of a domain name and prints one compact
 JSON report.
 
 ```
-domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
+domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-redirectlog] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
 domaintest -warm-hsts-cache
 domaintest -version
 ```
@@ -17,6 +17,15 @@ appended when the tree had uncommitted changes, or `devel` when there is
 no such record. Every report carries the same value as `version`. The
 variable must stay `main.version`, a string: `-X` silently ignores a name
 that does not exist.
+
+`-redirectlog` follows each name's redirect chain (§8 below) and reports
+it. It is off by default: following a chain walks the site the way a
+visitor would, and that belongs to a browser (scrape's renderer records the
+chain it actually followed, including meta-refresh and script navigations
+and from non-cloud addresses). Without it the per-address `GET /` on 80
+and 443 (§7) still runs, so the scheme upgrade, HSTS, `redirect_self` and
+per-address consistency are still checked. Every report says which way it
+ran in `redirect_log`.
 
 Like `dig`, the optional `@dnsserver` may appear anywhere on the command
 line. Without it the system resolver is used. A port may be appended
@@ -180,7 +189,9 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    preload bar (max-age of a year, includeSubDomains, preload), or a header
    that carries `preload` without meeting it, is a warning.
    `-no-hsts-preload` skips the check entirely.
-8. **Redirect chains** (`redirects`, per name and address family): from
+8. **Redirect chains**, only with `-redirectlog` (`redirects`, per name
+   and address family; without the flag the key is absent and none of the
+   chain findings below can be raised): from
    `http://<name>/` on the first address of the family, following
    Location headers up to ten hops while the target stays apex or www.
    Ordinary sites chain four to six (scheme upgrade, apex to www, path
@@ -210,7 +221,8 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    cannot bloat the report.
 
    **Consistency.** A run asks the same URL several times: once at each
-   address, and again as a hop of each family's chain. A server should
+   address, and, with `-redirectlog`, again as a hop of each family's
+   chain. A server should
    give one answer to one request. When those answers differ in status or
    in where a redirect points, `http_response_inconsistent` (warn) names
    the URL and every answer with its count, such as
@@ -403,7 +415,7 @@ header: `version` (the build, as `-version` prints it) and `timestamp`
 (when the probe began, UTC, RFC 3339 to the second, such as
 `2026-10-05T19:42:07Z`; it finished `elapsed_ms` later). The other
 top-level keys are `domain`, `unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
-`tcp_timeout_sec`, `quic_timeout_sec`, `max_time_sec`, `not_a_zone` and `enclosing_zone`
+`tcp_timeout_sec`, `quic_timeout_sec`, `max_time_sec`, `redirect_log` (whether chains were followed), `not_a_zone` and `enclosing_zone`
 (hosts only), `dns`, `dnssec`, `delegation`, `web`, `certificates` (when any address served one), `mail`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
 `dns_concurrency`, `reserved_addresses` (when any), `hsts_preload`,
@@ -425,7 +437,7 @@ the handshake; on a CDN this usually means HTTP/3 is not enabled for the
 hostname, CloudFront sends alert 40 `handshake failure`), `resolve_failed`,
 `version_negotiation`, `stateless_reset`, `transport_error`,
 `application_error`, `listen_failed`, `invalid_args` or `other`. Each host has `same_as_apex`, `via_wildcard`,
-`redirects` (per family: hops with url, status and location, ended, final_url, external, loop, error) and
+`redirects` (only with `-redirectlog`; per family: hops with url, status and location, ended, final_url, external, loop, error) and
 `cert_consistent`.
 
 The certificate fields are per address except the name list: `cert.sans`
@@ -535,7 +547,7 @@ Errors (set `ok` to false): apex NXDOMAIN, missing NS, DNSSEC bogus or
 SERVFAIL, delegation mismatch / not delegated / no child answer / lame
 zone, lookups that failed or timed out, resolver unreachable over an
 enabled family, reserved addresses in DNS, any certificate chain problem,
-every address 5xx on a port, redirect loops, DMARC
+every address 5xx on a port, redirect loops (with `-redirectlog`), DMARC
 records that are multiple or unparsable, SPF permerrors (over the lookup
 limit, multiple records), `+all`, unknown SPF mechanisms, MX targets that
 are CNAMEs, IP literals, non-existent or without an address, MTA-STS problems in enforce mode,
@@ -615,7 +627,7 @@ produced. Likewise a zone that answers with no NS records has answered.
 Notes on the info rows:
 
 - `http_probe_refused` is a 401, 403, 407, 417 or 429, either on every
-  address or at the end of a redirect chain. Why the server refused is not
+  address or at the end of a redirect chain (`-redirectlog`). Why the server refused is not
   observable: a bot filter judging the client, a block on the network the
   probe runs from, or a page that really is private. From an AWS address,
   1-800-chase-credit-cards.com answered 403 to the same request that a
@@ -766,7 +778,8 @@ cases are skvr.site (every nameserver refuses),
 login-microsoft-virtualperu.com (refusing and silent), oraclehealth.com
 (half its nameservers refuse, so it is not unreachable) and iboracle.com
 (the zone answers with no NS records). These
-fixtures were captured before `findings` existed, and the tests rebuild
+fixtures were captured before `findings` existed and while chains were
+always followed, so they show the `-redirectlog` shape, and the tests rebuild
 it from each report's sections. Use them to write parsers against the
 real shape.
 

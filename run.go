@@ -186,6 +186,7 @@ func newReport(cfg config) *Report {
 		QuicTimeoutSec: cfg.QuicTimeoutSec,
 		MaxTimeSec:     cfg.MaxTimeSec,
 		DNSConcurrency: cfg.DNSConcurrency,
+		RedirectLog:    cfg.RedirectLog,
 	}
 }
 
@@ -592,7 +593,11 @@ func probeHost(ctx context.Context, cfg config, r Runner, d dialer, host string,
 	for _, res := range reserved {
 		h.add(AddrWeb{IP: strings.Fields(res)[0], HTTP: PortSkipped, HTTPS: PortSkipped})
 	}
-	h.Redirects = redirectChains(ctx, d, host, hosts, cfg.tcpTimeout())
+	// Following a chain walks the site as a visitor would; the scraper's
+	// browser does that, so it is opt-in here.
+	if cfg.RedirectLog {
+		h.Redirects = redirectChains(ctx, d, host, hosts, cfg.tcpTimeout())
+	}
 	h.CertConsistent = certConsistent(h.addrs())
 	return h
 }
