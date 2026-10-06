@@ -389,7 +389,7 @@ func TestRun_ReservedAddress(t *testing.T) {
 	s.trace("trace/jschmidt.txt", t) // any healthy trace shape; delegation is not under test
 	rep := s.run()
 	// One address published at both apex and www is one reserved address.
-	check(t, "reserved listed once", rep.ReservedAddresses, []string{"127.0.0.1 (loopback)"})
+	check(t, "reserved listed once", rep.ReservedAddresses, []string{"127.0.0.1 (loopback address)"})
 	reserved := 0
 	for _, e := range rep.Errors {
 		if strings.Contains(e, "reserved address published") {

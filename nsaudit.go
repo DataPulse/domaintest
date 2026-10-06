@@ -21,7 +21,12 @@ type NSServer struct {
 	EDNS    bool   `json:"edns"`
 	NoSOA   bool   `json:"no_soa,omitempty"`  // answered, but returned no SOA: serial is absent, not omitted
 	Retries int    `json:"retries,omitempty"` // attempts that got no answer before this one
-	Error   string `json:"error,omitempty"`
+	// Reserved names why the address is not a public one (dpdomain's
+	// ipnorm.Reserved). Such an address is never queried: a nameserver
+	// published at 10.x or 169.254.x would otherwise send the probe's DNS
+	// queries into the network it runs in.
+	Reserved string `json:"reserved,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 // GlueReport compares the parent's glue with the child's own addresses.
@@ -237,6 +242,11 @@ func auditAll(ctx context.Context, r Runner, digPath string, rep *NSReport, doma
 	for _, name := range sortedAddrKeys(rep.addrs) {
 		for _, ip := range rep.addrs[name] {
 			if !containsString(families, familyOf(ip)) {
+				continue
+			}
+			if reason := reservedReason(ip); reason != "" {
+				rep.Servers = append(rep.Servers, NSServer{Name: name, IP: ip.String(), Reserved: reason,
+					Error: "reserved address (" + reason + "): not queried"})
 				continue
 			}
 			tasks = append(tasks, func() {

@@ -322,7 +322,7 @@ func TestIntegration_GoogleTLSAndCAA(t *testing.T) {
 func TestIntegration_ReservedAddress(t *testing.T) {
 	cfg := integrationConfig(t, "localtest.me")
 	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
-	check(t, "reserved", contains(rep.ReservedAddresses, "127.0.0.1 (loopback)"), true)
+	check(t, "reserved", contains(rep.ReservedAddresses, "127.0.0.1 (loopback address)"), true)
 	check(t, "error", contains(rep.Errors, "reserved address published in DNS"), true)
 	check(t, "skipped", rep.Web.Apex.IPv4[0].HTTP, PortSkipped)
 }

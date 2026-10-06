@@ -33,8 +33,12 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    at the apex, A and AAAA for `www.`, plus DS and DNSKEY. Every answer
    carries its trust level (`secure` / `insecure`). Apex or www addresses
    inside reserved ranges (RFC 1918, loopback, link-local, CGNAT,
-   documentation, multicast, ULA) are an error and are not probed
-   (`reserved_addresses`, ports `skipped`).
+   documentation, multicast, ULA, and the IPv6 forms that carry such an
+   IPv4 address: NAT64, 6to4, IPv4-compatible) are an error and are not
+   probed (`reserved_addresses`, ports `skipped`). The ranges and the
+   reasons are dpdomain's `ipnorm.Reserved`, shared with every other
+   DataPulse tool (since 2026-10-06; before, domaintest kept a list of its
+   own and called NAT64 public).
 2. **DNSSEC state**: `secure`, `insecure`, `island` (DNSKEY but no DS),
    `bogus` (validation fails; confirmed with `dig +cd` and the resolver's
    Extended DNS Error), `servfail`, or `unknown`. A published DS and
@@ -62,7 +66,15 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    address is asked
    for the zone SOA non-recursively over UDP, over TCP and with EDNS/DNSSEC
    in one `dig` run: no TCP or no EDNS is a warning, SOA serial drift
-   between servers a warning. An address that answers nothing is asked once
+   between servers a warning. A reserved address (as for apex and www) is
+   never queried: the server entry carries `reserved` (the reason) and an
+   `error` saying it was not queried, and the name fails as
+   `ns_reserved_address`. A nameserver published at 10.x or 169.254.x is
+   unreachable from the Internet, and querying it would send the probe's
+   DNS into the network the probe runs in. The delegation trace is `dig
+   +trace`, which follows the referral glue itself and has no way to skip
+   an address, so a reserved glue address is still queried there. An
+   address that answers nothing is asked once
    more before it counts as unreachable (`retries: 1` on the server entry),
    since one dropped UDP query is not a broken nameserver.
 
@@ -103,19 +115,26 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    `incomplete_chain` and `untrusted_root` are the same x509 error to Go
    and are separated by evidence, never by the issuer's name. When the
    chain does not verify as served, the intermediate named by the leaf's
-   AIA URL is fetched and the chain retried: if it then verifies, the
-   server merely omitted the intermediate and the result is
-   `incomplete_chain`, with the URL that was fetched named in `error`.
-   If it still does not verify, or there is no AIA URL, or the fetch
-   fails, the result is `untrusted_root`. The AIA URL is written by
+   AIA URL is fetched and the chain retried. If it still does not verify,
+   the fetched certificate's own AIA URL is followed in turn, up to three
+   fetches, since an intermediate can be signed by a newer root that the
+   trust store only knows through a cross-signature: the leaf of
+   `incomplete-chain.badssl.com` names Let's Encrypt YR1, YR1 is signed by
+   ISRG Root YR, and only YR1's AIA leads to Root YR cross-signed by ISRG
+   Root X1, the root the distribution trusts. If the chain verifies along
+   the way, the server merely omitted intermediates and the result is
+   `incomplete_chain`, with every URL fetched named in `error`. If it
+   still does not verify, or there is no AIA URL, or a fetch fails, the
+   result is `untrusted_root`. The trust store is the system's (the
+   distribution's CA bundle); domaintest adds no roots of its own. The AIA URL is written by
    whoever made the leaf, and any server can present a leaf it made, so
    the fetch is held to the rules of the other probes: plain `http` only,
    a public address only (never a reserved one, such as a cloud metadata
    address), no redirects, 64 KB at most, inside the run's deadline, and
    each URL fetched once per run. A CA's name cannot distinguish
-   these: `incomplete-chain.badssl.com` is issued by something calling
-   itself Let's Encrypt and chains to a root in no trust store, so it is
-   correctly `untrusted_root`. The AIA URL appears only in `tls.error` on
+   these; only verifying the repaired chain can (until 2026-10-06 one
+   fetch was made, and `incomplete-chain.badssl.com` was wrongly reported
+   as `untrusted_root`). The AIA URL appears only in `tls.error` on
    an address classified `incomplete_chain`; there is no AIA field in
    `tls.cert`, and the CAA issuer table is a name lookup that says nothing
    about whether a chain validates.
@@ -291,8 +310,12 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     answers is still a catch-all, so the variance qualifies the verdict
     rather than deciding it, and `consistent` is null unless the status is
     `present`. When www resolves to exactly what one probe answered the
-    report says `www_via_wildcard` (and www carries `via_wildcard`) with a
-    warning; a wildcard on its own is reported without a finding.
+    report says `www_via_wildcard` (and www carries `via_wildcard`). For a
+    registrable domain that is the info finding `www_wildcard`: www has no
+    host of its own. For a host inside a zone (`expired.badssl.com`) there
+    is no finding, because its www is a name nobody publishes and a
+    catch-all answering it is expected. A wildcard on its own is reported
+    without a finding.
 14. **Resolver reachability** over IPv4 and IPv6 (a root NS query per
     family). A family whose transport the resolver cannot use reads
     `skipped: resolver has no ipv6 address` (or ipv4): with
@@ -381,7 +404,7 @@ header: `version` (the build, as `-version` prints it) and `timestamp`
 `2026-10-05T19:42:07Z`; it finished `elapsed_ms` later). The other
 top-level keys are `domain`, `unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
 `tcp_timeout_sec`, `quic_timeout_sec`, `max_time_sec`, `not_a_zone` and `enclosing_zone`
-(hosts only), `dns`, `dnssec`, `delegation`, `web`, `mail`,
+(hosts only), `dns`, `dnssec`, `delegation`, `web`, `certificates` (when any address served one), `mail`,
 `nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
 `dns_concurrency`, `reserved_addresses` (when any), `hsts_preload`,
 `hsts_preload_covered_by`, `hsts_preload_include_subdomains` and
@@ -404,6 +427,14 @@ hostname, CloudFront sends alert 40 `handshake failure`), `resolve_failed`,
 `application_error`, `listen_failed`, `invalid_args` or `other`. Each host has `same_as_apex`, `via_wildcard`,
 `redirects` (per family: hops with url, status and location, ended, final_url, external, loop, error) and
 `cert_consistent`.
+
+The certificate fields are per address except the name list: `cert.sans`
+is not repeated on every address that served the certificate but kept
+once under the top-level `certificates`, keyed by the certificate's
+`fingerprint_sha256` (`"certificates": {"<fingerprint>": {"sans": [...]}}`).
+Before 2026-10-06 each address carried its own copy, and the copies were
+most of a report's size. `covers_apex`, `covers_www` and `wildcard` stay
+on each address.
 
 `web` is an empty object when the name has no usable addresses (no
 A/AAAA, NXDOMAIN, bogus zone): callers must not assume `web.apex` exists.
@@ -512,7 +543,10 @@ nameservers that are CNAMEs, unresolvable, unreachable on every one of
 their addresses, or not authoritative, fewer than two nameservers, missing glue, a certificate
 issuer the CAA records forbid, and TLSA records matching no served
 certificate. A bogus zone yields one DNSSEC error; the per-lookup failures
-it causes are folded into it rather than listed one by one.
+it causes are folded into it rather than listed one by one, and so is a
+DMARC lookup that did not complete (`_dmarc` is inside the zone). MX
+targets and SPF includes usually live in other zones, so their failures
+still stand.
 
 Warnings: everything in `findings` with severity `warn`, listed below.
 `info` findings are configuration facts, not warnings, and appear only in
@@ -555,9 +589,9 @@ set.
 
 | severity | codes |
 |---|---|
-| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `redirect_self` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_include_loop` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` |
-| warn | `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `redirect_downgrade` `http_response_inconsistent` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_include_unchecked` `spf_problem` `dmarc_pct_invalid` `dmarc_subdomain_policy_unknown` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` |
-| info | `not_a_zone` `reserved_name` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` `run_deadline_reached` |
+| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `ns_reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `redirect_self` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_include_loop` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` |
+| warn | `reserved_name` `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `redirect_downgrade` `http_response_inconsistent` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_include_unchecked` `spf_problem` `dmarc_pct_invalid` `dmarc_subdomain_policy_unknown` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` |
+| info | `not_a_zone` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `https_not_verified` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` `run_deadline_reached` |
 
 A zone no delegated nameserver answers for is reported as one finding,
 `zone_unreachable`, and the probe stops there. For this to apply, the
@@ -581,9 +615,16 @@ produced. Likewise a zone that answers with no NS records has answered.
 Notes on the info rows:
 
 - `http_probe_refused` is a 401, 403, 407, 417 or 429, either on every
-  address or at the end of a redirect chain. Large sites answer an honest
-  non-browser User-Agent this way, so the status says nothing about the
-  site. A 404 or 410 is still a warning.
+  address or at the end of a redirect chain. Why the server refused is not
+  observable: a bot filter judging the client, a block on the network the
+  probe runs from, or a page that really is private. From an AWS address,
+  1-800-chase-credit-cards.com answered 403 to the same request that a
+  non-cloud host was served. So the status says nothing about the site. A
+  404 or 410 is still a warning.
+- `https_not_verified` is an address whose port 80 refused the probe and
+  whose port 443 did not answer. A block on the probe's network often drops
+  the TLS handshake as well, so this is not reported as `https_unreachable`
+  (a warning that HTTPS is missing): neither port was verified.
 - `http_cleartext_preloaded` is plain HTTP on a host the HSTS preload list
   covers. No browser ever makes that request.
 - A www name inside a zone (`www.app.example.com`) is not checked for a
@@ -753,7 +794,11 @@ resolver's own behaviour into a security verdict about the domain:
 
 Such a name now carries `reserved_name` (the RFC that reserves it), its
 DNSSEC state is `unknown` rather than `bogus`, the delegation and zone
-checks are skipped, and one warning explains why. The suffixes are
+checks are skipped, and one warning explains why. No delegation trace and
+no nameserver audit run: `delegation.status` is `reserved_name`, with the
+reason in `delegation.error`. The warning (until 2026-10-06 an `info`)
+keeps the report from reading as a clean bill of health; `ok` stays true,
+since nothing about the name is broken, only out of reach. The suffixes are
 `invalid`, `test`, `localhost`, `example` (RFC 6761), `local` (RFC 6762),
 `onion` (RFC 7686) and `home.arpa` (RFC 8375). `example.com` and its
 siblings are reserved for documentation but are real delegated names, so

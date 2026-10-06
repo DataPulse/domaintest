@@ -41,31 +41,32 @@ type Report struct {
 	UnicodeDomain string `json:"unicode_domain,omitempty"`
 	// NotAZone is set when the name is a host inside a zone rather than a
 	// zone apex; EnclosingZone names that zone when a SOA revealed it.
-	NotAZone             bool            `json:"not_a_zone,omitempty"`
-	ReservedName         string          `json:"reserved_name,omitempty"` // the RFC reserving this suffix
-	PublicSuffix         bool            `json:"public_suffix,omitempty"` // the name is itself a public suffix, not a registrable domain
-	EnclosingZone        string          `json:"enclosing_zone,omitempty"`
-	Resolver             string          `json:"resolver"`
-	Families             []string        `json:"families"`
-	TimeoutSec           int             `json:"timeout_sec"`
-	TCPTimeoutSec        int             `json:"tcp_timeout_sec"`
-	DNSConcurrency       int             `json:"dns_concurrency"`
-	QuicTimeoutSec       int             `json:"quic_timeout_sec"`
-	MaxTimeSec           int             `json:"max_time_sec"`
-	DNS                  DNSSection      `json:"dns"`
-	DNSSEC               DNSSECReport    `json:"dnssec"`
-	Delegation           Delegation      `json:"delegation"`
-	Web                  WebSection      `json:"web"`
-	Mail                 *MailReport     `json:"mail,omitempty"`
-	Nameservers          *NSReport       `json:"nameservers,omitempty"`
-	CAA                  *CAAReport      `json:"caa,omitempty"`
-	TLSA                 *TLSAReport     `json:"tlsa,omitempty"`
-	Wildcard             *WildcardReport `json:"wildcard,omitempty"`
-	ReservedAddresses    []string        `json:"reserved_addresses,omitempty"`
-	HSTSPreload          string          `json:"hsts_preload,omitempty"`
-	HSTSPreloadCoveredBy string          `json:"hsts_preload_covered_by,omitempty"`
-	HSTSPreloadPolicy    string          `json:"hsts_preload_policy,omitempty"`
-	HSTSPreloadError     string          `json:"hsts_preload_error,omitempty"`
+	NotAZone             bool                 `json:"not_a_zone,omitempty"`
+	ReservedName         string               `json:"reserved_name,omitempty"` // the RFC reserving this suffix
+	PublicSuffix         bool                 `json:"public_suffix,omitempty"` // the name is itself a public suffix, not a registrable domain
+	EnclosingZone        string               `json:"enclosing_zone,omitempty"`
+	Resolver             string               `json:"resolver"`
+	Families             []string             `json:"families"`
+	TimeoutSec           int                  `json:"timeout_sec"`
+	TCPTimeoutSec        int                  `json:"tcp_timeout_sec"`
+	DNSConcurrency       int                  `json:"dns_concurrency"`
+	QuicTimeoutSec       int                  `json:"quic_timeout_sec"`
+	MaxTimeSec           int                  `json:"max_time_sec"`
+	DNS                  DNSSection           `json:"dns"`
+	DNSSEC               DNSSECReport         `json:"dnssec"`
+	Delegation           Delegation           `json:"delegation"`
+	Web                  WebSection           `json:"web"`
+	Certificates         map[string]CertNames `json:"certificates,omitempty"` // by fingerprint_sha256
+	Mail                 *MailReport          `json:"mail,omitempty"`
+	Nameservers          *NSReport            `json:"nameservers,omitempty"`
+	CAA                  *CAAReport           `json:"caa,omitempty"`
+	TLSA                 *TLSAReport          `json:"tlsa,omitempty"`
+	Wildcard             *WildcardReport      `json:"wildcard,omitempty"`
+	ReservedAddresses    []string             `json:"reserved_addresses,omitempty"`
+	HSTSPreload          string               `json:"hsts_preload,omitempty"`
+	HSTSPreloadCoveredBy string               `json:"hsts_preload_covered_by,omitempty"`
+	HSTSPreloadPolicy    string               `json:"hsts_preload_policy,omitempty"`
+	HSTSPreloadError     string               `json:"hsts_preload_error,omitempty"`
 	// HSTSPreloadIncludeSubdomains is whether the entry that preloads the
 	// domain covers its subdomains, www among them; absent when the domain
 	// is not preloaded.
@@ -104,6 +105,35 @@ type HostWeb struct {
 	IPv6           []AddrWeb                 `json:"ipv6,omitempty"`
 	Redirects      map[string]*RedirectChain `json:"redirects,omitempty"`
 	CertConsistent *bool                     `json:"cert_consistent,omitempty"`
+}
+
+// CertNames is one certificate's name list, kept once per report.
+type CertNames struct {
+	SANs []string `json:"sans"`
+}
+
+// hoistCertNames moves each certificate's SAN list out of the per-address
+// entries into rep.Certificates, keyed by fingerprint. A certificate served
+// on many addresses carried its whole list on every one: wikipedia.org's 41
+// names on 4 addresses for apex and www made most of a 15 KB report, paid
+// for in tokens by every LLM reading it (2026-10-06 tester report). Nothing
+// in the findings reads the list; covers_apex and covers_www stay per address.
+func hoistCertNames(rep *Report) {
+	for _, h := range []*HostWeb{rep.Web.Apex, rep.Web.WWW} {
+		for _, a := range h.addrs() {
+			if a.TLS == nil || a.TLS.Cert == nil || a.TLS.Cert.Fingerprint == "" {
+				continue
+			}
+			c := a.TLS.Cert
+			if rep.Certificates == nil {
+				rep.Certificates = map[string]CertNames{}
+			}
+			if _, seen := rep.Certificates[c.Fingerprint]; !seen {
+				rep.Certificates[c.Fingerprint] = CertNames{SANs: nonNil(c.SANs)}
+			}
+			c.SANs = nil
+		}
+	}
 }
 
 // add appends an address entry to the right family list.
@@ -283,6 +313,9 @@ func describeSilentServers(n *NSReport) string {
 		if t.silent > 0 {
 			what = append(what, fmt.Sprintf("no answer on %d of %d addresses", t.silent, t.total))
 		}
+		if t.reserved > 0 {
+			what = append(what, fmt.Sprintf("reserved address (%s) on %d of %d addresses", t.resWhy, t.reserved, t.total))
+		}
 		parts = append(parts, name+" "+strings.Join(what, ", "))
 	}
 	for _, name := range n.Unresolvable {
@@ -339,7 +372,10 @@ func (f *findings) zoneKindFindings(rep *Report) {
 	apex := rep.DNS.Apex
 	switch {
 	case rep.ReservedName != "":
-		f.info("reserved_name", "", "%s is reserved by %s and is not served by the global DNS: delegation and DNSSEC checks do not apply", rep.Domain, rep.ReservedName)
+		// A warning, not info: nothing about the name can be checked
+		// publicly, and an all-quiet report would read as a healthy domain
+		// (2026-10-06 tester report). Not a fail, so ok stays true.
+		f.warn("reserved_name", "", "%s is reserved by %s and is not served by the global DNS: delegation and DNSSEC checks do not apply", rep.Domain, rep.ReservedName)
 	case rep.NotAZone:
 		f.info("not_a_zone", "", "%s is not a zone apex%s: delegation and DNSSEC zone checks skipped", rep.Domain, enclosing(rep.EnclosingZone))
 	case rep.Delegation.Status == DelegationChildNoNS, rep.Delegation.Status == DelegationNoChildAnswer:
@@ -521,6 +557,12 @@ func (f *findings) listenerFindings(label string, a AddrWeb) {
 		f.info("address_not_probed_reserved", label, "%s %s: not probed (reserved address)", label, a.IP)
 	case a.HTTP != PortOpen && a.HTTPS != PortOpen:
 		f.warn("web_no_listener", label, "%s %s: no listener on 80 or 443 (%s/%s)", label, a.IP, a.HTTP, a.HTTPS)
+	case a.HTTPS != PortOpen && a.HTTPRes != nil && probeRefused(a.HTTPRes.Status):
+		// 80 refused the probe, so 443 failing on the same address is as
+		// likely the same refusal (a block on the probe's network drops
+		// the TLS handshake too) as a missing HTTPS service. Neither port
+		// was verified; say that, not that HTTPS is missing.
+		f.info("https_not_verified", label, "%s %s: HTTP on 80 refused the probe (HTTP %d) and HTTPS on 443 did not answer (%s), so neither was verified", label, a.IP, a.HTTPRes.Status, a.HTTPS)
 	case a.HTTPS != PortOpen:
 		f.warn("https_unreachable", label, "%s %s: HTTP on 80 answers but HTTPS on 443 does not (%s)", label, a.IP, a.HTTPS)
 	}
@@ -601,7 +643,7 @@ func (f *findings) deepFindings(rep *Report) {
 	f.httpFindings("apex", rep.Web.Apex, apexPreloaded)
 	f.httpFindings("www", rep.Web.WWW, wwwPreloaded)
 	f.consistencyFindings(rep)
-	f.mailFindings(rep.Mail)
+	f.mailFindings(rep.Mail, zoneValidationBroken(rep))
 	f.nsFindings(rep.Nameservers)
 	f.caaFindings(rep.CAA)
 	f.tlsaFindings(rep.TLSA)
@@ -878,11 +920,14 @@ func distinctStatuses(statuses []int) string {
 }
 
 // probeRefused reports whether a status says the server declined to serve
-// this client rather than that the resource is broken: authentication
-// demanded, a WAF or bot filter answering 403, or a rate limit. Large sites
-// answer an honest non-browser User-Agent this way while serving browsers
-// normally, so the status says nothing about the site's health. 404 and
-// 410 are not here: those are a broken link whoever asks.
+// this request rather than that the resource is broken: authentication
+// demanded, a WAF or bot filter answering 403, or a rate limit. Why it
+// declined is not observable from here: a bot filter judging the client, a
+// block on the probe's source network (1-800-chase-credit-cards.com refused
+// the worker's AWS address with the same request that linserver was served),
+// or a page that really is private. So the status says nothing about the
+// site's health, and the findings built on it state only what was seen. 404
+// and 410 are not here: those are a broken link whoever asks.
 func probeRefused(status int) bool {
 	switch status {
 	case 401, 403, 407, 417, 429:
@@ -1078,11 +1123,23 @@ func (f *findings) hstsFindings(label string, addrs []AddrWeb) {
 }
 
 // mailFindings covers DMARC, SPF, MX, DKIM and MTA-STS.
-func (f *findings) mailFindings(m *MailReport) {
+// zoneValidationBroken reports a bogus or SERVFAIL DNSSEC verdict: every
+// lookup inside the zone fails for that one reason, already reported.
+func zoneValidationBroken(rep *Report) bool {
+	return rep.DNSSEC.State == DNSSECBogus || rep.DNSSEC.State == DNSSECServfail
+}
+
+// mailFindings judges the mail posture. zoneBroken folds a DMARC lookup that
+// did not complete into the DNSSEC verdict: _dmarc.<domain> is inside the
+// zone, so its failure only restates it (2026-10-06 tester report). MX
+// targets and SPF includes usually live in other zones, so theirs stand.
+func (f *findings) mailFindings(m *MailReport, zoneBroken bool) {
 	if m == nil {
 		return
 	}
-	f.dmarcFindings(m.DMARC)
+	if !(zoneBroken && m.DMARC.Unresolved) {
+		f.dmarcFindings(m.DMARC)
+	}
 	f.spfFindings(m.SPF)
 	for _, mx := range m.MX {
 		for _, p := range mx.Problems {
@@ -1263,10 +1320,12 @@ func (f *findings) nsFindings(n *NSReport) {
 // kinds of failure apart: a server that answered and disclaimed authority
 // is a different fact from one that said nothing at all.
 type nsTally struct {
-	total  int
-	lame   int    // answered, and not authoritative
-	silent int    // never answered
-	reason string // why the lame ones are lame
+	total    int
+	lame     int    // answered, and not authoritative
+	silent   int    // never answered
+	reserved int    // a reserved address, not queried
+	reason   string // why the lame ones are lame
+	resWhy   string // why the reserved ones are reserved
 }
 
 // serverFindings reports each nameserver name once (anycast names have many
@@ -1290,6 +1349,9 @@ func tallyServers(f *findings, servers []NSServer) (map[string]*nsTally, []strin
 		}
 		t.total++
 		switch {
+		case s.Reserved != "":
+			t.reserved++
+			t.resWhy = firstNonEmpty(t.resWhy, s.Reserved)
 		case s.Error == "" || s.AA:
 			f.serverWarnings(s)
 		case unanswered(s.Error):
@@ -1308,6 +1370,9 @@ func tallyServers(f *findings, servers []NSServer) (map[string]*nsTally, []strin
 // every address of the name failed: one silent address behind a quorum
 // that is still authoritative is a flaky node, not a broken delegation.
 func (f *findings) nameFindings(name string, t *nsTally) {
+	if t.reserved > 0 {
+		f.fail("ns_reserved_address", name, "nameserver %s: reserved address (%s) on %d of %d addresses, not queried", name, t.resWhy, t.reserved, t.total)
+	}
 	if t.lame > 0 {
 		f.fail("ns_lame", name, "nameserver %s: %s on %d of %d addresses", name, t.reason, t.lame, t.total)
 	}

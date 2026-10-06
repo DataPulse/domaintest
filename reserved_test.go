@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestReservedName(t *testing.T) {
 	for _, c := range []struct{ domain, want string }{
@@ -51,4 +54,28 @@ func TestReservedName_NoSecurityVerdict(t *testing.T) {
 	rep.ReservedName = ""
 	buildFindings(rep)
 	check(t, "bogus still reported", contains(rep.Errors, "DNSSEC validation fails (bogus)"), true)
+}
+
+// A reserved name is outside the global DNS: no delegation is traced, no
+// nameserver audited, and the one finding is a warning, so the report does
+// not read as a clean bill of health (2026-10-06 tester report: the trace ran
+// for printer.home.arpa and the explanation arrived as info).
+func TestRun_ReservedNameIsNotTracedAndWarns(t *testing.T) {
+	s := newScenario(t, "printer.home.arpa", "")
+	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	rep := s.run()
+
+	check(t, "no trace run", len(s.digCalls("+trace")), 0)
+	check(t, "delegation says why", rep.Delegation.Status, DelegationReservedName)
+	check(t, "delegation names the RFC", strings.Contains(rep.Delegation.Error, "RFC 8375"), true)
+	check(t, "no nameserver audit", rep.Nameservers == nil, true)
+	var sev string
+	for _, f := range rep.Findings {
+		if f.Code == "reserved_name" {
+			sev = f.Severity
+		}
+	}
+	check(t, "reserved_name is a warning", sev, "warn")
+	check(t, "ok stays true", rep.OK, true)
+	check(t, "listed in warnings", contains(rep.Warnings, "is reserved by RFC 8375"), true)
 }

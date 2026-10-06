@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http/httptest"
@@ -208,4 +209,104 @@ func (d *silentDialer) DialContext(context.Context, string, string) (net.Conn, e
 	c1, c2 := net.Pipe()
 	d.t.Cleanup(func() { _ = c2.Close() })
 	return c1, nil
+}
+
+// TestClassifyChain_RepairFollowsAIAUpTheChain uses the real certificates of
+// incomplete-chain.badssl.com, captured 2026-10-06. Its leaf names Let's
+// Encrypt YR1, which is signed by ISRG Root YR; only YR1's own AIA leads to
+// Root YR cross-signed by ISRG Root X1, the root the store holds. One fetch
+// was not enough, so the chain was reported as an untrusted root.
+func TestClassifyChain_RepairFollowsAIAUpTheChain(t *testing.T) {
+	leaf := loadChain(t, "incomplete-chain_badssl_com-leaf")[0]
+	yr1 := loadChain(t, "lencr_yr1")[0]
+	rootYR := loadChain(t, "lencr_root_yr_cross_x1")[0]
+	roots := x509.NewCertPool()
+	roots.AddCert(loadChain(t, "isrg_root_x1")[0])
+	withRoots(t, roots)
+	oldTime := verifyTime
+	verifyTime = time.Date(2026, 10, 6, 3, 52, 46, 0, time.UTC)
+	t.Cleanup(func() { verifyTime = oldTime })
+
+	issuers := map[string]*x509.Certificate{
+		"http://yr1.i.lencr.org/": yr1,
+		"http://yr.i.lencr.org/":  rootYR,
+	}
+	old := aiaFetch
+	var fetched []string
+	aiaFetch = func(_ context.Context, url string) (*x509.Certificate, error) {
+		fetched = append(fetched, url)
+		if c, ok := issuers[url]; ok {
+			return c, nil
+		}
+		return nil, errors.New("no such issuer")
+	}
+	t.Cleanup(func() { aiaFetch = old })
+
+	got, detail := classifyChain(context.Background(), []*x509.Certificate{leaf}, "incomplete-chain.badssl.com")
+	check(t, "incomplete, repaired two levels up", got, ChainIncomplete)
+	check(t, "both issuer URLs fetched in order", fetched, []string{"http://yr1.i.lencr.org/", "http://yr.i.lencr.org/"})
+	check(t, "detail names both", strings.Contains(detail, "yr1.i.lencr.org") && strings.Contains(detail, "yr.i.lencr.org"), true)
+
+	// With only the first level reachable, the chain stays unverified.
+	delete(issuers, "http://yr.i.lencr.org/")
+	fetched = nil
+	got, _ = classifyChain(context.Background(), []*x509.Certificate{leaf}, "incomplete-chain.badssl.com")
+	check(t, "untrusted when the second fetch fails", got, ChainUntrustedRoot)
+
+	// The full chain the server should have sent verifies as is, no fetch.
+	fetched = nil
+	got, _ = classifyChain(context.Background(), []*x509.Certificate{leaf, yr1, rootYR}, "incomplete-chain.badssl.com")
+	check(t, "full chain valid", got, ChainValid)
+	check(t, "no fetch for a full chain", len(fetched), 0)
+}
+
+func TestCompleteViaAIA_StopsAtDepth(t *testing.T) {
+	// An issuer that keeps naming another issuer never ends the walk early.
+	ca := newTestCA(t, "root")
+	withRoots(t, x509.NewCertPool()) // nothing trusted: the walk can only give up
+	leaf, _ := ca.issue(t, certSpec{sans: []string{"example.test"}, issuer: ca})
+	leaf.IssuingCertificateURL = []string{"http://aia.test/0"}
+	old := aiaFetch
+	calls := 0
+	aiaFetch = func(context.Context, string) (*x509.Certificate, error) {
+		calls++
+		next, _ := ca.issue(t, certSpec{sans: []string{"Loop CA"}, issuer: ca, isCA: true})
+		next.IssuingCertificateURL = []string{"http://aia.test/next"}
+		return next, nil
+	}
+	t.Cleanup(func() { aiaFetch = old })
+
+	fetched, ok := completeViaAIA(context.Background(), leaf, nil, "example.test")
+	check(t, "not completed", ok, false)
+	check(t, "fetches capped", calls, maxAIADepth)
+	check(t, "urls reported", len(fetched), maxAIADepth)
+}
+
+func TestHoistCertNames_OneListPerCertificate(t *testing.T) {
+	sans := []string{"example.test", "www.example.test", "*.example.test"}
+	cert := func(fp string) *TLSResult {
+		return &TLSResult{Chain: ChainValid, Cert: &CertInfo{Fingerprint: fp, SANs: append([]string{}, sans...), CoversApex: true}}
+	}
+	rep := &Report{Web: WebSection{
+		Apex: &HostWeb{IPv4: []AddrWeb{{IP: "192.0.2.1", TLS: cert("aa")}, {IP: "192.0.2.2", TLS: cert("aa")}},
+			IPv6: []AddrWeb{{IP: "2001:db8::1", TLS: cert("bb")}}},
+		WWW: &HostWeb{IPv4: []AddrWeb{{IP: "192.0.2.1", TLS: cert("aa")}, {IP: "192.0.2.3"}}},
+	}}
+	hoistCertNames(rep)
+	check(t, "one entry per fingerprint", len(rep.Certificates), 2)
+	check(t, "names kept", rep.Certificates["aa"].SANs, sans)
+	for _, a := range append(rep.Web.Apex.addrs(), rep.Web.WWW.addrs()...) {
+		if a.TLS != nil {
+			check(t, a.IP+" has no list of its own", a.TLS.Cert.SANs == nil, true)
+			check(t, a.IP+" keeps the rest", a.TLS.Cert.CoversApex, true)
+		}
+	}
+	out, _ := json.Marshal(rep)
+	check(t, "each name once per certificate", strings.Count(string(out), `"*.example.test"`), 2)
+	check(t, "no per-address sans key", strings.Count(string(out), `"sans"`), 2)
+
+	empty := &Report{}
+	hoistCertNames(empty)
+	out, _ = json.Marshal(empty)
+	check(t, "no certificates key without TLS", strings.Contains(string(out), `"certificates"`), false)
 }

@@ -101,9 +101,16 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	// behind delv would only cost QUIC answers.
 	dnsRunner := limitRunner(r, cfg.DNSConcurrency)
 
+	// A name reserved by RFC is not in the global DNS, so there is no
+	// delegation to trace; classifyZone records why.
+	reserved := reservedName(cfg.Domain) != ""
 	var dns dnsResults
 	parallel(
-		func() { rep.Delegation = runTrace(ctx, cfg, dnsRunner) },
+		func() {
+			if !reserved {
+				rep.Delegation = runTrace(ctx, cfg, dnsRunner)
+			}
+		},
 		func() { dns = gatherDNS(ctx, cfg, dnsRunner, r) },
 	)
 	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach}
@@ -156,6 +163,7 @@ func auditFirst(ctx context.Context, cfg config, r Runner, dns dnsResults, rep *
 func finishReport(ctx context.Context, rep *Report, start time.Time) *Report {
 	rep.DeadlineReached = errors.Is(ctx.Err(), context.DeadlineExceeded)
 	buildFindings(rep)
+	hoistCertNames(rep)
 	rep.ElapsedMs = time.Since(start).Milliseconds()
 	return rep
 }
@@ -199,6 +207,7 @@ func classifyZone(ctx context.Context, rep *Report, cfg config, dns dnsResults, 
 		// a delegation can be judged. Whatever the resolver answered says
 		// something about the resolver, not about the domain.
 		rep.DNSSEC = DNSSECReport{State: DNSSECUnknown, Detail: "name reserved by " + rep.ReservedName + ", outside the global DNS"}
+		rep.Delegation = Delegation{Status: DelegationReservedName, Error: "name reserved by " + rep.ReservedName + ", outside the global DNS: not traced"}
 		return
 	}
 	if rep.NotAZone, rep.EnclosingZone = detectNotAZone(cfg.Domain, dns, rep.Delegation); rep.NotAZone {
@@ -684,9 +693,10 @@ func quicAll(ctx context.Context, cfg config, r Runner, host string, addrs []net
 // --------------------------------------------------------------- others
 
 // auditNameservers resolves the NS set, audits every address and checks
-// glue. Skipped for names that are not zones.
+// glue. Skipped for names that are not zones, and for names outside the
+// global DNS, whose NS answer (if any) came from the resolver itself.
 func auditNameservers(ctx context.Context, cfg config, r Runner, dns dnsResults, rep *Report) *NSReport {
-	if rep.NotAZone {
+	if rep.NotAZone || rep.ReservedName != "" {
 		return nil
 	}
 	names := nsNames(dns.apex["NS"])

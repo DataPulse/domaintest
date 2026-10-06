@@ -14,9 +14,10 @@ const (
 	DelegationMismatch      = "mismatch"
 	DelegationNotDelegated  = "not_delegated"
 	DelegationNoChildAnswer = "no_child_answer"
-	DelegationSameServers   = "same_servers" // parent zone's servers also host the child
-	DelegationChildNoNS     = "child_no_ns"  // child answers with SOA but no NS RRset
-	DelegationNotAZone      = "not_a_zone"   // the name is a host inside a zone, not an apex
+	DelegationSameServers   = "same_servers"  // parent zone's servers also host the child
+	DelegationChildNoNS     = "child_no_ns"   // child answers with SOA but no NS RRset
+	DelegationNotAZone      = "not_a_zone"    // the name is a host inside a zone, not an apex
+	DelegationReservedName  = "reserved_name" // reserved by RFC, outside the global DNS: not traced
 	DelegationError         = "error"
 )
 

@@ -47,7 +47,7 @@ type CertInfo struct {
 	NotBefore     string   `json:"not_before"`
 	NotAfter      string   `json:"not_after"`
 	DaysRemaining int      `json:"days_remaining"`
-	SANs          []string `json:"sans"`
+	SANs          []string `json:"sans,omitempty"` // moved to Report.Certificates when the report is finished
 	CoversApex    bool     `json:"covers_apex"`
 	CoversWWW     bool     `json:"covers_www"`
 	Wildcard      bool     `json:"wildcard"`
@@ -184,12 +184,16 @@ func chainProblems(headline string, leaf *x509.Certificate, host string) []strin
 	return out
 }
 
+// verifyTime is when chains are verified; zero means now. Tests that verify
+// captured real certificates pin it to the capture time.
+var verifyTime time.Time
+
 func verifyChain(leaf *x509.Certificate, intermediates []*x509.Certificate, host string) error {
 	pool := x509.NewCertPool()
 	for _, c := range intermediates {
 		pool.AddCert(c)
 	}
-	_, err := leaf.Verify(x509.VerifyOptions{DNSName: host, Roots: tlsRoots, Intermediates: pool})
+	_, err := leaf.Verify(x509.VerifyOptions{DNSName: host, Roots: tlsRoots, Intermediates: pool, CurrentTime: verifyTime})
 	return err
 }
 
@@ -203,8 +207,8 @@ func classifyVerifyError(ctx context.Context, err error, chain []*x509.Certifica
 	case errors.As(err, &authErr) && isSelfSigned(leaf):
 		return ChainSelfSigned, "self-signed certificate"
 	case errors.As(err, &authErr):
-		if completed := completeViaAIA(ctx, leaf, chain[1:], host); completed {
-			return ChainIncomplete, "server did not send the intermediate certificate (fetched via AIA: " + leaf.IssuingCertificateURL[0] + ")"
+		if fetched, completed := completeViaAIA(ctx, leaf, chain[1:], host); completed {
+			return ChainIncomplete, "server did not send the intermediate certificate (fetched via AIA: " + strings.Join(fetched, ", ") + ")"
 		}
 		return ChainUntrustedRoot, scrubProbeError(err.Error())
 	default:
@@ -222,20 +226,44 @@ func isSelfSigned(c *x509.Certificate) bool {
 	return c.CheckSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature) == nil
 }
 
+// maxAIADepth bounds how far up the issuer links a repair follows. A leaf
+// whose intermediate is signed by a root the store does not hold yet needs
+// two fetches: incomplete-chain.badssl.com names Let's Encrypt YR1, which is
+// signed by ISRG Root YR, and only YR1's own AIA leads to Root YR
+// cross-signed by ISRG Root X1. One fetch reported that chain as an
+// untrusted root (2026-10-06 tester report).
+const maxAIADepth = 3
+
 // completeViaAIA reports whether the chain becomes valid once the issuer
-// certificate named in the leaf's AIA extension is added: the classic
-// "works in browsers, fails elsewhere" incomplete chain.
-func completeViaAIA(ctx context.Context, leaf *x509.Certificate, intermediates []*x509.Certificate, host string) bool {
-	if len(leaf.IssuingCertificateURL) == 0 {
-		return false
+// certificates named in the AIA extensions are added, following each
+// fetched certificate's own AIA link in turn: the classic "works in
+// browsers, fails elsewhere" incomplete chain. It returns the URLs fetched.
+func completeViaAIA(ctx context.Context, leaf *x509.Certificate, intermediates []*x509.Certificate, host string) ([]string, bool) {
+	pool := append([]*x509.Certificate{}, intermediates...)
+	var fetched []string
+	for cert := leaf; len(fetched) < maxAIADepth; {
+		if len(cert.IssuingCertificateURL) == 0 || isSelfSigned(cert) {
+			return fetched, false
+		}
+		issuer, err := fetchIssuer(ctx, cert.IssuingCertificateURL[0])
+		if err != nil {
+			return fetched, false
+		}
+		fetched = append(fetched, cert.IssuingCertificateURL[0])
+		pool = append(pool, issuer)
+		if verifyChain(leaf, pool, host) == nil {
+			return fetched, true
+		}
+		cert = issuer
 	}
+	return fetched, false
+}
+
+// fetchIssuer runs one AIA fetch under its own timeout.
+func fetchIssuer(ctx context.Context, rawURL string) (*x509.Certificate, error) {
 	ctx, cancel := context.WithTimeout(ctx, aiaTimeout)
 	defer cancel()
-	issuer, err := aiaFetch(ctx, leaf.IssuingCertificateURL[0])
-	if err != nil {
-		return false
-	}
-	return verifyChain(leaf, append(append([]*x509.Certificate{}, intermediates...), issuer), host) == nil
+	return aiaFetch(ctx, rawURL)
 }
 
 // parseCertificate accepts DER or PEM.

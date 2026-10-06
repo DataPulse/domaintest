@@ -507,3 +507,47 @@ func TestTLSFindings_CertMismatchOnlyWhenItMatters(t *testing.T) {
 	g.tlsFindings("apex", narrower, nil)
 	check(t, "coverage differs", contains(g.warnings, "differ in validity or in the names they cover"), true)
 }
+
+// dnssec-failed.org is a deliberately bogus zone, captured live. Its DMARC
+// lookup fails for the same reason every other lookup inside the zone does,
+// so dmarc_unknown only restated dnssec_bogus (2026-10-06 tester report).
+func TestDMARCUnknownFoldsIntoBogusZone(t *testing.T) {
+	rep, _, oldWarnings := replayFixture(t, "testdata/reports/dnssec-failed.org.json")
+	check(t, "captured with the restatement", contains(oldWarnings, "the DMARC lookup did not complete"), true)
+	check(t, "zone is bogus", rep.DNSSEC.State, DNSSECBogus)
+	check(t, "dnssec_bogus reported", contains(rep.Errors, "DNSSEC validation fails (bogus)"), true)
+	check(t, "no dmarc_unknown", contains(rep.Warnings, "the DMARC lookup did not complete"), false)
+
+	// In a zone that validates, an unanswered DMARC lookup is still a warning.
+	rep.DNSSEC.State = DNSSECSecure
+	buildFindings(rep)
+	check(t, "still warned in a working zone", contains(rep.Warnings, "the DMARC lookup did not complete"), true)
+}
+
+// 1-800-chase-credit-cards.com from the scrape worker's AWS address
+// (production report, 2026-10-05): port 80 answered 403 and 443's handshake
+// failed on one address. From linserver the same build was served 200 on
+// both, so the 443 failure was the same block, not a missing HTTPS service.
+func TestHTTPSFailureBehindRefusalIsNotVerified(t *testing.T) {
+	rep, oldErrors, oldWarnings := replayFixture(t, "testdata/reports/1-800-chase-credit-cards.com.json")
+	check(t, "captured with the false warning", contains(oldWarnings, "HTTP on 80 answers but HTTPS on 443 does not"), true)
+	check(t, "errors unchanged", rep.Errors, oldErrors)
+	check(t, "no https_unreachable", contains(rep.Warnings, "HTTPS on 443 does not"), false)
+	var notVerified []string
+	for _, f := range rep.Findings {
+		if f.Code == "https_not_verified" {
+			check(t, "info", f.Severity, SeverityInfo)
+			notVerified = append(notVerified, f.Host+" "+f.Message)
+		}
+	}
+	check(t, "one per refused address with 443 down", notVerified, []string{
+		"apex apex 3.33.130.190: HTTP on 80 refused the probe (HTTP 403) and HTTPS on 443 did not answer (error), so neither was verified",
+		"www www 3.33.130.190: HTTP on 80 refused the probe (HTTP 403) and HTTPS on 443 did not answer (error), so neither was verified",
+	})
+}
+
+func TestListenerFindings_HTTPSUnreachableStillWarnsWhen80Served(t *testing.T) {
+	var f findings
+	f.listenerFindings("apex", AddrWeb{IP: "192.0.2.10", HTTP: PortOpen, HTTPS: PortRefused, HTTPRes: &HTTPResult{Status: 200}})
+	check(t, "a served 80 with 443 down still warns", findingCodes(&f), []string{"warn:https_unreachable"})
+}

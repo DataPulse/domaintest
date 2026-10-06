@@ -241,3 +241,41 @@ func TestInterpretAudit_TruncatedIsNotMissingSOA(t *testing.T) {
 	interpretAudit(&tc, []digMessage{truncated, {Status: "NOERROR"}})
 	check(t, "truncation is not a missing SOA", tc.NoSOA, false)
 }
+
+// A nameserver published at a reserved address is reported, never queried:
+// in production a query to 10.x or 169.254.x would go into the network the
+// probe runs in (2026-10-06).
+func TestAuditAll_ReservedAddressIsNotQueried(t *testing.T) {
+	rep := NSReport{Servers: []NSServer{}, addrs: map[string][]netip.Addr{
+		"ns1.example.test.": {netip.MustParseAddr("10.0.0.53")},
+		"ns2.example.test.": {netip.MustParseAddr("169.254.169.253"), netip.MustParseAddr("8.8.8.8")},
+	}}
+	r := newFakeRunner()
+	r.fallback = func(tool string, args []string) (fakeCall, bool) {
+		return fakeCall{stdout: fixture(t, "dig/ns/jschmidt_at_ns-507.yaml")}, tool == "dig"
+	}
+	auditAll(context.Background(), r, "dig", &rep, "example.test", []string{familyIPv4}, 3)
+
+	queried := r.called("dig")
+	check(t, "only the public address queried", len(queried), 1)
+	check(t, "and it is 8.8.8.8", strings.Contains(queried[0], "@8.8.8.8"), true)
+	check(t, "three servers listed", len(rep.Servers), 3)
+	for _, s := range rep.Servers {
+		if s.IP == "8.8.8.8" {
+			continue
+		}
+		check(t, s.IP+" marked reserved", s.Reserved != "", true)
+		check(t, s.IP+" says not queried", strings.Contains(s.Error, "not queried"), true)
+	}
+
+	var f findings
+	f.serverFindings(rep.Servers)
+	codes := map[string]string{}
+	for _, x := range f.list {
+		codes[x.Code+" "+x.Host] = x.Severity
+	}
+	check(t, "ns1 fails as reserved", codes["ns_reserved_address ns1.example.test."], "fail")
+	check(t, "ns2 fails as reserved", codes["ns_reserved_address ns2.example.test."], "fail")
+	check(t, "not called silent", codes["ns_no_answer ns1.example.test."], "")
+	check(t, "not called lame", codes["ns_lame ns1.example.test."], "")
+}

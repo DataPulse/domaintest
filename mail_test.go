@@ -432,7 +432,7 @@ func TestCheckMX_UnansweredIsNotAbsent(t *testing.T) {
 	check(t, "not called absent", contains(mx[0].Problems, "no address"), false)
 
 	f := &findings{}
-	f.mailFindings(&MailReport{DMARC: DMARC{}, MX: mx})
+	f.mailFindings(&MailReport{DMARC: DMARC{}, MX: mx}, false)
 	check(t, "no error", f.errors, []string(nil))
 	check(t, "warned instead", contains(f.warnings, "did not complete"), true)
 
@@ -443,7 +443,7 @@ func TestCheckMX_UnansweredIsNotAbsent(t *testing.T) {
 	}))
 	check(t, "denial is not a gap", denied[0].Unresolved, false)
 	g := &findings{}
-	g.mailFindings(&MailReport{DMARC: DMARC{}, MX: denied})
+	g.mailFindings(&MailReport{DMARC: DMARC{}, MX: denied}, false)
 	check(t, "still an error", contains(g.errors, "does not exist"), true)
 }
 
@@ -467,7 +467,7 @@ func TestProbeDKIM_WildcardControl(t *testing.T) {
 	check(t, "none called revoked", res.Revoked, []string{})
 
 	f := &findings{}
-	f.mailFindings(&MailReport{DMARC: DMARC{}, MX: []MXCheck{}, DKIM: res})
+	f.mailFindings(&MailReport{DMARC: DMARC{}, MX: []MXCheck{}, DKIM: res}, false)
 	var dkim []string
 	for _, w := range f.warnings {
 		if strings.Contains(w, "DKIM") || strings.Contains(w, "_domainkey") {
