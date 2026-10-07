@@ -31,7 +31,7 @@ type DNSSECReport struct {
 	Detail string      `json:"detail,omitempty"`
 }
 
-// bogusProbe is the callback used when delv reported a failure. It returns
+// bogusProbe is the callback used when a lookup failed. It returns
 // whether the data exists when checking is disabled (dig +cd) and any
 // Extended DNS Error text from a validating query.
 type bogusProbe func(name, qtype string) (hasData bool, ede string)
@@ -42,7 +42,11 @@ type bogusProbe func(name, qtype string) (hasData bool, ede string)
 func classifyDNSSEC(ds, dnskey Lookup, apex map[string]Lookup, probe bogusProbe) DNSSECReport {
 	rep := DNSSECReport{DS: ds.HasRecords(), DNSKEY: dnskey.HasRecords()}
 	if failed := firstFailed(ds, dnskey, apex); failed != nil {
-		return classifyFailure(rep, *failed, probe)
+		if failed.unqueryable {
+			rep.State, rep.Detail = DNSSECUnknown, failed.Error
+			return rep
+		}
+		return classifyFailure(rep, *failed, probe, unsignedDelegation(ds))
 	}
 	if !ds.Answered() || !dnskey.Answered() {
 		rep.State = DNSSECUnknown
@@ -71,7 +75,9 @@ func classifyDNSSEC(ds, dnskey Lookup, apex map[string]Lookup, probe bogusProbe)
 // nonexistentState reports a name that does not exist. "insecure" read as a
 // verdict on a zone that is not there, beside a TLSA section whose validated
 // denial said signed: true (tester, 2026-10-06). The DS lookup carries the
-// parent's denial; its trust says whether that denial validated.
+// parent's denial; its trust, the resolver's AD bit (confirmNegativeTrust),
+// says whether that denial validated. An NSEC3 opt-out denial (every missing
+// .com, .net or .org name) proves nothing and does not.
 func nonexistentState(rep *DNSSECReport, ds Lookup) {
 	rep.State = DNSSECNonexistent
 	if ds.Trust == TrustSecure {
@@ -143,38 +149,19 @@ func firstFailed(ds, dnskey Lookup, apex map[string]Lookup) *Lookup {
 	return nil
 }
 
-// validationFailures are delv result strings that name a DNSSEC validation
-// problem outright, so no checking-disabled probe is needed to call the
-// zone bogus.
-var validationFailures = []string{
-	"broken trust chain",
-	"no valid RRSIG",
-	"no valid DS",
-	"no valid KEY",
-	"no valid signature",
-	"DNSSEC validation failure",
+// unsignedDelegation reports a DS lookup the parent answered with no DS:
+// nothing in the zone is ever validated, so no failure in it can be a
+// validation failure.
+func unsignedDelegation(ds Lookup) bool {
+	return ds.Status == StatusNXRRSet
 }
 
-// isValidationFailure reports whether a failed lookup carries one of delv's
-// explicit validation-failure results.
-func isValidationFailure(l Lookup) bool {
-	for _, s := range validationFailures {
-		if strings.Contains(l.Error, s) {
-			return true
-		}
-	}
-	return false
-}
-
-func classifyFailure(rep DNSSECReport, failed Lookup, probe bogusProbe) DNSSECReport {
-	if isValidationFailure(failed) {
-		rep.State = DNSSECBogus
-		rep.Detail = strings.TrimPrefix(failed.Error, "delv: ")
-		if probe != nil {
-			_, rep.EDE = probe(failed.Name, failed.Type)
-		}
-		return rep
-	}
+// classifyFailure judges a failed lookup. "Fails, but answers with checking
+// disabled" means bogus only in a signed zone: in an unsigned one it is a
+// server that failed once and answered the retry. jd.com (2026-10-07) had
+// its MX lookup SERVFAIL on a slow nameserver, the +cd re-query answered,
+// and the unsigned zone was reported bogus.
+func classifyFailure(rep DNSSECReport, failed Lookup, probe bogusProbe, unsigned bool) DNSSECReport {
 	if probe == nil {
 		rep.State = DNSSECServfail
 		rep.Detail = failed.Error
@@ -182,6 +169,11 @@ func classifyFailure(rep DNSSECReport, failed Lookup, probe bogusProbe) DNSSECRe
 	}
 	hasData, ede := probe(failed.Name, failed.Type)
 	rep.EDE = ede
+	if hasData && unsigned {
+		rep.State = DNSSECServfail
+		rep.Detail = "resolver failed, then answered with checking disabled; the zone is unsigned, so this is not a validation failure"
+		return rep
+	}
 	if hasData {
 		rep.State = DNSSECBogus
 		rep.Detail = "resolver fails validation but data exists with checking disabled"

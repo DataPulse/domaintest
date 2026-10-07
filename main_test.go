@@ -53,7 +53,7 @@ func TestParseArgs_Forms(t *testing.T) {
 }
 
 func TestParseArgs_FlagsAndPaths(t *testing.T) {
-	cfg, err := parseArgs([]string{"-pretty", "-quicprobe", "/opt/qp", "-delv", "/opt/delv", "-dig", "/opt/dig", "x.org"})
+	cfg, err := parseArgs([]string{"-pretty", "-quicprobe", "/opt/qp", "-dog", "/opt/dog", "-dig", "/opt/dig", "x.org"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestParseArgs_FlagsAndPaths(t *testing.T) {
 	}
 	check(t, "quic timeout flag", qcfg.QuicTimeoutSec, 7)
 	check(t, "domain after value flag", qcfg.Domain, "x.org")
-	if !cfg.Pretty || cfg.QuicPath != "/opt/qp" || cfg.DelvPath != "/opt/delv" || cfg.DigPath != "/opt/dig" {
+	if !cfg.Pretty || cfg.QuicPath != "/opt/qp" || cfg.DogPath != "/opt/dog" || cfg.DigPath != "/opt/dig" {
 		t.Errorf("got %+v", cfg)
 	}
 	check(t, "default tcp timeout", cfg.TCPTimeoutSec, defaultTCPTimeoutSec)
@@ -226,14 +226,14 @@ func TestRealMain_UsageAndMissingTools(t *testing.T) {
 		t.Errorf("bad -t: rc %d", rc)
 	}
 	errBuf.Reset()
-	rc := realMain([]string{"-delv", "/nonexistent/delv", "a.org"}, &out, &errBuf)
+	rc := realMain([]string{"-dog", "/nonexistent/dog", "a.org"}, &out, &errBuf)
 	if rc != 2 || !strings.Contains(errBuf.String(), "not found") {
-		t.Errorf("missing delv: rc %d stderr %q", rc, errBuf.String())
+		t.Errorf("missing dog: rc %d stderr %q", rc, errBuf.String())
 	}
 	errBuf.Reset()
 	t.Setenv("PATH", t.TempDir())
 	t.Chdir(t.TempDir()) // keep the ../quicprobe sibling fallback out of reach
-	rc = realMain([]string{"-delv", "/bin/true", "-dig", "/bin/true", "a.org"}, &out, &errBuf)
+	rc = realMain([]string{"-dog", "/bin/true", "-dig", "/bin/true", "a.org"}, &out, &errBuf)
 	if rc != 2 || !strings.Contains(errBuf.String(), "quicprobe") {
 		t.Errorf("missing quicprobe: rc %d stderr %q", rc, errBuf.String())
 	}

@@ -23,7 +23,7 @@ func loadChain(t *testing.T, name string) []*x509.Certificate {
 }
 
 func TestParseTLSA(t *testing.T) {
-	l := parseDelvYAML(fixture(t, "tlsa/www_huque_com.yaml"), "TLSA")
+	l := dogFixture(t, "dog/tlsa/www_huque_com.json", "TLSA")
 	recs := parseTLSARecords(l.Records)
 	check(t, "four records", len(recs), 4)
 	for _, r := range recs {
@@ -37,7 +37,7 @@ func TestParseTLSA(t *testing.T) {
 			t.Errorf("parseTLSA(%q) should fail", bad)
 		}
 	}
-	// Hex with embedded spaces, as delv prints it.
+	// Hex with embedded spaces, as BIND tools print it.
 	rec, ok := parseTLSA("3 1 1 0D2280AA14C34B9FD76607135B16FB165A0059F6E47F455814DD8617 6BBC3FDF")
 	check(t, "spaced hex ok", ok, true)
 	check(t, "spaced hex bytes", len(rec.Data), 32)
@@ -45,14 +45,14 @@ func TestParseTLSA(t *testing.T) {
 
 func TestMatchTLSA_LiveChains(t *testing.T) {
 	cases := []struct{ host, fixture, pem string }{
-		{"www.huque.com", "tlsa/www_huque_com.yaml", "www_huque_com"},
-		{"torproject.org", "tlsa/torproject_org.yaml", "torproject_org"},
-		{"fedoraproject.org", "tlsa/fedoraproject_org.yaml", "fedoraproject_org"},
+		{"www.huque.com", "dog/tlsa/www_huque_com.json", "www_huque_com"},
+		{"torproject.org", "dog/tlsa/torproject_org.json", "torproject_org"},
+		{"fedoraproject.org", "dog/tlsa/fedoraproject_org.json", "fedoraproject_org"},
 	}
 	for _, c := range cases {
 		t.Run(c.host, func(t *testing.T) {
 			chain := loadChain(t, c.pem)
-			recs := parseTLSARecords(parseDelvYAML(fixture(t, c.fixture), "TLSA").Records)
+			recs := parseTLSARecords(dogFixture(t, c.fixture, "TLSA").Records)
 			check(t, "matches served chain", matchTLSA(recs, chain, false), TLSAMatch)
 			check(t, "mismatch against another chain", matchTLSA(recs, loadChain(t, "www_torproject_org"), false), TLSAMismatch)
 		})

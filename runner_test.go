@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"os/exec"
 	"sync"
 	"testing"
 	"time"
@@ -44,7 +45,7 @@ func TestLimitRunner(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, _, _ = limited.Run(context.Background(), "delv", "x")
+			_, _, _ = limited.Run(context.Background(), "dog", "x")
 		}()
 	}
 	// Let the callers pile up against the cap, then release them.
@@ -66,13 +67,13 @@ func TestLimitRunner(t *testing.T) {
 func TestLimitRunner_ContextEndsWhileWaiting(t *testing.T) {
 	inner := &countingRunner{release: make(chan struct{})}
 	limited := limitRunner(inner, 1)
-	go func() { _, _, _ = limited.Run(context.Background(), "delv", "holder") }()
+	go func() { _, _, _ = limited.Run(context.Background(), "dog", "holder") }()
 	time.Sleep(50 * time.Millisecond)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	_, _, err := limited.Run(ctx, "delv", "waiter")
+	_, _, err := limited.Run(ctx, "dog", "waiter")
 	check(t, "gives up", errors.Is(err, context.DeadlineExceeded), true)
 	check(t, "reported as a timeout", isTimeout(ctx, err), true)
 	check(t, "promptly", time.Since(start) < time.Second, true)
@@ -83,10 +84,10 @@ func TestLimitRunner_ContextEndsWhileWaiting(t *testing.T) {
 // invocation cannot leak capacity.
 func TestLimitRunner_ReleasesOnError(t *testing.T) {
 	failing := newFakeRunner()
-	failing.on("delv", []string{"x"}, fakeCall{err: errFake})
+	failing.on("dog", []string{"x"}, fakeCall{err: errFake})
 	limited := limitRunner(failing, 1)
 	for i := 0; i < 3; i++ {
-		if _, _, err := limited.Run(context.Background(), "delv", "x"); err == nil {
+		if _, _, err := limited.Run(context.Background(), "dog", "x"); err == nil {
 			t.Fatal("expected the wrapped error")
 		}
 	}
@@ -108,4 +109,24 @@ func TestExecRunner_OutputIsCapped(t *testing.T) {
 	out, _, err := execRunner{}.Run(context.Background(), "sh", "-c", "head -c 3000000 /dev/zero")
 	check(t, "ran", err, nil)
 	check(t, "capped", len(out), maxToolOutput)
+}
+
+// A tool killed at its deadline whose child still holds the output pipe
+// (the shape of a wrapper script around a DNS tool) must not hold Run past the
+// deadline until that child exits: WaitDelay bounds the wait.
+func TestExecRunner_KilledToolWithLivingChild(t *testing.T) {
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("no sh")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, _, err = execRunner{}.Run(ctx, sh, "-c", "sleep 10 & wait")
+	if took := time.Since(start); took > 200*time.Millisecond+toolWaitDelay+time.Second {
+		t.Errorf("Run returned after %v; the orphan held it past the deadline", took)
+	}
+	if !isTimeout(ctx, err) {
+		t.Errorf("err = %v, want a timeout", err)
+	}
 }

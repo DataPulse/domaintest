@@ -29,8 +29,7 @@ func TestReservedName(t *testing.T) {
 	}
 }
 
-// A validating resolver answers RFC 6761 names itself, and the denial it
-// synthesises is unsigned, so delv reports a broken trust chain. That is a
+// A validating resolver answers RFC 6761 names itself. What it says is a
 // fact about the resolver, and must not become a security verdict about
 // the domain.
 func TestReservedName_NoSecurityVerdict(t *testing.T) {
@@ -62,7 +61,7 @@ func TestReservedName_NoSecurityVerdict(t *testing.T) {
 // for printer.home.arpa and the explanation arrived as info).
 func TestRun_ReservedNameIsNotTracedAndWarns(t *testing.T) {
 	s := newScenario(t, "printer.home.arpa", "")
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	rep := s.run()
 
 	check(t, "no trace run", len(s.digCalls("+trace")), 0)

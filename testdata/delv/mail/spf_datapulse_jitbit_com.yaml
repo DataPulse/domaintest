@@ -1,6 +1,0 @@
-type: DELV_RESULT
-query_name: datapulse.jitbit.com
-status: success
-records:
-  - unsigned_answer:
-    - 'datapulse.jitbit.com. 300 IN TXT "v=spf1 mx a a:hmail.jitbit.com a:hmail2.jitbit.com include:amazonses.com ~all"'

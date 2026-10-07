@@ -1,0 +1,1 @@
+{"responses":[{"flags":{"qr":true,"opcode":"QUERY","aa":false,"tc":false,"rd":true,"ra":true,"ad":false,"cd":false,"rcode":"NOERROR"},"queries":[{"name":"google.com.","class":"IN","type":"AAAA"}],"answers":[{"name":"google.com.","class":"IN","ttl":256,"type":"AAAA","data":{"address":"2607:f8b0:4009:81d::200e"}}],"authorities":[],"additionals":[]}]}

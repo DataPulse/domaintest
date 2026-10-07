@@ -1,0 +1,1 @@
+{"responses":[{"flags":{"qr":true,"opcode":"QUERY","aa":false,"tc":false,"rd":true,"ra":true,"ad":false,"cd":false,"rcode":"NOERROR"},"queries":[{"name":"ns-1034.awsdns-01.org.","class":"IN","type":"AAAA"}],"answers":[{"name":"ns-1034.awsdns-01.org.","class":"IN","ttl":86400,"type":"AAAA","data":{"address":"2600:9000:5304:a00::1"}}],"authorities":[],"additionals":[]}]}

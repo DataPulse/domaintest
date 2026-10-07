@@ -10,7 +10,7 @@ func lookups(t *testing.T, files map[string]string) map[string]Lookup {
 	t.Helper()
 	out := map[string]Lookup{}
 	for qtype, file := range files {
-		l := parseDelvYAML(fixture(t, file), qtype)
+		l := dogFixture(t, file, qtype)
 		l.Name = "test"
 		out[qtype] = l
 	}
@@ -19,11 +19,11 @@ func lookups(t *testing.T, files map[string]string) map[string]Lookup {
 
 func TestClassifyDNSSEC_Secure(t *testing.T) {
 	apex := lookups(t, map[string]string{
-		"A": "delv/jschmidt_a_nxrrset.yaml", "AAAA": "delv/jschmidt_aaaa_nxrrset.yaml",
-		"MX": "delv/jschmidt_mx.yaml", "TXT": "delv/jschmidt_txt.yaml", "NS": "delv/jschmidt_ns.yaml",
+		"A": "dog/jschmidt_a_nxrrset.json", "AAAA": "dog/jschmidt_aaaa_nxrrset.json",
+		"MX": "dog/jschmidt_mx.json", "TXT": "dog/jschmidt_txt.json", "NS": "dog/jschmidt_ns.json",
 	})
-	ds := parseDelvYAML(fixture(t, "delv/jschmidt_ds.yaml"), "DS")
-	key := parseDelvYAML(fixture(t, "delv/jschmidt_dnskey.yaml"), "DNSKEY")
+	ds := dogFixture(t, "dog/jschmidt_ds.json", "DS")
+	key := dogFixture(t, "dog/jschmidt_dnskey.json", "DNSKEY")
 	rep := classifyDNSSEC(ds, key, apex, func(string, string) (bool, string) {
 		t.Fatal("bogus probe must not run for a healthy zone")
 		return false, ""
@@ -35,33 +35,41 @@ func TestClassifyDNSSEC_Secure(t *testing.T) {
 
 func TestClassifyDNSSEC_Insecure(t *testing.T) {
 	apex := lookups(t, map[string]string{
-		"A": "delv/google_a_unsigned.yaml", "AAAA": "delv/google_aaaa_unsigned.yaml",
-		"MX": "delv/google_mx_unsigned.yaml", "TXT": "delv/google_txt_unsigned.yaml", "NS": "delv/google_ns_unsigned.yaml",
+		"A": "dog/google_a_unsigned.json", "AAAA": "dog/google_aaaa_unsigned.json",
+		"MX": "dog/google_mx_unsigned.json", "TXT": "dog/google_txt_unsigned.json", "NS": "dog/google_ns_unsigned.json",
 	})
-	ds := parseDelvYAML(fixture(t, "delv/google_ds_nxrrset.yaml"), "DS")
-	key := parseDelvYAML(fixture(t, "delv/google_dnskey_nxrrset.yaml"), "DNSKEY")
+	ds := dogFixture(t, "dog/google_ds_nxrrset.json", "DS")
+	key := dogFixture(t, "dog/google_dnskey_nxrrset.json", "DNSKEY")
 	rep := classifyDNSSEC(ds, key, apex, nil)
 	if rep.State != DNSSECInsecure || rep.DS || rep.DNSKEY {
 		t.Errorf("unexpected %+v", rep)
 	}
 }
 
-// A .com name that does not exist (delv captures, 2026-10-06): every lookup
-// is a validated NXDOMAIN. The state is "nonexistent", not a verdict on a
-// zone, and the detail says the denial validated.
+// A .com name that does not exist (dog captures, 2026-10-07): .com denies
+// with an NSEC3 opt-out span, so the resolver withholds AD (RFC 5155 §9.2).
+// The state is "nonexistent", not a verdict on a zone, and the detail says
+// the denial did not validate. The same name in .se is denied with NSEC,
+// and that denial did validate.
 func TestClassifyDNSSEC_Nonexistent(t *testing.T) {
-	apex := lookups(t, map[string]string{"A": "delv/nxdomain_com_a.yaml", "NS": "delv/nxdomain_com_ns.yaml"})
-	ds := parseDelvYAML(fixture(t, "delv/nxdomain_com_ds.yaml"), "DS")
-	key := parseDelvYAML(fixture(t, "delv/nxdomain_com_dnskey.yaml"), "DNSKEY")
-	rep := classifyDNSSEC(ds, key, apex, func(string, string) (bool, string) {
-		t.Fatal("bogus probe must not run for a validated denial")
+	apex := lookups(t, map[string]string{"A": "dog/nxdomain_com_a.json", "NS": "dog/nxdomain_com_ns.json"})
+	key := dogFixture(t, "dog/nxdomain_com_dnskey.json", "DNSKEY")
+	noProbe := func(string, string) (bool, string) {
+		t.Fatal("bogus probe must not run for a denial")
 		return false, ""
-	})
-	if rep.State != DNSSECNonexistent || rep.DS || rep.DNSKEY || !strings.Contains(rep.Detail, "was DNSSEC-validated") {
-		t.Errorf("unexpected %+v", rep)
+	}
+	ds := dogFixture(t, "dog/nxdomain_com_ds.json", "DS")
+	rep := classifyDNSSEC(ds, key, apex, noProbe)
+	if rep.State != DNSSECNonexistent || rep.DS || rep.DNSKEY || !strings.Contains(rep.Detail, "was not validated") {
+		t.Errorf("opt-out denial: %+v", rep)
+	}
+	ds = dogFixture(t, "dog/nxdomain_se_ds.json", "DS")
+	rep = classifyDNSSEC(ds, key, apex, noProbe)
+	if rep.State != DNSSECNonexistent || !strings.Contains(rep.Detail, "was DNSSEC-validated") {
+		t.Errorf("NSEC denial: %+v", rep)
 	}
 	// The unsigned capture: the same state, the denial not validated.
-	un := parseDelvYAML(fixture(t, "delv/nxdomain_unsigned.yaml"), "A")
+	un := dogFixture(t, "dog/nxdomain_unsigned.json", "A")
 	rep = classifyDNSSEC(un, un, map[string]Lookup{"A": un, "NS": un}, nil)
 	if rep.State != DNSSECNonexistent || !strings.Contains(rep.Detail, "not validated") {
 		t.Errorf("unsigned denial: %+v", rep)
@@ -69,9 +77,9 @@ func TestClassifyDNSSEC_Nonexistent(t *testing.T) {
 }
 
 func TestClassifyDNSSEC_Island(t *testing.T) {
-	apex := lookups(t, map[string]string{"A": "delv/google_a_unsigned.yaml"})
-	ds := parseDelvYAML(fixture(t, "delv/google_ds_nxrrset.yaml"), "DS")
-	key := parseDelvYAML(fixture(t, "delv/jschmidt_dnskey.yaml"), "DNSKEY")
+	apex := lookups(t, map[string]string{"A": "dog/google_a_unsigned.json"})
+	ds := dogFixture(t, "dog/google_ds_nxrrset.json", "DS")
+	key := dogFixture(t, "dog/jschmidt_dnskey.json", "DNSKEY")
 	rep := classifyDNSSEC(ds, key, apex, nil)
 	if rep.State != DNSSECIsland || rep.Detail == "" {
 		t.Errorf("unexpected %+v", rep)
@@ -79,9 +87,9 @@ func TestClassifyDNSSEC_Island(t *testing.T) {
 }
 
 func TestClassifyDNSSEC_DSWithoutDNSKEY(t *testing.T) {
-	apex := lookups(t, map[string]string{"A": "delv/google_a_unsigned.yaml"})
-	ds := parseDelvYAML(fixture(t, "delv/jschmidt_ds.yaml"), "DS")
-	key := parseDelvYAML(fixture(t, "delv/google_dnskey_nxrrset.yaml"), "DNSKEY")
+	apex := lookups(t, map[string]string{"A": "dog/google_a_unsigned.json"})
+	ds := dogFixture(t, "dog/jschmidt_ds.json", "DS")
+	key := dogFixture(t, "dog/google_dnskey_nxrrset.json", "DNSKEY")
 	rep := classifyDNSSEC(ds, key, apex, nil)
 	if rep.State != DNSSECBogus {
 		t.Errorf("DS without DNSKEY should be bogus, got %+v", rep)
@@ -89,9 +97,9 @@ func TestClassifyDNSSEC_DSWithoutDNSKEY(t *testing.T) {
 }
 
 func TestClassifyDNSSEC_BogusViaProbe(t *testing.T) {
-	apex := lookups(t, map[string]string{"A": "delv/dnssec_failed_failure.yaml", "NS": "delv/dnssec_failed_failure.yaml"})
-	ds := parseDelvYAML(fixture(t, "delv/dnssec_failed_ds.yaml"), "DS")
-	key := parseDelvYAML(fixture(t, "delv/dnssec_failed_failure.yaml"), "DNSKEY")
+	apex := lookups(t, map[string]string{"A": "dog/dnssec_failed_failure.json", "NS": "dog/dnssec_failed_failure.json"})
+	ds := dogFixture(t, "dog/dnssec_failed_ds.json", "DS")
+	key := dogFixture(t, "dog/dnssec_failed_failure.json", "DNSKEY")
 	var probed string
 	rep := classifyDNSSEC(ds, key, apex, func(name, qtype string) (bool, string) {
 		probed = name + "/" + qtype
@@ -106,8 +114,8 @@ func TestClassifyDNSSEC_BogusViaProbe(t *testing.T) {
 }
 
 func TestClassifyDNSSEC_Servfail(t *testing.T) {
-	apex := lookups(t, map[string]string{"A": "delv/dnssec_failed_failure.yaml"})
-	fail := parseDelvYAML(fixture(t, "delv/dnssec_failed_failure.yaml"), "DS")
+	apex := lookups(t, map[string]string{"A": "dog/dnssec_failed_failure.json"})
+	fail := dogFixture(t, "dog/dnssec_failed_failure.json", "DS")
 	rep := classifyDNSSEC(fail, fail, apex, func(string, string) (bool, string) { return false, "" })
 	if rep.State != DNSSECServfail {
 		t.Errorf("unexpected %+v", rep)
@@ -119,9 +127,9 @@ func TestClassifyDNSSEC_Servfail(t *testing.T) {
 }
 
 func TestClassifyDNSSEC_Unknown(t *testing.T) {
-	apex := lookups(t, map[string]string{"A": "delv/google_a_unsigned.yaml"})
-	to := parseDelvYAML(fixture(t, "delv/timeout.yaml"), "DS")
-	key := parseDelvYAML(fixture(t, "delv/google_dnskey_nxrrset.yaml"), "DNSKEY")
+	apex := lookups(t, map[string]string{"A": "dog/google_a_unsigned.json"})
+	to := dogFixture(t, "dog/timeout.json", "DS")
+	key := dogFixture(t, "dog/google_dnskey_nxrrset.json", "DNSKEY")
 	rep := classifyDNSSEC(to, key, apex, nil)
 	if rep.State != DNSSECUnknown {
 		t.Errorf("unexpected %+v", rep)
@@ -184,62 +192,58 @@ func TestNewBogusProbe(t *testing.T) {
 	}
 }
 
-func TestClassifyDNSSEC_ExplicitValidationFailure(t *testing.T) {
-	// delv names the validation problem itself ("broken trust chain"), so the
-	// zone is bogus even though dig +cd finds no data for the name.
-	broken := parseDelvYAML(fixture(t, "delv/invalid_broken_trust_chain.yaml"), "A")
-	broken.Name = "nosuch.invalid"
-	apex := map[string]Lookup{"A": broken}
-	probed := false
-	rep := classifyDNSSEC(broken, broken, apex, func(string, string) (bool, string) {
-		probed = true
-		return false, ""
-	})
-	if rep.State != DNSSECBogus || !strings.Contains(rep.Detail, "broken trust chain") {
-		t.Errorf("unexpected %+v", rep)
-	}
-	if !probed {
-		t.Error("probe should still run to harvest an EDE")
-	}
-	if rep := classifyDNSSEC(broken, broken, apex, nil); rep.State != DNSSECBogus {
-		t.Errorf("nil probe: %+v", rep)
-	}
-	if isValidationFailure(Lookup{Error: "delv: resolution failed"}) {
-		t.Error("generic failure is not a validation failure")
-	}
-}
-
 func TestClassifyByTrust(t *testing.T) {
-	apex := lookups(t, map[string]string{"A": "delv/outlook_host_a.yaml", "NS": "delv/outlook_host_ns_nxrrset.yaml", "TXT": "delv/outlook_host_txt_failure.yaml"})
+	apex := lookups(t, map[string]string{"A": "dog/outlook_host_a.json", "NS": "dog/outlook_host_ns_nxrrset.json", "TXT": "dog/outlook_host_txt_failure.json"})
 	rep := classifyByTrust(apex)
 	check(t, "insecure host", rep.State, DNSSECInsecure)
 	check(t, "no DS/DNSKEY claimed", rep.DS || rep.DNSKEY, false)
-	secure := lookups(t, map[string]string{"A": "delv/www_isc_a_validated.yaml"})
+	secure := lookups(t, map[string]string{"A": "dog/www_isc_a_validated.json"})
 	check(t, "validated host", classifyByTrust(secure).State, DNSSECSecure)
-	mixed := lookups(t, map[string]string{"A": "delv/www_isc_a_validated.yaml", "TXT": "delv/google_txt_unsigned.yaml"})
+	mixed := lookups(t, map[string]string{"A": "dog/www_isc_a_validated.json", "TXT": "dog/google_txt_unsigned.json"})
 	check(t, "any unsigned answer wins", classifyByTrust(mixed).State, DNSSECInsecure)
-	failed := lookups(t, map[string]string{"A": "delv/timeout.yaml"})
+	failed := lookups(t, map[string]string{"A": "dog/timeout.json"})
 	check(t, "nothing answered", classifyByTrust(failed).State, DNSSECUnknown)
 }
 
 // DS and DNSKEY both present does not make a zone secure: a DS whose
 // algorithm or digest the validator does not support makes it treat the
-// zone as unsigned, and delv then labels the DNSKEY answer unsigned. The
-// state follows what the validator did, not what is published.
+// zone as unsigned, and the resolver then leaves AD off the DNSKEY answer.
+// The state follows what the validator did, not what is published. The
+// unvalidated answer is the jschmidt.org capture with AD cleared.
 func TestClassifyDNSSEC_PublishedButNotValidated(t *testing.T) {
 	apex := lookups(t, map[string]string{
-		"A": "delv/jschmidt_a_nxrrset.yaml", "AAAA": "delv/jschmidt_aaaa_nxrrset.yaml",
-		"MX": "delv/jschmidt_mx.yaml", "TXT": "delv/jschmidt_txt.yaml", "NS": "delv/jschmidt_ns.yaml",
+		"A": "dog/jschmidt_a_nxrrset.json", "AAAA": "dog/jschmidt_aaaa_nxrrset.json",
+		"MX": "dog/jschmidt_mx.json", "TXT": "dog/jschmidt_txt.json", "NS": "dog/jschmidt_ns.json",
 	})
-	ds := parseDelvYAML(fixture(t, "delv/jschmidt_ds.yaml"), "DS")
-	raw := fixture(t, "delv/jschmidt_dnskey.yaml")
-	unsigned := parseDelvYAML(strings.Replace(raw, "fully_validated:", "unsigned_answer:", 1), "DNSKEY")
+	ds := dogFixture(t, "dog/jschmidt_ds.json", "DS")
+	raw := fixture(t, "dog/jschmidt_dnskey.json")
+	unsigned := parseDog(strings.Replace(raw, `"ad":true`, `"ad":false`, 1), "DNSKEY")
 	rep := classifyDNSSEC(ds, unsigned, apex, nil)
 	check(t, "insecure", rep.State, DNSSECInsecure)
 	check(t, "published", []bool{rep.DS, rep.DNSKEY}, []bool{true, true})
 	check(t, "says why", rep.Detail, "DS and DNSKEY are published, but the validator treated the zone as unsigned")
 
-	unlabelled := parseDelvYAML(strings.Replace(raw, "fully_validated:", "answer:", 1), "DNSKEY")
+	unlabelled := parseDog(raw, "DNSKEY")
+	unlabelled.Trust = "" // no verdict, as from a resolver that does not validate
 	rep = classifyDNSSEC(ds, unlabelled, apex, nil)
 	check(t, "no status is unknown, not secure", rep.State, DNSSECUnknown)
+}
+
+// jd.com (2026-10-07): the MX lookup SERVFAILed on a slow nameserver and
+// the +cd re-query answered. The parent has no DS for jd.com, so nothing
+// there is validated and the failure cannot be a validation failure.
+func TestClassifyDNSSEC_UnsignedZoneTransientFailure(t *testing.T) {
+	apex := lookups(t, map[string]string{"A": "dog/google_a_unsigned.json"})
+	apex["MX"] = dogFixture(t, "dog/dnssec_failed_failure.json", "MX")
+	ds := dogFixture(t, "dog/jd_ds_nxrrset.json", "DS")
+	key := dogFixture(t, "dog/google_dnskey_nxrrset.json", "DNSKEY")
+	rep := classifyDNSSEC(ds, key, apex, func(string, string) (bool, string) { return true, "" })
+	if rep.State != DNSSECServfail || !strings.Contains(rep.Detail, "not a validation failure") {
+		t.Errorf("unsigned zone called %+v", rep)
+	}
+	// The same failure under a parent that publishes a DS is still bogus.
+	signedDS := dogFixture(t, "dog/dnssec_failed_ds.json", "DS")
+	if rep := classifyDNSSEC(signedDS, key, apex, func(string, string) (bool, string) { return true, "" }); rep.State != DNSSECBogus {
+		t.Errorf("signed zone: %+v", rep)
+	}
 }

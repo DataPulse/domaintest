@@ -24,17 +24,17 @@ func probe(t *testing.T, label, aFile, aaaaFile string) wildProbe {
 	t.Helper()
 	p := wildProbe{label: label}
 	if aFile != "" {
-		p.a = parseDelvYAML(fixture(t, aFile), "A")
+		p.a = dogFixture(t, aFile, "A")
 	}
 	if aaaaFile != "" {
-		p.aaaa = parseDelvYAML(fixture(t, aaaaFile), "AAAA")
+		p.aaaa = dogFixture(t, aaaaFile, "AAAA")
 	}
 	return p
 }
 
 func githubProbe(t *testing.T, label string) wildProbe {
 	t.Helper()
-	return probe(t, label, "delv/wild/"+label+"_github_io_a.yaml", "delv/wild/"+label+"_github_io_aaaa.yaml")
+	return probe(t, label, "dog/wild/"+label+"_github_io_a.json", "dog/wild/"+label+"_github_io_aaaa.json")
 }
 
 // Each probe is judged from both of its lookups together. The wordpress.com
@@ -43,12 +43,12 @@ func githubProbe(t *testing.T, label string) wildProbe {
 // lookup alone would give the wrong verdict.
 func TestClassifyProbe(t *testing.T) {
 	timeout := Lookup{Status: StatusTimeout}
-	nx := parseDelvYAML(fixture(t, "delv/wild/qhrmzvbxklap_google_com_a.yaml"), "A")
-	nodata := parseDelvYAML(fixture(t, "delv/wild/qhrmzvbxklap_cloudflare_com_a.yaml"), "A")
+	nx := dogFixture(t, "dog/wild/qhrmzvbxklap_google_com_a.json", "A")
+	nodata := dogFixture(t, "dog/wild/qhrmzvbxklap_cloudflare_com_a.json", "A")
 
 	check(t, "addresses answer", classifyProbe(githubProbe(t, "qhrmzvbxklap")), probeAnswered)
 	check(t, "wildcard cname, aaaa nxrrset", classifyProbe(probe(t, "qhrmzvbxklap",
-		"delv/wild/qhrmzvbxklap_wordpress_com_a.yaml", "delv/wild/qhrmzvbxklap_wordpress_com_aaaa.yaml")), probeAnswered)
+		"dog/wild/qhrmzvbxklap_wordpress_com_a.json", "dog/wild/qhrmzvbxklap_wordpress_com_aaaa.json")), probeAnswered)
 	check(t, "nxdomain", classifyProbe(wildProbe{a: nx, aaaa: nx}), probeDenied)
 	check(t, "nodata on both types", classifyProbe(wildProbe{a: nodata, aaaa: nodata}), probeDenied)
 	// NXDOMAIN is a name-level denial, so the sibling query cannot change it.
@@ -83,7 +83,7 @@ func TestAssessWildcard_CNAME(t *testing.T) {
 	var probes []wildProbe
 	for _, l := range testWildcardLabels {
 		probes = append(probes, probe(t, l,
-			"delv/wild/"+l+"_wordpress_com_a.yaml", "delv/wild/"+l+"_wordpress_com_aaaa.yaml"))
+			"dog/wild/"+l+"_wordpress_com_a.json", "dog/wild/"+l+"_wordpress_com_aaaa.json"))
 	}
 	w := assessWildcard(probes, "", Lookup{}, Lookup{})
 	check(t, "present", w.Status, WildcardPresent)
@@ -94,8 +94,8 @@ func TestAssessWildcard_CNAME(t *testing.T) {
 // A denial anywhere means the zone does not answer every name, and a probe
 // that never came back is never a denial.
 func TestAssessWildcard_AbsentAndUnknown(t *testing.T) {
-	nx := parseDelvYAML(fixture(t, "delv/wild/qhrmzvbxklap_google_com_a.yaml"), "A")
-	nodata := parseDelvYAML(fixture(t, "delv/wild/qhrmzvbxklap_cloudflare_com_a.yaml"), "A")
+	nx := dogFixture(t, "dog/wild/qhrmzvbxklap_google_com_a.json", "A")
+	nodata := dogFixture(t, "dog/wild/qhrmzvbxklap_cloudflare_com_a.json", "A")
 	denied := wildProbe{label: "aaaaaaaaaaaa", a: nx, aaaa: nx}
 	empty := wildProbe{label: "bbbbbbbbbbbb", a: nodata, aaaa: nodata}
 	lost := wildProbe{label: "cccccccccccc", a: Lookup{Status: StatusTimeout}, aaaa: Lookup{Status: StatusTimeout}}
@@ -128,7 +128,7 @@ func TestAssessWildcard_AbsentAndUnknown(t *testing.T) {
 func TestAssessWildcard_VaryingAnswers(t *testing.T) {
 	a := githubProbe(t, "qhrmzvbxklap")
 	b := githubProbe(t, "tzwnpcdfjyeu")
-	c := probe(t, "kbsvxlmqrtdh", "delv/wild/kbsvxlmqrtdh_wordpress_com_a.yaml", "")
+	c := probe(t, "kbsvxlmqrtdh", "dog/wild/kbsvxlmqrtdh_wordpress_com_a.json", "")
 	w := assessWildcard([]wildProbe{a, b, c}, "", Lookup{}, Lookup{})
 	check(t, "still a wildcard", w.Status, WildcardPresent)
 	check(t, "but not consistent", *w.Consistent, false)

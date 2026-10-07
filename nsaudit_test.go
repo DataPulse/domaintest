@@ -11,19 +11,19 @@ import (
 // nameservers.
 func jschmidtNSLookup(t *testing.T) lookupFn {
 	return fixtureLookup(t, map[string]string{
-		"ns-507.awsdns-63.com/A":       "delv/ns/ns-507_a.yaml",
-		"ns-507.awsdns-63.com/AAAA":    "delv/ns/ns-507_aaaa.yaml",
-		"ns-1013.awsdns-62.net/A":      "delv/ns/ns-1013_a.yaml",
-		"ns-1013.awsdns-62.net/AAAA":   "delv/ns/ns-1013_aaaa.yaml",
-		"ns-1034.awsdns-01.org/A":      "delv/ns/ns-1034_a.yaml",
-		"ns-1034.awsdns-01.org/AAAA":   "delv/ns/ns-1034_aaaa.yaml",
-		"ns-2001.awsdns-58.co.uk/A":    "delv/ns/ns-2001_a.yaml",
-		"ns-2001.awsdns-58.co.uk/AAAA": "delv/ns/ns-2001_aaaa.yaml",
+		"ns-507.awsdns-63.com/A":       "dog/ns/ns-507_a.json",
+		"ns-507.awsdns-63.com/AAAA":    "dog/ns/ns-507_aaaa.json",
+		"ns-1013.awsdns-62.net/A":      "dog/ns/ns-1013_a.json",
+		"ns-1013.awsdns-62.net/AAAA":   "dog/ns/ns-1013_aaaa.json",
+		"ns-1034.awsdns-01.org/A":      "dog/ns/ns-1034_a.json",
+		"ns-1034.awsdns-01.org/AAAA":   "dog/ns/ns-1034_aaaa.json",
+		"ns-2001.awsdns-58.co.uk/A":    "dog/ns/ns-2001_a.json",
+		"ns-2001.awsdns-58.co.uk/AAAA": "dog/ns/ns-2001_aaaa.json",
 	})
 }
 
 func TestResolveNS(t *testing.T) {
-	names := nsNames(parseDelvYAML(fixture(t, "delv/jschmidt_ns.yaml"), "NS"))
+	names := nsNames(dogFixture(t, "dog/jschmidt_ns.json", "NS"))
 	check(t, "sorted names", names[0], "ns-1013.awsdns-62.net.")
 	rep := resolveNS(names, jschmidtNSLookup(t))
 	check(t, "count", rep.Count, 4)
@@ -33,7 +33,7 @@ func TestResolveNS(t *testing.T) {
 	check(t, "four /48s", *rep.IPv6Prefixes48, 4)
 	check(t, "eight addresses", len(rep.allAddrs()), 8)
 
-	bad := fixtureLookup(t, map[string]string{"cname.example/A": "delv/www_github_cname.yaml"})
+	bad := fixtureLookup(t, map[string]string{"cname.example/A": "dog/www_github_cname.json"})
 	rep = resolveNS([]string{"cname.example.", "gone.example."}, bad)
 	check(t, "cname ns", rep.NSCNAME, []string{"cname.example."})
 	check(t, "unresolvable", rep.Unresolvable, []string{"gone.example."})
@@ -45,7 +45,7 @@ func TestResolveNS(t *testing.T) {
 // rather than reporting zero of everything.
 func TestResolveNS_UnansweredIsNotAbsent(t *testing.T) {
 	timedOut := func(name, qtype string) Lookup {
-		l := parseDelvYAML(fixture(t, "delv/timeout.yaml"), qtype)
+		l := dogFixture(t, "dog/timeout.json", qtype)
 		l.Name, l.Status = name, StatusTimeout
 		return l
 	}
@@ -60,7 +60,7 @@ func TestResolveNS_UnansweredIsNotAbsent(t *testing.T) {
 		if qtype == "AAAA" {
 			return timedOut(name, qtype)
 		}
-		l := parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), qtype)
+		l := dogFixture(t, "dog/jschmidt_aaaa_nxrrset.json", qtype)
 		l.Name = name
 		return l
 	}
@@ -144,7 +144,7 @@ func TestUnanswered(t *testing.T) {
 }
 
 func TestAuditAllAndSerials(t *testing.T) {
-	names := nsNames(parseDelvYAML(fixture(t, "delv/jschmidt_ns.yaml"), "NS"))
+	names := nsNames(dogFixture(t, "dog/jschmidt_ns.json", "NS"))
 	rep := resolveNS(names, jschmidtNSLookup(t))
 	r := newFakeRunner()
 	r.fallback = func(tool string, args []string) (fakeCall, bool) {

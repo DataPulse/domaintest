@@ -2,8 +2,8 @@
 //
 // Usage: domaintest [flags] <domain> [@dnsserver]
 //
-// Looks up A, AAAA, MX, TXT and NS for the apex and A/AAAA for www using
-// delv (with DNSSEC validation), probes TCP 80/443 and QUIC on every
+// Looks up A, AAAA, MX, TXT and NS for the apex and A/AAAA for www with
+// dog against a DNSSEC-validating resolver, probes TCP 80/443 and QUIC on every
 // address over IPv4 and IPv6, traces the delegation from the root to
 // compare parent and child NS sets, and prints one JSON report.
 //
@@ -39,7 +39,7 @@ const (
 	// hand, before then: the deadline cuts off whatever is still running
 	// and the report says so.
 	defaultMaxTimeSec = 18
-	usage             = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-redirectlog] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
+	usage             = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-redirectlog] [-pretty] [-quicprobe path] [-dog path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
 )
 
 // config is the parsed command line.
@@ -55,17 +55,17 @@ type config struct {
 	QuicTimeoutSec int
 	TCPTimeoutSec  int
 	MaxTimeSec     int    // whole-run deadline; 0 is none
-	DNSConcurrency int    // most delv/dig processes at once; 0 is unlimited
+	DNSConcurrency int    // most dog/dig processes at once; 0 is unlimited
 	HSTSPreload    bool   // consult the HSTS preload list (on by default; -no-hsts-preload disables)
 	HSTSCache      string // path to the cached preload list; "-" disables caching
 	WarmHSTSCache  bool   // populate the cache and exit
 	RedirectLog    bool   // follow and report redirect chains (off by default)
 	ShowVersion    bool   // print the build version and exit
 	Pretty         bool
-	DelvPath       string
+	DogPath        string
 	DigPath        string
 	QuicPath       string
-	dnsFamily      string // family forced on delv by a literal @server address
+	dnsFamily      string // family pinned by a literal @server address
 }
 
 func (c config) timeout() time.Duration    { return time.Duration(c.TimeoutSec) * time.Second }
@@ -105,7 +105,7 @@ func parseResolver(s string) (resolver, error) {
 	return resolver{Host: host, Port: p}, nil
 }
 
-// args renders the resolver as delv/dig arguments.
+// args renders the resolver as dig arguments.
 func (r resolver) args() []string {
 	if r.Host == "" {
 		return nil
@@ -115,6 +115,18 @@ func (r resolver) args() []string {
 		out = append(out, "-p", strconv.Itoa(r.Port))
 	}
 	return out
+}
+
+// dogServer renders the resolver as dog's nameserver argument: host,
+// host:port or [v6]:port; "" for the system resolver.
+func (r resolver) dogServer() string {
+	switch {
+	case r.Host == "":
+		return ""
+	case r.Port > 0:
+		return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
+	}
+	return r.Host
 }
 
 // String is the form shown in the report.
@@ -279,7 +291,7 @@ func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
 	fs.BoolVar(&cfg.WarmHSTSCache, "warm-hsts-cache", false, "populate the HSTS preload cache and exit")
 	fs.BoolVar(&cfg.ShowVersion, "version", false, "print the build version and exit")
 	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")
-	fs.StringVar(&cfg.DelvPath, "delv", "", "path to delv")
+	fs.StringVar(&cfg.DogPath, "dog", "", "path to dog")
 	fs.StringVar(&cfg.DigPath, "dig", "", "path to dig")
 	return fs, only4, only6, noPreload
 }
@@ -320,7 +332,7 @@ func chooseFamilies(only4, only6 bool) []string {
 	}
 }
 
-// serverFamily returns the family a literal @server address pins delv to,
+// serverFamily returns the family a literal @server address pins lookups to,
 // or "" for a hostname or the system resolver.
 func serverFamily(server string) string {
 	ip, err := netip.ParseAddr(server)
@@ -413,7 +425,7 @@ func warmMain(cfg config, stderr io.Writer) int {
 
 func resolveTools(cfg *config) error {
 	var err error
-	if cfg.DelvPath, err = requireTool(cfg.DelvPath, "delv"); err != nil {
+	if cfg.DogPath, err = requireTool(cfg.DogPath, "dog"); err != nil {
 		return err
 	}
 	if cfg.DigPath, err = requireTool(cfg.DigPath, "dig"); err != nil {

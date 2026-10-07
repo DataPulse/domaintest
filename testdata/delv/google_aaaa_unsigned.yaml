@@ -1,6 +1,0 @@
-type: DELV_RESULT
-query_name: google.com
-status: success
-records:
-  - unsigned_answer:
-    - 'google.com. 300 IN AAAA 2607:f8b0:4009:811::200e'

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -53,8 +54,22 @@ func (f *fakeRunner) onSeq(tool string, args []string, calls ...fakeCall) {
 	f.seq[callKey(tool, args)] = calls
 }
 
+// callKey identifies a call by tool and argv. dog's --timeout value is left
+// out: it follows cfg.TimeoutSec, which tests change after registering.
 func callKey(tool string, args []string) string {
-	return filepath.Base(tool) + " " + strings.Join(args, " ")
+	base := filepath.Base(tool)
+	if base == "dog" {
+		kept := make([]string, 0, len(args))
+		for i := 0; i < len(args); i++ {
+			if args[i] == "--timeout" {
+				i++
+				continue
+			}
+			kept = append(kept, args[i])
+		}
+		args = kept
+	}
+	return base + " " + strings.Join(args, " ")
 }
 
 func (f *fakeRunner) on(tool string, args []string, resp fakeCall) {
@@ -156,7 +171,7 @@ func baseConfig(domain, server string) config {
 		QuicTimeoutSec: defaultQuicTimeoutSec,
 		DNSConcurrency: 0, // unlimited unless a test caps it
 		HSTSCache:      noCachePath,
-		DelvPath:       "delv",
+		DogPath:        "dog",
 		DigPath:        "dig",
 		QuicPath:       "quicprobe",
 		dnsFamily:      serverFamily(res.Host),
@@ -202,9 +217,58 @@ func hostWeb(addrs []netip.Addr, ports map[portKey]PortState, quic map[string]*Q
 	return h
 }
 
-// fixtureIndex maps "query_name/TYPE" to captured delv output by scanning
-// every fixture under testdata/delv once. Positive answers are indexed by
-// the types they contain; negative answers serve any type not positively
+// parseDog parses dog's stdout as captured.
+func parseDog(content, qtype string) Lookup {
+	return parseDogOutput([]byte(content), nil, nil, qtype)
+}
+
+// dogStderr returns the stderr captured beside a dog fixture (X.stderr next
+// to X.json), or "" when the run wrote none.
+func dogStderr(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", strings.TrimSuffix(path, ".json")+".stderr"))
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+// dogFixture parses a captured dog run, stdout and stderr.
+func dogFixture(t *testing.T, path, qtype string) Lookup {
+	t.Helper()
+	return parseDogOutput([]byte(fixture(t, path)), []byte(dogStderr(t, path)), nil, qtype)
+}
+
+// dogCall replays a captured dog run through the fake runner.
+func dogCall(t *testing.T, path string) fakeCall {
+	t.Helper()
+	return fakeCall{stdout: fixture(t, path), stderr: dogStderr(t, path)}
+}
+
+// dogQuestion returns the lower-cased bare name and type a dog capture
+// asked, or "" for an error-only capture.
+func dogQuestion(content string) (name, qtype string) {
+	var doc struct {
+		Responses []struct {
+			Queries []struct {
+				Name string `json:"name"`
+				Type string `json:"type"`
+			} `json:"queries"`
+		} `json:"responses"`
+	}
+	dec := json.NewDecoder(strings.NewReader(content))
+	for dec.Decode(&doc) == nil {
+		if len(doc.Responses) > 0 && len(doc.Responses[0].Queries) > 0 {
+			q := doc.Responses[0].Queries[0]
+			return bareName(q.Name), q.Type
+		}
+	}
+	return "", ""
+}
+
+// fixtureIndex maps "name/TYPE" to captured dog output by scanning every
+// fixture under testdata/dog once. Positive answers are indexed by the
+// types they contain; negative answers serve any type not positively
 // covered for that name.
 type fixtureIndex struct {
 	positive map[string]string // name/TYPE -> content
@@ -220,8 +284,8 @@ func loadFixtureIndex(t *testing.T) *fixtureIndex {
 	t.Helper()
 	fixtureIndexOnce.Do(func() {
 		idx := &fixtureIndex{positive: map[string]string{}, negative: map[string]string{}}
-		_ = filepath.WalkDir("testdata/delv", func(path string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !strings.HasSuffix(path, ".yaml") {
+		_ = filepath.WalkDir("testdata/dog", func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(path, ".json") {
 				return nil
 			}
 			b, err := os.ReadFile(path)
@@ -237,16 +301,11 @@ func loadFixtureIndex(t *testing.T) *fixtureIndex {
 }
 
 func indexFixture(idx *fixtureIndex, content string) {
-	name := ""
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(line, "query_name:") {
-			name = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(strings.TrimPrefix(line, "query_name:")), "."))
-		}
-	}
+	name, qtype := dogQuestion(content)
 	if name == "" {
 		return
 	}
-	l := parseDelvYAML(content, "")
+	l := parseDog(content, qtype)
 	if l.Status != StatusOK {
 		if _, ok := idx.negative[name]; !ok {
 			idx.negative[name] = content
@@ -254,17 +313,15 @@ func indexFixture(idx *fixtureIndex, content string) {
 		return
 	}
 	for _, rr := range l.rrs {
-		switch rr.Type {
-		case "RRSIG", "NSEC", "NSEC3", "SOA":
-			continue
+		if rr.Type != "SOA" {
+			idx.positive[name+"/"+rr.Type] = content
 		}
-		idx.positive[name+"/"+rr.Type] = content
 	}
 }
 
 // answer returns fixture content for name/qtype: a positive fixture for
 // that exact type, else a captured negative answer for the name, else a
-// generic validated NXRRSET.
+// generic validated NODATA.
 func (idx *fixtureIndex) answer(t *testing.T, name, qtype string) string {
 	name = bareName(name)
 	if c, ok := idx.positive[name+"/"+qtype]; ok {
@@ -273,18 +330,26 @@ func (idx *fixtureIndex) answer(t *testing.T, name, qtype string) string {
 	if c, ok := idx.negative[name]; ok {
 		return c
 	}
-	return fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml")
+	return fixture(t, "dog/jschmidt_aaaa_nxrrset.json")
 }
 
-// fixtureFallback makes a fakeRunner answer every delv call from the index
+// dogQuery returns the name and type of a dog argv built by dogArgs.
+func dogQuery(args []string) (name, qtype string) {
+	if len(args) < 4 {
+		return "", ""
+	}
+	return args[len(args)-3], args[len(args)-1]
+}
+
+// fixtureFallback makes a fakeRunner answer every dog call from the index
 // and every nameserver-audit / glue dig from a healthy authoritative
 // capture, so scenario tests only register what they want to vary.
 func fixtureFallback(t *testing.T) func(tool string, args []string) (fakeCall, bool) {
 	idx := loadFixtureIndex(t)
 	return func(tool string, args []string) (fakeCall, bool) {
 		switch tool {
-		case "delv":
-			name, qtype := args[len(args)-2], args[len(args)-1]
+		case "dog":
+			name, qtype := dogQuery(args)
 			return fakeCall{stdout: idx.answer(t, name, qtype)}, true
 		case "dig":
 			joined := strings.Join(args, " ")
@@ -301,12 +366,12 @@ func fixtureFallback(t *testing.T) func(tool string, args []string) (fakeCall, b
 	}
 }
 
-// indexLookup is a lookupFn over every captured delv fixture.
+// indexLookup is a lookupFn over every captured dog fixture.
 func indexLookup(t *testing.T) lookupFn {
 	t.Helper()
 	idx := loadFixtureIndex(t)
 	return func(name, qtype string) Lookup {
-		l := parseDelvYAML(idx.answer(t, name, qtype), qtype)
+		l := parseDog(idx.answer(t, name, qtype), qtype)
 		l.Name = bareName(name)
 		return l
 	}
@@ -315,8 +380,8 @@ func indexLookup(t *testing.T) lookupFn {
 // googleAddrs returns the apex IPv4 and IPv6 address from the fixtures.
 func googleAddrs(t *testing.T) (netip.Addr, netip.Addr) {
 	t.Helper()
-	v4 := parseDelvYAML(fixture(t, "delv/google_a_unsigned.yaml"), "A").Addrs()[0]
-	v6 := parseDelvYAML(fixture(t, "delv/google_aaaa_unsigned.yaml"), "AAAA").Addrs()[0]
+	v4 := dogFixture(t, "dog/google_a_unsigned.json", "A").Addrs()[0]
+	v6 := dogFixture(t, "dog/google_aaaa_unsigned.json", "AAAA").Addrs()[0]
 	return v4, v6
 }
 

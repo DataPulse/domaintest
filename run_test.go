@@ -21,7 +21,7 @@ import (
 )
 
 // scenario wires a fakeRunner and a mapped dialer for one domain. Every
-// delv call not registered explicitly is answered from the fixture index,
+// dog call not registered explicitly is answered from the fixture index,
 // nameserver-audit digs from a healthy authoritative capture, and
 // quicprobe from an unsupported result.
 type scenario struct {
@@ -30,21 +30,33 @@ type scenario struct {
 	dialer *mappedDialer
 }
 
-func (s *scenario) delv(name, qtype, file string, t *testing.T) {
-	s.r.on("delv", delvArgs(s.cfg.Resolver, "", name, qtype), fakeCall{stdout: fixture(t, file)})
+func (s *scenario) dns(name, qtype, file string, t *testing.T) {
+	s.r.on("dog", s.dogArgs(name, qtype), dogCall(t, file))
 }
 
+// dogArgs is the argv the run gives dog for name/qtype.
+func (s *scenario) dogArgs(name, qtype string) []string {
+	return dogArgs(s.cfg.Resolver.dogServer(), s.cfg.TimeoutSec, name, qtype)
+}
+
+// reach registers the resolver-reachability answer for one family, asked
+// of the resolver's address of that family.
 func (s *scenario) reach(family, file string, t *testing.T) {
-	s.r.on("delv", delvArgs(s.cfg.Resolver, family, reachabilityQuery, "NS"), fakeCall{stdout: fixture(t, file)})
+	t.Helper()
+	server, ok := serverForFamily(context.Background(), s.cfg, family)
+	if !ok {
+		t.Fatalf("no %s resolver address in the scenario", family)
+	}
+	s.r.on("dog", dogArgs(server, s.cfg.TimeoutSec, reachabilityQuery, "NS"), dogCall(t, file))
 }
 
 func (s *scenario) trace(file string, t *testing.T) {
-	s.r.on("dig", traceArgs(familyIPv4, s.cfg.TimeoutSec, s.cfg.Domain), fakeCall{stdout: fixture(t, file)})
+	s.r.on("dig", traceArgs(familyIPv4, s.cfg.TimeoutSec, s.cfg.Domain), dogCall(t, file))
 }
 
 // glue registers the parent-side NS answer used for the glue check.
 func (s *scenario) glue(parentServer, file string, t *testing.T) {
-	s.r.on("dig", glueArgs(parentServer, familyIPv4, s.cfg.TimeoutSec, s.cfg.Domain), fakeCall{stdout: fixture(t, file)})
+	s.r.on("dig", glueArgs(parentServer, familyIPv4, s.cfg.TimeoutSec, s.cfg.Domain), dogCall(t, file))
 }
 
 func (s *scenario) run() *Report {
@@ -67,7 +79,7 @@ func (s *scenario) digCalls(subs ...string) []string {
 }
 
 // testWildcardLabels are the labels every scenario probes with. The
-// fixtures under testdata/delv/wild are captured for exactly these names.
+// fixtures under testdata/dog/wild are captured for exactly these names.
 var testWildcardLabels = []string{"qhrmzvbxklap", "tzwnpcdfjyeu", "kbsvxlmqrtdh"}
 
 // stubWildcardLabels pins the random probe labels so a run is reproducible
@@ -102,7 +114,7 @@ func newScenario(t *testing.T, domain, server string) *scenario {
 
 func jschmidtScenario(t *testing.T) *scenario {
 	s := newScenario(t, "jschmidt.org", "")
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.trace("trace/jschmidt.txt", t)
 	return s
 }
@@ -186,11 +198,11 @@ type googleWeb struct {
 
 func googleScenario(t *testing.T) *googleWeb {
 	s := newScenario(t, "google.com", "")
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.trace("trace/google.txt", t)
 	s.glue("l.gtld-servers.net", "dig/ns/glue_google_at_gtld.yaml", t)
-	s.delv("www.google.com", "A", "delv/google_a_unsigned.yaml", t)
-	s.delv("www.google.com", "AAAA", "delv/google_aaaa_unsigned.yaml", t)
+	s.dns("www.google.com", "A", "dog/google_a_unsigned.json", t)
+	s.dns("www.google.com", "AAAA", "dog/google_aaaa_unsigned.json", t)
 	s.r.fallback = func(inner func(string, []string) (fakeCall, bool)) func(string, []string) (fakeCall, bool) {
 		return func(tool string, args []string) (fakeCall, bool) {
 			if tool == "quicprobe" {
@@ -199,8 +211,8 @@ func googleScenario(t *testing.T) *googleWeb {
 			return inner(tool, args)
 		}
 	}(s.r.fallback)
-	v4 := parseDelvYAML(fixture(t, "delv/google_a_unsigned.yaml"), "A").Addrs()[0]
-	v6 := parseDelvYAML(fixture(t, "delv/google_aaaa_unsigned.yaml"), "AAAA").Addrs()[0]
+	v4 := dogFixture(t, "dog/google_a_unsigned.json", "A").Addrs()[0]
+	v6 := dogFixture(t, "dog/google_aaaa_unsigned.json", "AAAA").Addrs()[0]
 	ca := newTestCAWithOrg(t, "GTS Root R1", "Google Trust Services LLC")
 	withRoots(t, ca.pool)
 	leaf, key := ca.issue(t, certSpec{sans: []string{"google.com", "www.google.com"}, issuer: ca, org: "Google LLC"})
@@ -303,8 +315,8 @@ func TestRun_FamilyRestriction(t *testing.T) {
 
 func TestRun_WWWWithDifferentAddresses(t *testing.T) {
 	g := googleScenario(t)
-	g.s.delv("www.google.com", "A", "delv/www_isc_a_validated.yaml", t)
-	g.s.delv("www.google.com", "AAAA", "delv/jschmidt_aaaa_nxrrset.yaml", t)
+	g.s.dns("www.google.com", "A", "dog/www_isc_a_validated.json", t)
+	g.s.dns("www.google.com", "AAAA", "dog/jschmidt_aaaa_nxrrset.json", t)
 	rep := g.s.run()
 	check(t, "not same as apex", rep.Web.WWW.SameAsApex, false)
 	check(t, "www ipv4 entries", len(rep.Web.WWW.IPv4), 4)
@@ -318,18 +330,18 @@ func TestRun_BogusZoneViaPublicResolver(t *testing.T) {
 	s := newScenario(t, "dnssec-failed.org", "8.8.8.8")
 	inner := s.r.fallback
 	s.r.fallback = func(tool string, args []string) (fakeCall, bool) {
-		if tool == "delv" && strings.Contains(strings.Join(args, " "), "dnssec-failed.org") {
-			return fakeCall{stdout: fixture(t, "delv/dnssec_failed_failure.yaml")}, true
+		if tool == "dog" && strings.Contains(strings.Join(args, " "), "dnssec-failed.org") {
+			return fakeCall{stdout: fixture(t, "dog/dnssec_failed_failure.json")}, true
 		}
 		return inner(tool, args)
 	}
-	s.delv("dnssec-failed.org", "DS", "delv/dnssec_failed_ds.yaml", t)
-	s.reach(familyIPv4, "delv/root_ns_v4_8888.yaml", t)
+	s.dns("dnssec-failed.org", "DS", "dog/dnssec_failed_ds.json", t)
+	s.reach(familyIPv4, "dog/root_ns_v4_8888.json", t)
 	s.trace("trace/dnssec_failed_mismatch.txt", t)
 	s.r.on("dig", digArgs(resolver{Host: "8.8.8.8"}, true, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_cd.yaml")})
 	s.r.on("dig", digArgs(resolver{Host: "8.8.8.8"}, false, 5, "dnssec-failed.org", "A"), fakeCall{stdout: fixture(t, "dig/dnssec_failed_nocd.yaml"), err: errFake})
 	for _, ns := range []string{"dns101", "dns104", "dns105"} {
-		for _, ip := range parseDelvYAML(fixture(t, "delv/ns/"+ns+"_comcast_a.yaml"), "A").Addrs() {
+		for _, ip := range dogFixture(t, "dog/ns/"+ns+"_comcast_a.json", "A").Addrs() {
 			s.r.on("dig", nsAuditArgs(ip, "dnssec-failed.org", 5), fakeCall{stdout: fixture(t, "dig/ns/dnssec_failed_at_"+ns+".yaml")})
 		}
 	}
@@ -350,10 +362,10 @@ func TestRun_BogusZoneViaPublicResolver(t *testing.T) {
 func TestRun_ResolverUnreachableAndTimeouts(t *testing.T) {
 	s := jschmidtScenario(t)
 	withResolvConf(t, "nameserver 10.12.60.1\nnameserver 2001:db8::53\n")
-	s.reach(familyIPv6, "delv/root_ns_v6_refused.yaml", t)
+	s.reach(familyIPv6, "dog/root_ns_v6_refused.json", t)
 	s.cfg.TimeoutSec = 1
 	s.trace("trace/jschmidt.txt", t)
-	s.r.on("delv", delvArgs(resolver{}, "", "jschmidt.org", "TXT"), fakeCall{delay: 3 * time.Second})
+	s.r.on("dog", s.dogArgs("jschmidt.org", "TXT"), fakeCall{delay: 3 * time.Second})
 
 	start := time.Now()
 	rep := s.run()
@@ -369,12 +381,13 @@ func TestRun_ResolverUnreachableAndTimeouts(t *testing.T) {
 func TestRun_NXDomain(t *testing.T) {
 	s := newScenario(t, "nonexistent-zzz-qq.org", "")
 	s.r.fallback = func(tool string, args []string) (fakeCall, bool) {
-		if tool == "delv" {
-			return fakeCall{stdout: fixture(t, "delv/nxdomain_signed.yaml")}, true
+		switch tool {
+		case "dog":
+			return fakeCall{stdout: fixture(t, "dog/nxdomain_signed.json")}, true
 		}
 		return fakeCall{}, false
 	}
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.trace("trace/nxdomain.txt", t)
 	rep := s.run()
 	check(t, "ok", rep.OK, false)
@@ -382,22 +395,30 @@ func TestRun_NXDomain(t *testing.T) {
 	check(t, "not delegated error", contains(rep.Errors, "not delegated"), true)
 	check(t, "dnssec", rep.DNSSEC.State, DNSSECNonexistent)
 	check(t, "no nameserver audit", rep.Nameservers, (*NSReport)(nil))
+	// .org denies the name with an NSEC3 opt-out span, so the resolver
+	// withholds AD (RFC 5155 §9.2) and the denial is not called validated
+	// (tester, 2026-10-06).
+	check(t, "denial not called validated", rep.DNSSEC.Detail, "the name does not exist (NXDOMAIN); the parent's denial of existence was not validated")
+	check(t, "apex A trust from the resolver", rep.DNS.Apex["A"].Trust, TrustInsecure)
+	check(t, "tlsa not signed", rep.TLSA.Signed, false)
 }
 
 func TestRun_ReservedAddress(t *testing.T) {
 	s := newScenario(t, "localtest.me", "")
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.trace("trace/jschmidt.txt", t) // any healthy trace shape; delegation is not under test
 	rep := s.run()
-	// One address published at both apex and www is one reserved address.
-	check(t, "reserved listed once", rep.ReservedAddresses, []string{"127.0.0.1 (loopback address)"})
+	// Each address published at both apex and www is one reserved address.
+	// localtest.me publishes 127.0.0.1 and, since the 2026-10-07 capture,
+	// ::1 as well.
+	check(t, "each reserved address listed once", rep.ReservedAddresses, []string{"127.0.0.1 (loopback address)", "::1 (loopback address)"})
 	reserved := 0
 	for _, e := range rep.Errors {
 		if strings.Contains(e, "reserved address published") {
 			reserved++
 		}
 	}
-	check(t, "one error, not one per host", reserved, 1)
+	check(t, "one error per address, not one per host", reserved, 2)
 	// The probe declined to connect; nothing failed to listen.
 	check(t, "says why it was not probed", contains(notes(rep), "apex 127.0.0.1: not probed (reserved address)"), true)
 	check(t, "not reported as a dead listener", contains(notes(rep), "no listener"), false)
@@ -408,7 +429,7 @@ func TestRun_ReservedAddress(t *testing.T) {
 
 func TestRun_WildcardZone(t *testing.T) {
 	s := newScenario(t, "github.io", "")
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.trace("trace/jschmidt.txt", t)
 	rep := s.run()
 	check(t, "wildcard present", rep.Wildcard.Status, WildcardPresent)
@@ -422,10 +443,10 @@ func TestRun_WildcardZone(t *testing.T) {
 	check(t, "six probe queries", probeQueries(s), 6)
 }
 
-// probeQueries counts the delv calls made for the random wildcard names.
+// probeQueries counts the dog calls made for the random wildcard names.
 func probeQueries(s *scenario) int {
 	n := 0
-	for _, c := range s.r.called("delv") {
+	for _, c := range s.r.called("dog") {
 		for _, l := range testWildcardLabels {
 			if strings.Contains(c, " "+l+".") {
 				n++
@@ -444,9 +465,9 @@ func TestRun_WildcardQueryBudget(t *testing.T) {
 
 	// www NXDOMAIN is an answer already in hand: no probe is worth issuing.
 	gone := newScenario(t, "jschmidt.org", "")
-	gone.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	gone.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	gone.trace("trace/jschmidt.txt", t)
-	gone.delv("www.jschmidt.org", "A", "delv/nxdomain_unsigned.yaml", t)
+	gone.dns("www.jschmidt.org", "A", "dog/nxdomain_unsigned.json", t)
 	rep := gone.run()
 	check(t, "no probe issued", probeQueries(gone), 0)
 	check(t, "still a definite answer", rep.Wildcard.Status, WildcardAbsent)
@@ -507,9 +528,9 @@ func TestResolverSupports(t *testing.T) {
 }
 
 func TestDetectNotAZone(t *testing.T) {
-	ns := parseDelvYAML(fixture(t, "delv/outlook_host_ns_nxrrset.yaml"), "NS")
-	a := parseDelvYAML(fixture(t, "delv/outlook_host_a.yaml"), "A")
-	none := parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "AAAA")
+	ns := dogFixture(t, "dog/outlook_host_ns_nxrrset.json", "NS")
+	a := dogFixture(t, "dog/outlook_host_a.json", "A")
+	none := dogFixture(t, "dog/jschmidt_aaaa_nxrrset.json", "AAAA")
 	host := "aelcs-com.mail.protection.outlook.com"
 	noDeleg := Delegation{Status: DelegationNotDelegated}
 
@@ -521,11 +542,11 @@ func TestDetectNotAZone(t *testing.T) {
 	check(t, "zone from the negative answer's SOA", zone, "jschmidt.org")
 	check(t, "is host", is, true)
 
-	txt := parseDelvYAML(fixture(t, "delv/dmarc_jschmidt_txt.yaml"), "TXT")
+	txt := dogFixture(t, "dog/dmarc_jschmidt_txt.json", "TXT")
 	is, _ = detectNotAZone("_dmarc.jschmidt.org", dnsResults{apex: map[string]Lookup{"NS": ns, "TXT": txt}}, noDeleg)
 	check(t, "TXT-only host", is, true)
 
-	dns := dnsResults{apex: map[string]Lookup{"NS": parseDelvYAML(fixture(t, "delv/dmarc_jschmidt_ns.yaml"), "NS")}}
+	dns := dnsResults{apex: map[string]Lookup{"NS": dogFixture(t, "dog/dmarc_jschmidt_ns.json", "NS")}}
 	is, zone = detectNotAZone("_dmarc.jschmidt.org", dns, noDeleg)
 	check(t, "SOA above the name", is, true)
 	check(t, "zone", zone, "jschmidt.org")
@@ -542,7 +563,7 @@ func TestDetectNotAZone(t *testing.T) {
 	is, _ = detectNotAZone(host, dnsResults{apex: map[string]Lookup{"NS": ns, "A": a}}, lame)
 	check(t, "delegated name is a zone", is, false)
 
-	real := parseDelvYAML(fixture(t, "delv/jschmidt_ns.yaml"), "NS")
+	real := dogFixture(t, "dog/jschmidt_ns.json", "NS")
 	is, _ = detectNotAZone("jschmidt.org", dnsResults{apex: map[string]Lookup{"NS": real, "A": a}}, Delegation{})
 	check(t, "zone apex with NS", is, false)
 }
@@ -551,11 +572,11 @@ func TestRun_TXTOnlyNameInSignedZone(t *testing.T) {
 	name := "_dmarc.jschmidt.org"
 	s := newScenario(t, name, "")
 	for _, tt := range []string{"A", "AAAA", "MX", "TXT", "NS", "DS", "DNSKEY"} {
-		s.delv(name, tt, "delv/dmarc_jschmidt_"+strings.ToLower(tt)+".yaml", t)
+		s.dns(name, tt, "dog/dmarc_jschmidt_"+strings.ToLower(tt)+".json", t)
 	}
-	s.delv("www."+name, "A", "delv/www_dmarc_jschmidt_a.yaml", t)
-	s.delv("www."+name, "AAAA", "delv/www_dmarc_jschmidt_a.yaml", t)
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.dns("www."+name, "A", "dog/www_dmarc_jschmidt_a.json", t)
+	s.dns("www."+name, "AAAA", "dog/www_dmarc_jschmidt_a.json", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.trace("trace/dmarc_jschmidt_not_delegated.txt", t)
 	rep := s.run()
 	check(t, "not a zone", rep.NotAZone, true)
@@ -662,9 +683,9 @@ func TestRun_ResolverWithPort(t *testing.T) {
 	s.trace("trace/jschmidt.txt", t)
 	rep := s.run()
 	check(t, "resolver shown with port", rep.Resolver, "127.0.0.1:5353")
-	check(t, "delv calls made", len(s.r.called("delv")) > 10, true)
-	for _, c := range s.r.called("delv") {
-		check(t, "delv call carries the port: "+c, strings.Contains(c, "@127.0.0.1 -p 5353"), true)
+	check(t, "dog calls made", len(s.r.called("dog")) > 10, true)
+	for _, c := range s.r.called("dog") {
+		check(t, "dog call carries the port: "+c, strings.Contains(c, "-n 127.0.0.1:5353"), true)
 	}
 	check(t, "trace still goes to the root", strings.Contains(s.digCalls("+trace")[0], "-p"), false)
 	for _, c := range s.digCalls("+norecurse") {
@@ -679,7 +700,7 @@ func TestRun_IDNDomainUsesALabel(t *testing.T) {
 	}
 	s := newScenario(t, cfg.Domain, "")
 	s.cfg.UnicodeDomain = cfg.UnicodeDomain
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.trace("trace/muenchen.txt", t)
 	rep := s.run()
 	check(t, "domain is the A-label", rep.Domain, "xn--mnchen-3ya.de")
@@ -699,15 +720,15 @@ func TestRun_IDNDomainUsesALabel(t *testing.T) {
 func TestRun_HostInsideZoneIsNotAZone(t *testing.T) {
 	host := "aelcs-com.mail.protection.outlook.com"
 	s := newScenario(t, host, "")
-	s.delv(host, "TXT", "delv/outlook_host_txt_failure.yaml", t)
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.dns(host, "TXT", "dog/outlook_host_txt_failure.json", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.r.on("dig", traceArgs(familyIPv4, 5, host), fakeCall{stdout: fixture(t, "trace/nxdomain.txt")})
 	rep := s.run()
 	check(t, "not_a_zone", rep.NotAZone, true)
 	check(t, "delegation", rep.Delegation.Status, DelegationNotAZone)
 	check(t, "dnssec from answer trust", rep.DNSSEC.State, DNSSECInsecure)
 	check(t, "no bogus probe for a non-zone", len(s.digCalls("+cd")), 0)
-	check(t, "only the TXT failure remains an error", rep.Errors, []string{"apex TXT lookup failed: delv: resolution failed"})
+	check(t, "only the TXT failure remains an error", rep.Errors, []string{"apex TXT lookup failed: resolver answered SERVFAIL"})
 	check(t, "not-a-zone warning", contains(notes(rep), "is not a zone apex"), true)
 	check(t, "addresses probed (refused)", rep.Web.Apex.IPv4[0].HTTPS, PortRefused)
 	check(t, "no mail section", rep.Mail, (*MailReport)(nil))
@@ -720,7 +741,7 @@ func TestRun_ExhaustedDNSBudgetDoesNotPoisonLateLookups(t *testing.T) {
 	s := jschmidtScenario(t)
 	s.cfg.TimeoutSec = 1
 	s.trace("trace/jschmidt.txt", t)
-	s.r.on("delv", delvArgs(resolver{}, "", "jschmidt.org", "DNSKEY"), fakeCall{delay: 3 * time.Second})
+	s.r.on("dog", s.dogArgs("jschmidt.org", "DNSKEY"), fakeCall{delay: 3 * time.Second})
 	rep := s.run()
 	check(t, "dnskey timed out", rep.DNSSEC.State, DNSSECUnknown)
 	if rep.Nameservers == nil {
@@ -764,12 +785,12 @@ func TestRun_CapDoesNotStarveReachabilityProbe(t *testing.T) {
 	inner := s.r.fallback
 	s.r.fallback = func(tool string, args []string) (fakeCall, bool) {
 		joined := strings.Join(args, " ")
-		if tool == "delv" && !strings.HasSuffix(joined, " . NS") {
+		if tool == "dog" && !strings.HasSuffix(joined, " -q . -t NS") {
 			return fakeCall{delay: 5 * time.Second}, true
 		}
 		return inner(tool, args)
 	}
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 
 	rep := s.run()
 	check(t, "resolver still measured as reachable", rep.DNS.ResolverReachable[familyIPv4], ReachYes)
@@ -830,7 +851,7 @@ func TestRun_DependentWaveHasItsOwnBudget(t *testing.T) {
 	}}
 	rep := run(context.Background(), s.cfg, b, s.dialer)
 
-	nsKey := callKey("delv", delvArgs(s.cfg.Resolver, "", "ns-1013.awsdns-62.net", "A"))
+	nsKey := callKey("dog", s.dogArgs("ns-1013.awsdns-62.net", "A"))
 	if got := b.budgetFor(nsKey); got < 500*time.Millisecond {
 		t.Errorf("second wave got %v of a %v budget, want most of it", got, s.cfg.timeout())
 	}
@@ -904,8 +925,8 @@ func TestDetectNotAZone_CNAMEIsNeverAnApex(t *testing.T) {
 func TestProbeWeb_NoWWWForAHostInsideAZone(t *testing.T) {
 	host := "aelcs-com.mail.protection.outlook.com"
 	s := newScenario(t, host, "")
-	s.delv(host, "TXT", "delv/outlook_host_txt_failure.yaml", t)
-	s.reach(familyIPv4, "delv/root_ns_v4.yaml", t)
+	s.dns(host, "TXT", "dog/outlook_host_txt_failure.json", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
 	s.r.on("dig", traceArgs(familyIPv4, 5, host), fakeCall{stdout: fixture(t, "trace/nxdomain.txt")})
 	rep := s.run()
 	check(t, "detected as a host", rep.NotAZone, true)
@@ -1026,4 +1047,30 @@ func TestProbeWeb_CapsConcurrentAddresses(t *testing.T) {
 	if d.max > maxAddressProbes || d.max == 0 {
 		t.Errorf("%d addresses probed at once, want at most %d", d.max, maxAddressProbes)
 	}
+}
+
+// Unbound answers localhost from its own local zone (127.0.0.1 and ::1),
+// which delv never let through. Those are the resolver's answers, not the
+// domain's: the report is the one reserved_name warning, and nothing is
+// probed or called a reserved address.
+func TestRun_ReservedNameAnsweredByResolver(t *testing.T) {
+	s := newScenario(t, "localhost", "")
+	for _, tt := range []string{"A", "AAAA", "MX", "NS", "TXT"} {
+		s.dns("localhost", tt, "dog/reserved/localhost_"+strings.ToLower(tt)+".json", t)
+	}
+	s.dns("www.localhost", "A", "dog/reserved/www_localhost_a.json", t)
+	s.dns("www.localhost", "AAAA", "dog/reserved/www_localhost_aaaa.json", t)
+	s.reach(familyIPv4, "dog/root_ns_v4.json", t)
+	rep := s.run()
+	check(t, "addresses resolved", rep.DNS.Apex["A"].Records, []string{"127.0.0.1"})
+	var codes []string
+	for _, f := range rep.Findings {
+		codes = append(codes, f.Code)
+	}
+	check(t, "only the reserved_name warning", codes, []string{"reserved_name"})
+	check(t, "ok", rep.OK, true)
+	check(t, "not probed", rep.Web, WebSection{})
+	check(t, "no reserved addresses", len(rep.ReservedAddresses), 0)
+	check(t, "nothing dialed", len(s.dialer.seen), 0)
+	check(t, "no quic", len(s.r.called("quicprobe")), 0)
 }

@@ -13,38 +13,38 @@ import (
 	"time"
 )
 
-// fixtureLookup serves delv fixtures by name/type from a table; unknown
+// fixtureLookup serves dog fixtures by name/type from a table; unknown
 // names get a negative answer.
 func fixtureLookup(t *testing.T, table map[string]string) lookupFn {
 	t.Helper()
 	return func(name, qtype string) Lookup {
 		name = bareName(name)
 		if file, ok := table[name+"/"+qtype]; ok {
-			l := parseDelvYAML(fixture(t, file), qtype)
+			l := dogFixture(t, file, qtype)
 			l.Name = name
 			return l
 		}
-		l := parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), qtype)
+		l := dogFixture(t, "dog/jschmidt_aaaa_nxrrset.json", qtype)
 		l.Name = name
 		return l
 	}
 }
 
 func TestParseDMARC(t *testing.T) {
-	d := parseDMARC(parseDelvYAML(fixture(t, "delv/mail/dmarc_jschmidt.yaml"), "TXT"))
+	d := parseDMARC(dogFixture(t, "dog/mail/dmarc_jschmidt.json", "TXT"))
 	check(t, "present", d.Present, true)
 	check(t, "policy", d.Policy, "quarantine")
 	check(t, "rua", d.RUA, true)
 	check(t, "pct default", d.Pct, 100)
 	check(t, "problems", len(d.Problems), 0)
 
-	g := parseDMARC(parseDelvYAML(fixture(t, "delv/mail/dmarc_google.yaml"), "TXT"))
+	g := parseDMARC(dogFixture(t, "dog/mail/dmarc_google.json", "TXT"))
 	check(t, "google reject", g.Policy, "reject")
 
-	w := parseDMARC(parseDelvYAML(fixture(t, "delv/mail/dmarc_wikipedia.yaml"), "TXT"))
+	w := parseDMARC(dogFixture(t, "dog/mail/dmarc_wikipedia.json", "TXT"))
 	check(t, "wikipedia present", w.Present, true)
 
-	none := parseDMARC(parseDelvYAML(fixture(t, "delv/mail/mta_sts_jschmidt_missing.yaml"), "TXT"))
+	none := parseDMARC(dogFixture(t, "dog/mail/mta_sts_jschmidt_missing.json", "TXT"))
 	check(t, "missing", none.Present, false)
 
 	multi := parseDMARC(Lookup{Status: StatusOK, Records: []string{"v=DMARC1; p=none; pct=50", "v=DMARC1; p=reject"}})
@@ -261,10 +261,9 @@ func TestEvaluateSPF_AnswerSize(t *testing.T) {
 
 	// datapulse.global with one more verification token (a real 81-octet
 	// google-site-verification record) lands at 494: close to the limit.
-	extra := strings.Replace(fixture(t, "delv/mail/spf_datapulse_global.yaml"),
-		"    - 'datapulse.global. 2493 IN TXT \"MS=ms80652266\"'\n",
-		"    - 'datapulse.global. 2493 IN TXT \"MS=ms80652266\"'\n    - 'datapulse.global. 2493 IN TXT \"google-site-verification=aOJq8aXEtCO23r176f6iOTGt-RVuPv81XPtBuIzRTx0\"'\n", 1)
-	near := parseDelvYAML(extra, "TXT")
+	extra := strings.Replace(fixture(t, "dog/mail/spf_datapulse_global.json"), `"answers":[`,
+		`"answers":[{"name":"datapulse.global.","class":"IN","ttl":2493,"type":"TXT","data":{"messages":["google-site-verification=aOJq8aXEtCO23r176f6iOTGt-RVuPv81XPtBuIzRTx0"]}},`, 1)
+	near := parseDog(extra, "TXT")
 	near.Name = "datapulse.global"
 	check(t, "six records", len(near.Records), 6)
 	n := evaluateSPF("datapulse.global", near, lookup)
@@ -278,14 +277,14 @@ func TestEvaluateSPF_AnswerSize(t *testing.T) {
 
 func TestCheckMX(t *testing.T) {
 	table := map[string]string{
-		"jschmidt-org.mail.protection.outlook.com/A":    "delv/mail/mx_target_jschmidt_a.yaml",
-		"jschmidt-org.mail.protection.outlook.com/AAAA": "delv/mail/mx_target_jschmidt_aaaa.yaml",
-		"www.github.com/A":    "delv/www_github_cname.yaml",
-		"nosuch.example/A":    "delv/nxdomain_unsigned.yaml",
-		"nosuch.example/AAAA": "delv/nxdomain_unsigned.yaml",
+		"jschmidt-org.mail.protection.outlook.com/A":    "dog/mail/mx_target_jschmidt_a.json",
+		"jschmidt-org.mail.protection.outlook.com/AAAA": "dog/mail/mx_target_jschmidt_aaaa.json",
+		"www.github.com/A":    "dog/www_github_cname.json",
+		"nosuch.example/A":    "dog/nxdomain_unsigned.json",
+		"nosuch.example/AAAA": "dog/nxdomain_unsigned.json",
 	}
 	lookup := fixtureLookup(t, table)
-	mx := checkMX(parseDelvYAML(fixture(t, "delv/jschmidt_mx.yaml"), "MX"), lookup)
+	mx := checkMX(dogFixture(t, "dog/jschmidt_mx.json", "MX"), lookup)
 	check(t, "one exchange", len(mx), 1)
 	check(t, "host", mx[0].Host, "jschmidt-org.mail.protection.outlook.com.")
 	check(t, "addresses", mx[0].Addresses, 8)
@@ -301,7 +300,7 @@ func TestCheckMX(t *testing.T) {
 
 	check(t, "none of these are gaps", []bool{mx[0].Unresolved, mx[2].Unresolved, mx[3].Unresolved}, []bool{false, false, false})
 
-	null := checkMX(parseDelvYAML(fixture(t, "delv/microsoft_jp_net_null_mx.yaml"), "MX"), lookup)
+	null := checkMX(dogFixture(t, "dog/microsoft_jp_net_null_mx.json", "MX"), lookup)
 	check(t, "lone null MX is fine", len(null[0].Problems), 0)
 	mixed := checkMX(Lookup{Status: StatusOK, Records: []string{"0 .", "10 www.github.com."}}, lookup)
 	check(t, "null MX mixed", contains(mixed[0].Problems, "null MX mixed"), true)
@@ -309,8 +308,8 @@ func TestCheckMX(t *testing.T) {
 
 func TestProbeDKIM(t *testing.T) {
 	table := map[string]string{
-		"selector1._domainkey.jschmidt.org/TXT": "delv/mail/dkim_selector1_jschmidt.yaml",
-		"selector2._domainkey.jschmidt.org/TXT": "delv/mail/dkim_selector2_jschmidt.yaml",
+		"selector1._domainkey.jschmidt.org/TXT": "dog/mail/dkim_selector1_jschmidt.json",
+		"selector2._domainkey.jschmidt.org/TXT": "dog/mail/dkim_selector2_jschmidt.json",
 	}
 	res := probeDKIM("jschmidt.org", fixtureLookup(t, table))
 	check(t, "selectors", res.SelectorsFound, []string{"selector1", "selector2"})
@@ -327,11 +326,11 @@ func TestProbeDKIM(t *testing.T) {
 }
 
 func TestMTASTS(t *testing.T) {
-	rec := parseMTASTSRecord(parseDelvYAML(fixture(t, "delv/mail/mta_sts_gmail.yaml"), "TXT"))
+	rec := parseMTASTSRecord(dogFixture(t, "dog/mail/mta_sts_gmail.json", "TXT"))
 	check(t, "record", rec.Record, true)
 	check(t, "id", rec.ID, "20190429T010101")
-	check(t, "missing", parseMTASTSRecord(parseDelvYAML(fixture(t, "delv/mail/mta_sts_jschmidt_missing.yaml"), "TXT")).Record, false)
-	check(t, "tls-rpt", hasTLSRPT(parseDelvYAML(fixture(t, "delv/mail/tls_rpt_gmail.yaml"), "TXT")), true)
+	check(t, "missing", parseMTASTSRecord(dogFixture(t, "dog/mail/mta_sts_jschmidt_missing.json", "TXT")).Record, false)
+	check(t, "tls-rpt", hasTLSRPT(dogFixture(t, "dog/mail/tls_rpt_gmail.json", "TXT")), true)
 	check(t, "no tls-rpt", hasTLSRPT(Lookup{}), false)
 
 	policy := "version: STSv1\nmode: enforce\nmx: gmail-smtp-in.l.google.com\nmx: *.gmail-smtp-in.l.google.com\nmax_age: 86400\n"
@@ -351,12 +350,12 @@ func TestMTASTS(t *testing.T) {
 	t.Cleanup(func() { policyFetcher = old })
 	lookup := indexLookup(t)
 	policyFetcher = func(context.Context, string, time.Duration, lookupFn) (string, error) { return policy, nil }
-	got := checkMTASTS(context.Background(), "gmail.com", parseDelvYAML(fixture(t, "delv/mail/mta_sts_gmail.yaml"), "TXT"), []string{"gmail-smtp-in.l.google.com."}, time.Second, lookup)
+	got := checkMTASTS(context.Background(), "gmail.com", dogFixture(t, "dog/mail/mta_sts_gmail.json", "TXT"), []string{"gmail-smtp-in.l.google.com."}, time.Second, lookup)
 	check(t, "fetched and covered", got.MXCovered, true)
 	policyFetcher = func(context.Context, string, time.Duration, lookupFn) (string, error) {
 		return "", errors.New("Get https://mta-sts.gmail.com/: dial tcp: lookup mta-sts.gmail.com on 10.0.0.2:53: no such host")
 	}
-	got = checkMTASTS(context.Background(), "gmail.com", parseDelvYAML(fixture(t, "delv/mail/mta_sts_gmail.yaml"), "TXT"), nil, time.Second, lookup)
+	got = checkMTASTS(context.Background(), "gmail.com", dogFixture(t, "dog/mail/mta_sts_gmail.json", "TXT"), nil, time.Second, lookup)
 	check(t, "fetch error kept", strings.Contains(got.Error, "no such host"), true)
 	check(t, "resolver address scrubbed", strings.Contains(got.Error, "10.0.0.2"), false)
 	got = checkMTASTS(context.Background(), "x.org", Lookup{}, nil, time.Second, lookup)
@@ -422,7 +421,7 @@ func TestMailConventions(t *testing.T) {
 // must not fail the domain.
 func TestCheckMX_UnansweredIsNotAbsent(t *testing.T) {
 	timedOut := func(name, qtype string) Lookup {
-		l := parseDelvYAML(fixture(t, "delv/timeout.yaml"), qtype)
+		l := dogFixture(t, "dog/timeout.json", qtype)
 		l.Name, l.Status = name, StatusTimeout
 		return l
 	}
@@ -438,8 +437,8 @@ func TestCheckMX_UnansweredIsNotAbsent(t *testing.T) {
 
 	// A real denial still fails the domain.
 	denied := checkMX(Lookup{Status: StatusOK, Records: []string{"10 mx.example."}}, fixtureLookup(t, map[string]string{
-		"mx.example/A":    "delv/nxdomain_unsigned.yaml",
-		"mx.example/AAAA": "delv/nxdomain_unsigned.yaml",
+		"mx.example/A":    "dog/nxdomain_unsigned.json",
+		"mx.example/AAAA": "dog/nxdomain_unsigned.json",
 	}))
 	check(t, "denial is not a gap", denied[0].Unresolved, false)
 	g := &findings{}

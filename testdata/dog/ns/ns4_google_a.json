@@ -1,0 +1,1 @@
+{"responses":[{"flags":{"qr":true,"opcode":"QUERY","aa":false,"tc":false,"rd":true,"ra":true,"ad":false,"cd":false,"rcode":"NOERROR"},"queries":[{"name":"ns4.google.com.","class":"IN","type":"A"}],"answers":[{"name":"ns4.google.com.","class":"IN","ttl":86400,"type":"A","data":{"address":"216.239.38.10"}}],"authorities":[],"additionals":[]}]}

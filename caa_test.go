@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestParseCAA(t *testing.T) {
-	recs := parseCAA(parseDelvYAML(fixture(t, "delv/caa/cloudflare.yaml"), "CAA").Records)
+	recs := parseCAA(dogFixture(t, "dog/caa/cloudflare.json", "CAA").Records)
 	check(t, "eleven records", len(recs), 11)
 	var issue, issuewild, iodef int
 	for _, r := range recs {
@@ -18,7 +18,7 @@ func TestParseCAA(t *testing.T) {
 		check(t, "flags", r.Flags, 0)
 	}
 	check(t, "tag mix", []int{issue, issuewild, iodef}, []int{5, 5, 1})
-	g := parseCAA(parseDelvYAML(fixture(t, "delv/caa/google.yaml"), "CAA").Records)
+	g := parseCAA(dogFixture(t, "dog/caa/google.json", "CAA").Records)
 	check(t, "google", g, []caaRecord{{Flags: 0, Tag: "issue", Value: "pki.goog"}})
 	check(t, "garbage ignored", len(parseCAA([]string{"0 issue", "", "x"})), 0)
 	check(t, "parameters kept in value", parseCAA([]string{`0 issue "digicert.com; cansignhttpexchanges=yes"`})[0].Value, "digicert.com; cansignhttpexchanges=yes")
@@ -46,7 +46,7 @@ func TestCAAIDsFor(t *testing.T) {
 }
 
 func TestCAAPermits(t *testing.T) {
-	cf := parseCAA(parseDelvYAML(fixture(t, "delv/caa/cloudflare.yaml"), "CAA").Records)
+	cf := parseCAA(dogFixture(t, "dog/caa/cloudflare.json", "CAA").Records)
 	check(t, "digicert allowed at cloudflare.com", caaPermits(cf, caaIDsFor("DigiCert Inc"), false), true)
 	check(t, "sectigo (comodoca) allowed", caaPermits(cf, caaIDsFor("Sectigo Limited"), false), true)
 	check(t, "amazon not allowed", caaPermits(cf, caaIDsFor("Amazon"), false), false)
@@ -62,8 +62,8 @@ func TestCAAPermits(t *testing.T) {
 }
 
 func TestAssessCAA(t *testing.T) {
-	apex := parseDelvYAML(fixture(t, "delv/caa/google.yaml"), "CAA")
-	www := parseDelvYAML(fixture(t, "delv/caa/www_google.yaml"), "CAA") // NXRRSET: nothing published
+	apex := dogFixture(t, "dog/caa/google.json", "CAA")
+	www := dogFixture(t, "dog/caa/www_google.json", "CAA") // NXRRSET: nothing published
 	gts := servedCert{issuer: "Google Trust Services LLC"}
 
 	rep := assessCAA(apex, www, gts, gts)
@@ -92,14 +92,14 @@ func TestAssessCAA(t *testing.T) {
 	check(t, "www permitted absent", rep.Hosts["www"].Permitted, (*bool)(nil))
 
 	// No CAA anywhere: any CA may issue.
-	none := parseDelvYAML(fixture(t, "delv/caa/www_google.yaml"), "CAA")
+	none := dogFixture(t, "dog/caa/www_google.json", "CAA")
 	rep = assessCAA(none, none, servedCert{issuer: "Let's Encrypt"}, servedCert{issuer: "Let's Encrypt"})
 	check(t, "permitted without records", *rep.Hosts["apex"].Permitted, true)
 	check(t, "note", rep.Hosts["apex"].Note, "no CAA records; any CA may issue")
 	check(t, "empty lists, not null", []bool{rep.Hosts["www"].Published != nil, rep.Hosts["www"].Effective != nil}, []bool{true, true})
 
 	// www with its own records is governed by them, not by the apex.
-	cf := parseDelvYAML(fixture(t, "delv/caa/cloudflare.yaml"), "CAA")
+	cf := dogFixture(t, "dog/caa/cloudflare.json", "CAA")
 	rep = assessCAA(apex, cf, gts, servedCert{issuer: "DigiCert Inc"})
 	check(t, "www published is its own", len(rep.Hosts["www"].Published), 11)
 	check(t, "www effective equals published", rep.Hosts["www"].Effective, rep.Hosts["www"].Published)

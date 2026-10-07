@@ -1,0 +1,1 @@
+{"responses":[{"flags":{"qr":true,"opcode":"QUERY","aa":true,"tc":false,"rd":true,"ra":true,"ad":false,"cd":false,"rcode":"NOERROR"},"queries":[{"name":"localhost.","class":"IN","type":"NS"}],"answers":[{"name":"localhost.","class":"IN","ttl":10800,"type":"NS","data":{"nameserver":"localhost."}}],"authorities":[],"additionals":[]}]}

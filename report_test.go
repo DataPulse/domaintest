@@ -15,10 +15,10 @@ import (
 func healthyReport(t *testing.T) *Report {
 	t.Helper()
 	apex := lookups(t, map[string]string{
-		"A": "delv/google_a_unsigned.yaml", "AAAA": "delv/google_aaaa_unsigned.yaml",
-		"MX": "delv/google_mx_unsigned.yaml", "TXT": "delv/google_txt_unsigned.yaml", "NS": "delv/google_ns_unsigned.yaml",
+		"A": "dog/google_a_unsigned.json", "AAAA": "dog/google_aaaa_unsigned.json",
+		"MX": "dog/google_mx_unsigned.json", "TXT": "dog/google_txt_unsigned.json", "NS": "dog/google_ns_unsigned.json",
 	})
-	www := lookups(t, map[string]string{"A": "delv/google_a_unsigned.yaml", "AAAA": "delv/google_aaaa_unsigned.yaml"})
+	www := lookups(t, map[string]string{"A": "dog/google_a_unsigned.json", "AAAA": "dog/google_aaaa_unsigned.json"})
 	blocks, _ := parseTrace(fixture(t, "trace/google.txt"))
 	v4, v6 := apex["A"].Addrs()[0], apex["AAAA"].Addrs()[0]
 	ports := map[portKey]PortState{
@@ -55,11 +55,11 @@ func TestBuildFindings_Healthy(t *testing.T) {
 
 func TestBuildFindings_DNSWarnings(t *testing.T) {
 	rep := healthyReport(t)
-	rep.DNS.Apex["AAAA"] = parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "AAAA")
-	rep.DNS.Apex["MX"] = parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "MX")
-	rep.DNS.Apex["TXT"] = parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "TXT")
-	rep.DNS.WWW["A"] = parseDelvYAML(fixture(t, "delv/nxdomain_signed.yaml"), "A")
-	rep.DNS.WWW["AAAA"] = parseDelvYAML(fixture(t, "delv/nxdomain_signed.yaml"), "AAAA")
+	rep.DNS.Apex["AAAA"] = dogFixture(t, "dog/jschmidt_aaaa_nxrrset.json", "AAAA")
+	rep.DNS.Apex["MX"] = dogFixture(t, "dog/jschmidt_aaaa_nxrrset.json", "MX")
+	rep.DNS.Apex["TXT"] = dogFixture(t, "dog/jschmidt_aaaa_nxrrset.json", "TXT")
+	rep.DNS.WWW["A"] = dogFixture(t, "dog/nxdomain_signed.json", "A")
+	rep.DNS.WWW["AAAA"] = dogFixture(t, "dog/nxdomain_signed.json", "AAAA")
 	buildFindings(rep)
 	if !rep.OK {
 		t.Errorf("warnings only, expected ok: %v", rep.Errors)
@@ -74,7 +74,7 @@ func TestBuildFindings_DNSWarnings(t *testing.T) {
 func TestBuildFindings_NXDomainApex(t *testing.T) {
 	rep := healthyReport(t)
 	for _, tt := range apexTypes {
-		rep.DNS.Apex[tt] = parseDelvYAML(fixture(t, "delv/nxdomain_signed.yaml"), tt)
+		rep.DNS.Apex[tt] = dogFixture(t, "dog/nxdomain_signed.json", tt)
 	}
 	buildFindings(rep)
 	if rep.OK || !contains(rep.Errors, "NXDOMAIN") {
@@ -87,8 +87,8 @@ func TestBuildFindings_NXDomainApex(t *testing.T) {
 
 func TestBuildFindings_LookupFailuresAndBogus(t *testing.T) {
 	rep := healthyReport(t)
-	rep.DNS.Apex["A"] = parseDelvYAML(fixture(t, "delv/timeout.yaml"), "A")
-	rep.DNS.Apex["MX"] = parseDelvYAML(fixture(t, "delv/dnssec_failed_failure.yaml"), "MX")
+	rep.DNS.Apex["A"] = dogFixture(t, "dog/timeout.json", "A")
+	rep.DNS.Apex["MX"] = dogFixture(t, "dog/dnssec_failed_failure.json", "MX")
 	buildFindings(rep)
 	if !contains(rep.Errors, "apex A lookup timed out") || !contains(rep.Errors, "apex MX lookup failed") {
 		t.Errorf("expected timeout and failure errors, got %v", rep.Errors)
@@ -99,7 +99,7 @@ func TestBuildFindings_LookupFailuresAndBogus(t *testing.T) {
 
 	// With a bogus DNSSEC state the per-lookup failures are folded into one error.
 	rep = healthyReport(t)
-	rep.DNS.Apex["MX"] = parseDelvYAML(fixture(t, "delv/dnssec_failed_failure.yaml"), "MX")
+	rep.DNS.Apex["MX"] = dogFixture(t, "dog/dnssec_failed_failure.json", "MX")
 	rep.DNSSEC = DNSSECReport{State: DNSSECBogus, EDE: "9 (DNSKEY Missing): x"}
 	buildFindings(rep)
 	if len(rep.Errors) != 1 || !strings.Contains(rep.Errors[0], "bogus") || !strings.Contains(rep.Errors[0], "DNSKEY Missing") {
@@ -255,7 +255,7 @@ func TestBuildFindings_HTTPSDownWhileHTTPUp(t *testing.T) {
 
 func TestBuildFindings_LameZoneReportedOnce(t *testing.T) {
 	rep := healthyReport(t)
-	rep.DNS.Apex["NS"] = parseDelvYAML(fixture(t, "delv/jschmidt_aaaa_nxrrset.yaml"), "NS")
+	rep.DNS.Apex["NS"] = dogFixture(t, "dog/jschmidt_aaaa_nxrrset.json", "NS")
 	rep.Delegation = Delegation{Status: DelegationChildNoNS, Error: "zone at ns1.example has a SOA but no NS records"}
 	buildFindings(rep)
 	check(t, "single lame-delegation error", rep.Errors, []string{"lame delegation: zone at ns1.example has a SOA but no NS records"})
@@ -263,7 +263,7 @@ func TestBuildFindings_LameZoneReportedOnce(t *testing.T) {
 
 func TestBuildFindings_NullMXAndNotAZone(t *testing.T) {
 	rep := healthyReport(t)
-	rep.DNS.Apex["MX"] = parseDelvYAML(fixture(t, "delv/microsoft_jp_net_null_mx.yaml"), "MX")
+	rep.DNS.Apex["MX"] = dogFixture(t, "dog/microsoft_jp_net_null_mx.json", "MX")
 	buildFindings(rep)
 	check(t, "null MX warning", contains(notes(rep), "null MX"), true)
 	check(t, "no 'no MX' warning", contains(notes(rep), "no MX records"), false)
@@ -272,7 +272,7 @@ func TestBuildFindings_NullMXAndNotAZone(t *testing.T) {
 	rep = healthyReport(t)
 	rep.Domain = "host.example.net"
 	rep.NotAZone, rep.EnclosingZone = true, "example.net"
-	rep.DNS.Apex["NS"] = parseDelvYAML(fixture(t, "delv/outlook_host_ns_nxrrset.yaml"), "NS")
+	rep.DNS.Apex["NS"] = dogFixture(t, "dog/outlook_host_ns_nxrrset.json", "NS")
 	rep.Delegation = Delegation{Status: DelegationNotAZone}
 	buildFindings(rep)
 	check(t, "ok", rep.OK, true)
@@ -396,7 +396,7 @@ func TestServerFindings_SilentIsNotLame(t *testing.T) {
 func TestBuildFindings_ServfailFoldsLookupFailures(t *testing.T) {
 	rep := healthyReport(t)
 	for _, tt := range apexTypes {
-		rep.DNS.Apex[tt] = parseDelvYAML(fixture(t, "delv/dnssec_failed_failure.yaml"), tt)
+		rep.DNS.Apex[tt] = dogFixture(t, "dog/dnssec_failed_failure.json", tt)
 	}
 	rep.DNSSEC = DNSSECReport{State: DNSSECServfail, Detail: "resolver failed"}
 	buildFindings(rep)
@@ -425,8 +425,9 @@ func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
 	// Arrays and plain booleans are always present and never null. The
 	// only keys allowed to be null are the aggregates computed over a set
 	// of examined servers: with nothing examined they are unknown, and
-	// null is how they say so rather than reporting a vacuous pass.
-	unknownable := map[string]bool{"serials_consistent": true, "ipv4_prefixes_24": true, "ipv6_prefixes_48": true, "consistent": true}
+	// null is how they say so rather than reporting a vacuous pass. So is
+	// resolver_validates when the resolver answered over no family.
+	unknownable := map[string]bool{"serials_consistent": true, "ipv4_prefixes_24": true, "ipv6_prefixes_48": true, "consistent": true, "resolver_validates": true}
 	var seen []string
 	for _, m := range regexp.MustCompile(`"([a-z_0-9]+)":null`).FindAllStringSubmatch(out, -1) {
 		if !unknownable[m[1]] {
@@ -435,7 +436,7 @@ func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
 		seen = append(seen, m[1])
 	}
 	sort.Strings(seen)
-	check(t, "empty aggregates report unknown", seen, []string{"consistent", "ipv4_prefixes_24", "ipv6_prefixes_48", "serials_consistent"})
+	check(t, "empty aggregates report unknown", seen, []string{"consistent", "ipv4_prefixes_24", "ipv6_prefixes_48", "resolver_validates", "serials_consistent"})
 	for _, want := range []string{`"selectors_found":[]`, `"revoked":[]`, `"includes":[]`, `"problems":[]`, `"mx":[]`, `"addresses":[]`, `"www_via_wildcard":false`, `"signed":false`, `"hosts":{`, `"published":[]`, `"effective":[]`, `"servers":[]`, `"ns_cname":[]`, `"unresolvable":[]`, `"unresolved":[]`, `"probes":[]`, `"pct":100`} {
 		check(t, "present: "+want, strings.Contains(out, want), true)
 	}

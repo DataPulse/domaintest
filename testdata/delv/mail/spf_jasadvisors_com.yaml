@@ -1,9 +1,0 @@
-type: DELV_RESULT
-query_name: jasadvisors.com
-status: success
-records:
-  - fully_validated:
-    - 'jasadvisors.com. 2275 IN TXT "apple-domain-verification=IeDGAtEKf8gOa3JY"'
-    - 'jasadvisors.com. 2275 IN TXT "google-site-verification=7tsjo4Ajt_JpiYuMX046m1xdBI0k6Wzi800pUjCfieU"'
-    - 'jasadvisors.com. 2275 IN TXT "v=spf1 include:spf.protection.outlook.com include:amazonses.com -all"'
-    - 'jasadvisors.com. 2275 IN RRSIG TXT 13 2 3600 20260915164708 20260915134708 11232 jasadvisors.com. e3IpGNqbtz1kMPSDfpZRTxyOSdhJFwiTs3zjVBAf4+rnhVTTZlUXqXBu AvQJro6+sQz/0CCwbfa0NGhSHPReuw=='

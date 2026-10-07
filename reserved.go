@@ -3,10 +3,12 @@ package main
 import "strings"
 
 // specialUseSuffixes are names reserved by RFC and served outside the
-// global DNS. A validating resolver answers them itself, and the denial it
-// synthesises is unsigned, so delv reports a broken trust chain: without
-// this the report turns the resolver's own behaviour into a security
-// verdict about the domain, and foo.invalid comes back as DNSSEC bogus.
+// global DNS. A validating resolver answers them itself (Unbound serves
+// test, invalid, onion and localhost as local zones), so whatever it says
+// describes the resolver, not the domain: without this the report turns
+// the resolver's own behaviour into a security verdict about the domain.
+// Before 2026-10-07 the lookups ran delv, which called foo.invalid's
+// unsigned local denial a broken trust chain and the name DNSSEC bogus.
 //
 // Only the suffixes that never resolve are listed. example.com and its
 // siblings are reserved for documentation but are real, delegated names,

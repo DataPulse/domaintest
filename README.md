@@ -4,7 +4,7 @@ Checks the technical configuration of a domain name and prints one compact
 JSON report.
 
 ```
-domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-redirectlog] [-pretty] [-quicprobe path] [-delv path] [-dig path] <domain> [@dnsserver[:port]]
+domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-redirectlog] [-pretty] [-quicprobe path] [-dog path] [-dig path] <domain> [@dnsserver[:port]]
 domaintest -warm-hsts-cache
 domaintest -version
 ```
@@ -30,6 +30,9 @@ ran in `redirect_log`.
 Like `dig`, the optional `@dnsserver` may appear anywhere on the command
 line. Without it the system resolver is used. A port may be appended
 (`@127.0.0.1:5353`, `@[::1]:5353`); without one the default 53 applies.
+The resolver must validate DNSSEC: every trust level and DNSSEC verdict in
+the report is its verdict (see §1). In production it is the worker's own
+Unbound, the same resolver live DNS uses.
 
 The domain may be given as a U-label (`münchen.de`) or an A-label
 (`xn--mnchen-3ya.de`), in any case, with or without a trailing dot. IDNA
@@ -38,9 +41,34 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
 
 ## What it checks
 
-1. **DNS records** with `delv` (DNSSEC-validating): A, AAAA, MX, TXT and NS
-   at the apex, A and AAAA for `www.`, plus DS and DNSKEY. Every answer
-   carries its trust level (`secure` / `insecure`). Apex or www addresses
+1. **DNS records** with `dog`, the DNS client the rest of the DataPulse
+   stack uses: A, AAAA, MX, TXT and NS at the apex, A and AAAA for `www.`,
+   plus DS and DNSKEY. Every answer carries its trust level (`secure` /
+   `insecure`), which is the resolver's verdict: `secure` when it set AD,
+   having authenticated the whole answer, CNAME chain and denial of
+   existence included. So a signed `www` CNAME into an unsigned CDN reads
+   `insecure`, and so does every missing .com, .net and .org name and the
+   DS denial of every unsigned delegation under them: those denials are
+   NSEC3 opt-out spans, which prove nothing about the name (RFC 5155
+   §9.2). Live DNS reports the same AD bit, so the two tools agree. Whether
+   the resolver validates at all is read from the root NS answer the
+   reachability check already asks for (the root zone is signed):
+   `dns.resolver_validates` is false when it came back without AD, and
+   then no answer carries a trust level and `dnssec.state` is `unknown`
+   with the reason, rather than every signed zone reading as `insecure`.
+   It is null when the resolver answered over no family. dog checks names
+   before sending them and refuses an `xn--` label that is not a valid IDN
+   (`xn--bad` is punycode for two control characters), which domaintest's
+   lenient input still accepts; such a name is never queried, its lookups
+   fail saying dog cannot query it, and `dnssec.state` is `unknown` with
+   that reason rather than a verdict on the resolver.
+   Until 2026-10-07 every lookup ran `delv`, which validated by itself.
+   That cost about 36 ms of CPU per lookup (process start-up, not
+   cryptography) against dog's 2, about 1.6 CPU-seconds a run, which on a
+   two-vCPU worker running five domains turned into lookups missing their
+   budgets and being reported as the domain's faults. Its own verdicts
+   also disagreed with the resolver's on opt-out denials, reserved names
+   and zones whose servers only the resolver could reach. Apex or www addresses
    inside reserved ranges (RFC 1918, loopback, link-local, CGNAT,
    documentation, multicast, ULA, and the IPv6 forms that carry such an
    IPv4 address: NAT64, 6to4, IPv4-compatible) are an error and are not
@@ -49,16 +77,20 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    DataPulse tool (since 2026-10-06; before, domaintest kept a list of its
    own and called NAT64 public).
 2. **DNSSEC state**: `secure`, `insecure`, `island` (DNSKEY but no DS),
-   `bogus` (validation fails; confirmed with `dig +cd` and the resolver's
-   Extended DNS Error), `servfail`, or `unknown`. A published DS and
-   DNSKEY are not enough for `secure`: the validator must have validated
+   `bogus` (the resolver fails the lookup but `dig +cd`, checking
+   disabled, gets the data; with the resolver's Extended DNS Error when it
+   sends one; never for a zone whose parent publishes no DS, where
+   a lookup that fails and then answers with checking disabled is a flaky
+   server, reported `servfail`), `servfail`, or `unknown`. A published DS and
+   DNSKEY are not enough for `secure`: the resolver must have authenticated
    the DNSKEY answer. A DS whose algorithm or digest the validator does
    not support makes it treat the zone as unsigned, which is reported as
    `insecure` with a detail saying so. A name that does not exist
    (NXDOMAIN) is `nonexistent`: there is no zone to judge, and the detail
-   says whether the parent's denial of existence validated. Every lookup of
-   such a name can carry trust `secure` (a validated denial) and the TLSA
-   section `signed: true` for the same reason; neither means the name is
+   says whether the parent's denial of existence validated. Under an
+   opt-out parent (.com, .net, .org) it did not. Where the parent proves the
+   denial (.se, for instance), every lookup of such a name can carry trust
+   `secure` and the TLSA section `signed: true`; neither means the name is
    signed.
 3. **Delegation**: `dig +trace` from `a.root-servers.net` compares the NS
    set the parent zone delegates to with the NS set the zone itself serves.
@@ -281,7 +313,7 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     and, when present, the policy at
     `https://mta-sts.<domain>/.well-known/mta-sts.txt` fetched with full
     certificate verification, its host resolved through the tool's own
-    validating lookups rather than the system resolver, every public
+    lookups against the configured resolver rather than the system's, every public
     address tried at once (a reserved one is never contacted), and compared with
     the MX set (problems are errors in `enforce` mode, warnings otherwise;
     `mode: none` withdraws the policy, so its mx lines are not judged);
@@ -342,8 +374,8 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
 
 Steps 5 to 9 run over both IPv4 and IPv6 unless `-4` or `-6` is given.
 DNS record data is fetched once; a literal `@server` address fixes the DNS
-transport family. Every DNS lookup goes through `delv`, so all answers are
-independently DNSSEC-validated.
+transport family. Every DNS lookup goes through `dog` to the configured
+resolver, and its DNSSEC verdict is the resolver's AD bit.
 
 ## HSTS preload list
 
@@ -411,7 +443,7 @@ cache.
 |---|---|
 | 0 | no errors found |
 | 1 | the report contains errors (`"ok": false`) |
-| 2 | usage error, or `delv`, `dig` or `quicprobe` not found |
+| 2 | usage error, or `dog`, `dig` or `quicprobe` not found |
 
 ## Report
 
@@ -531,7 +563,7 @@ check that examined nothing reports unknown rather than a pass, so
 The wildcard section's `consistent` is null the same way, whenever the
 status is not `present` and there was therefore nothing to compare.
 Consumers reading these as plain booleans or integers must handle null.
-Per-lookup objects carry `retries: 1` when the first delv attempt timed
+Per-lookup objects carry `retries: 1` when the first DNS attempt timed
 out and the retry answered, and so do nameserver entries whose first audit
 query went unanswered.
 
@@ -651,11 +683,13 @@ Notes on the info rows:
 
 ## DNS concurrency
 
-One run makes about 40 `delv` invocations and wants roughly 18 of them in
-flight at once, each validating DNSSEC in its own process. That is free on
-a workstation and ruinous on a small host running several domains at once:
-on a two-vCPU worker at five concurrent runs the lookups miss their
-deadlines through scheduling delay alone, with the resolver still idle.
+One run makes about 45 `dog` invocations and wants roughly 18 of them in
+flight at once. While each was a `delv` validating DNSSEC in its own
+process (until 2026-10-07), that was free on a workstation and ruinous on
+a small host running several domains at once: on a two-vCPU worker at five
+concurrent runs the lookups missed their deadlines through scheduling
+delay alone, with the resolver still idle. dog costs about a twentieth of
+the CPU, and the cap stays as a bound on the fan-out.
 
 `-dns-concurrency` caps how many DNS tool processes one run may have
 running, so a caller keeps its own job-level parallelism instead of
@@ -666,7 +700,7 @@ behaviour. The value in force is echoed as `dns_concurrency` in the
 report. Waiting for a slot is bounded by the same budget as the lookup
 itself, so a saturated host degrades to ordinary timeouts.
 
-The cap covers `delv` and `dig` only. `quicprobe` waits on the network
+The cap covers `dog` and `dig` only. `quicprobe` waits on the network
 rather than competing for CPU, and queueing it behind DNS work would cost
 QUIC answers for nothing. The resolver-reachability probe is also exempt:
 it measures the configured resolver rather than the domain, so letting a
@@ -679,7 +713,7 @@ Defaults assume a well-connected vantage point such as an AWS host: a
 server that cannot complete a handshake in two seconds is dead or
 misconfigured.
 
-`-t` (default 3 s) bounds each wave of `delv` lookups and the delegation
+`-t` (default 3 s) bounds each wave of DNS lookups and the delegation
 trace (which gets twice the budget with half of it per query, so one slow
 root or TLD server does not sink the whole trace). The lookups run in two
 waves, the fixed records first and then the ones those answers name (MX
@@ -708,7 +742,9 @@ nameserver audit, late lookups) is capped at `max(3 × -tcp-timeout,
 -quic-timeout + 1) + 1`. With the defaults (`-t 3 -tcp-timeout 2
 -quic-timeout 2`) that is 6 + 3 + 7 = 16 s, reached only when every server
 in every phase hangs; a dead resolver measures about 4 s and a healthy
-domain about 3 s. When the delegated nameservers were silent to the
+domain about 3 s. When the
+`_mta-sts` record exists, the policy host's addresses are looked up in the
+second wave rather than in series at the end. When the delegated nameservers were silent to the
 trace, the nameserver audit runs first under its own allowance of the
 same size, so the probes after it are not left with the remainder.
 
@@ -721,7 +757,7 @@ reaches it sets `"deadline_reached": true` and adds the info finding
 `run_deadline_reached`. Whatever was still running reports its own
 timeout. The report header carries the value as `max_time_sec`.
 
-A `delv` lookup that times out in the first half of its budget is retried
+A DNS lookup that times out in the first half of its budget is retried
 once (`"retries": 1` in the record), so one dropped UDP query does not cost
 the whole run. A run against a healthy domain takes about one second
 when QUIC answers and about `-quic-timeout` when it does not; the extra
@@ -759,7 +795,11 @@ carry `public_suffix: true`.
 
 ## Requirements
 
-- `delv` and `dig` (BIND 9.18 or later, `+yaml` support) on `PATH`.
+- `dog` (the DataPulse fork, with `--timeout`, from 1b5845d) on `PATH`, or
+  given with `-dog`.
+- `dig` (BIND 9.18 or later, `+yaml` support) on `PATH`, for the
+  delegation trace, the nameserver audit and the checking-disabled probe.
+- A DNSSEC-validating resolver (see §1).
 - `quicprobe` on `PATH`, at `../quicprobe/quicprobe` next to the binary or
   the working directory, or given with `-quicprobe`. It must support the
   `-ip` and `-t` flags.
@@ -797,7 +837,8 @@ go test -tags calibration -run Calibration -v   # live severity calibration
 ```
 
 Unit tests never touch the network: DNS answers come from captured
-`delv`/`dig` output under `testdata/`, TLS and HTTP behaviour from local
+`dog`/`dig` output under `testdata/` (`testdata/dog/README.md` says where
+each dog capture came from), TLS and HTTP behaviour from local
 `httptest` servers with certificates minted in-test, and the badssl.com,
 DANE, wildcard and reserved-address cases run live only in the integration
 suite.
@@ -805,16 +846,18 @@ suite.
 ## Names outside the global DNS
 
 A name reserved by RFC is not served by the public DNS, and a validating
-resolver answers it locally. The denial it synthesises is unsigned, so
-`delv` reports a broken trust chain and the report would otherwise turn the
-resolver's own behaviour into a security verdict about the domain:
-`foo.invalid` came back as DNSSEC bogus.
+resolver answers it locally, so whatever it says describes the resolver,
+not the domain. While lookups ran `delv`, the unsigned local denial read
+as a broken trust chain and `foo.invalid` came back as DNSSEC bogus.
 
 Such a name now carries `reserved_name` (the RFC that reserves it), its
 DNSSEC state is `unknown` rather than `bogus`, the delegation and zone
 checks are skipped, and one warning explains why. No delegation trace and
 no nameserver audit run: `delegation.status` is `reserved_name`, with the
-reason in `delegation.error`. The warning (until 2026-10-06 an `info`)
+reason in `delegation.error`. Its records are still looked up and
+reported, but they are the resolver's own (Unbound answers `localhost` with
+127.0.0.1 and ::1), so no address is probed and the warning is the only
+finding apart from the resolver's reachability and the run deadline. The warning (until 2026-10-06 an `info`)
 keeps the report from reading as a clean bill of health; `ok` stays true,
 since nothing about the name is broken, only out of reach. The suffixes are
 `invalid`, `test`, `localhost`, `example` (RFC 6761), `local` (RFC 6762),

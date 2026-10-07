@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Integration tests hit the real delv, dig, quicprobe and the network.
+// Integration tests hit the real dog, dig, quicprobe and the network.
 // They are skipped under -short.
 
 func integrationConfig(t *testing.T, args ...string) config {
@@ -132,7 +132,7 @@ func TestIntegration_HostInsideZone(t *testing.T) {
 
 func TestIntegration_ResolverWithPort(t *testing.T) {
 	// Google Public DNS answers on 53 only, so a wrong port must fail fast
-	// and a right one must work, proving -p reaches delv.
+	// and a right one must work, proving the port reaches dog.
 	cfg := integrationConfig(t, "jschmidt.org", "@8.8.8.8:53", "-t", "2")
 	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
 	check(t, "resolver", rep.Resolver, "8.8.8.8:53")
@@ -469,4 +469,14 @@ func TestIntegration_WarmModeAndProcessRace(t *testing.T) {
 		check(t, "preload status", rep.HSTSPreload, want)
 		check(t, "no preload error", rep.HSTSPreloadError, "")
 	}
+}
+
+// A name whose xn-- label dog refuses to encode is reported as unqueryable,
+// not as a resolver failure.
+func TestIntegration_NameDogCannotEncode(t *testing.T) {
+	cfg := integrationConfig(t, "xn--bad.com")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	check(t, "dnssec unknown", rep.DNSSEC.State, DNSSECUnknown)
+	check(t, "says why", strings.Contains(rep.DNSSEC.Detail, "dog cannot query the name"), true)
+	check(t, "no resolver verdict", contains(rep.Errors, "SERVFAIL"), false)
 }

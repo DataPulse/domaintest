@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"time"
 )
 
 // Runner executes an external tool. It is an interface so tests can feed
@@ -26,6 +27,11 @@ func (execRunner) Run(ctx context.Context, name string, args ...string) ([]byte,
 		return nil, nil, errors.New("runner: nil context")
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
+	// Killing the tool at the deadline does not end Run while anything
+	// else still holds its output pipes open (a child the tool started, or
+	// a wrapper's orphan): Wait would block until that writer exits. Bound
+	// the wait so the run deadline holds whatever the tool does.
+	cmd.WaitDelay = toolWaitDelay
 	stdout, stderr := &cappedBuffer{max: maxToolOutput}, &cappedBuffer{max: maxToolOutput}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -35,6 +41,9 @@ func (execRunner) Run(ctx context.Context, name string, args ...string) ([]byte,
 	}
 	return stdout.Bytes(), stderr.Bytes(), err
 }
+
+// toolWaitDelay is how long Run waits for a killed tool's pipes to close.
+const toolWaitDelay = 500 * time.Millisecond
 
 // maxToolOutput bounds what is kept of one tool's stdout or stderr. The
 // largest real output, a dig +trace or a nameserver audit, is tens of
@@ -83,10 +92,10 @@ func requireTool(explicit, name string) (string, error) {
 }
 
 // limitedRunner caps how many external DNS tools run at once. One run
-// makes about 40 delv invocations and can have 18 or more in flight, each
-// validating DNSSEC in its own process; several runs at once on a small
-// host miss their deadlines through scheduling delay alone, with the
-// resolver still idle. The cap bounds the fan-out inside a run so callers
+// makes about 45 dog invocations and can have 18 or more in flight; when
+// each was a delv validating DNSSEC in its own process, several runs at
+// once on a small host missed their deadlines through scheduling delay
+// alone, with the resolver still idle. The cap bounds the fan-out inside a run so callers
 // keep their own parallelism.
 type limitedRunner struct {
 	inner Runner

@@ -1,0 +1,1 @@
+{"responses":[{"flags":{"qr":true,"opcode":"QUERY","aa":false,"tc":false,"rd":true,"ra":true,"ad":true,"cd":false,"rcode":"NOERROR"},"queries":[{"name":"dns101.comcast.net.","class":"IN","type":"AAAA"}],"answers":[{"name":"dns101.comcast.net.","class":"IN","ttl":300,"type":"AAAA","data":{"address":"2001:558:fe23:8:69:252:250:103"}}],"authorities":[],"additionals":[]}]}

@@ -92,6 +92,10 @@ type DNSSection struct {
 	Apex              map[string]Lookup `json:"apex"`
 	WWW               map[string]Lookup `json:"www"`
 	ResolverReachable map[string]string `json:"resolver_reachable,omitempty"`
+	// ResolverValidates says whether the resolver authenticated the signed
+	// root NS answer; null when it answered over no family. Every trust
+	// and DNSSEC verdict is the resolver's, so they are withheld when false.
+	ResolverValidates *bool `json:"resolver_validates"`
 }
 
 // WebSection holds TCP and QUIC probe results per name.
@@ -235,11 +239,23 @@ func buildFindings(rep *Report) {
 		f.finish(rep)
 		return
 	}
-	f.dnsFindings(rep)
-	if rep.ReservedName == "" {
-		f.dnssecFindings(rep.DNSSEC)
-		f.delegationFindings(rep)
+	if rep.ReservedName != "" {
+		// The resolver answers a reserved name itself (Unbound serves
+		// localhost, test, invalid and onion as local zones), so every
+		// record, address and absence describes the resolver, not the
+		// domain. The resolver's own reachability is kept. reserved_name
+		// is a warning, not info: nothing about the name can be checked
+		// publicly, and an all-quiet report would read as a healthy domain
+		// (2026-10-06 tester report). Not a fail, so ok stays true.
+		f.reachabilityFindings(rep.DNS.ResolverReachable)
+		f.deadlineFindings(rep)
+		f.warn("reserved_name", "", "%s is reserved by %s and is not served by the global DNS: delegation and DNSSEC checks do not apply", rep.Domain, rep.ReservedName)
+		f.finish(rep)
+		return
 	}
+	f.dnsFindings(rep)
+	f.dnssecFindings(rep.DNSSEC)
+	f.delegationFindings(rep)
 	f.reachabilityFindings(rep.DNS.ResolverReachable)
 	f.deadlineFindings(rep)
 	f.webFindings("apex", rep.Web.Apex)
@@ -374,11 +390,6 @@ func (f *findings) apexMissing(rep *Report) bool {
 func (f *findings) zoneKindFindings(rep *Report) {
 	apex := rep.DNS.Apex
 	switch {
-	case rep.ReservedName != "":
-		// A warning, not info: nothing about the name can be checked
-		// publicly, and an all-quiet report would read as a healthy domain
-		// (2026-10-06 tester report). Not a fail, so ok stays true.
-		f.warn("reserved_name", "", "%s is reserved by %s and is not served by the global DNS: delegation and DNSSEC checks do not apply", rep.Domain, rep.ReservedName)
 	case rep.NotAZone:
 		f.info("not_a_zone", "", "%s is not a zone apex%s: delegation and DNSSEC zone checks skipped", rep.Domain, enclosing(rep.EnclosingZone))
 	case rep.Delegation.Status == DelegationChildNoNS, rep.Delegation.Status == DelegationNoChildAnswer:

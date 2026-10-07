@@ -50,7 +50,7 @@ func TestSplitReserved(t *testing.T) {
 }
 
 func TestReservedFromFixture(t *testing.T) {
-	l := parseDelvYAML(fixture(t, "delv/reserved/localtest_a.yaml"), "A")
+	l := dogFixture(t, "dog/reserved/localtest_a.json", "A")
 	_, reserved := splitReserved(l.Addrs())
 	check(t, "localtest.me publishes loopback", reserved, []string{"127.0.0.1 (loopback address)"})
 }

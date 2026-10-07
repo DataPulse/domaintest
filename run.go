@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"maps"
 	"net"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,7 +17,7 @@ import (
 // netDialer is the production dialer.
 type netDialer struct{ net.Dialer }
 
-// lookupCache memoises delv lookups for one run so that SPF includes, MX
+// lookupCache memoises DNS lookups for one run so that SPF includes, MX
 // targets and NS names are fetched once however many checks need them.
 type lookupCache struct {
 	ctx  context.Context // the current phase's context; run() advances it
@@ -36,7 +38,7 @@ func newLookupCache(ctx context.Context, cfg config, r Runner) *lookupCache {
 	return &lookupCache{ctx: ctx, r: r, cfg: cfg, done: map[string]Lookup{}}
 }
 
-// get returns the memoised lookup, running delv on first use. Each miss
+// get returns the memoised lookup, running dog on first use. Each miss
 // gets its own timeout so that lookups requested after the DNS phase
 // (nameserver names learned from the parent, for instance) still have a
 // budget instead of inheriting an expired deadline.
@@ -60,34 +62,37 @@ func (c *lookupCache) get(name, qtype string) Lookup {
 		// The phase budget is already spent (a first-wave lookup hung). Do
 		// not run, and do not cache: a later phase retries with its own
 		// budget instead of inheriting a poisoned timeout.
-		return Lookup{Name: name, Type: qtype, Status: StatusTimeout, Error: "delv timed out"}
+		return Lookup{Name: name, Type: qtype, Status: StatusTimeout, Error: "dns lookup timed out"}
 	}
 	lctx, cancel := context.WithTimeout(base, c.cfg.timeout())
 	defer cancel()
-	l = delvLookup(lctx, c.r, c.cfg.DelvPath, c.cfg.Resolver, "", name, qtype)
+	l = dnsLookup(lctx, c.r, c.cfg.DogPath, c.cfg.Resolver.dogServer(), c.cfg.TimeoutSec, name, qtype)
 	c.mu.Lock()
 	c.done[key] = l
 	c.mu.Unlock()
 	return l
 }
 
-// dnsResults collects every delv lookup for one run.
+// dnsResults collects every DNS lookup for one run.
 type dnsResults struct {
-	apex     map[string]Lookup
-	www      map[string]Lookup
-	ds       Lookup
-	dnskey   Lookup
-	reach    map[string]string
-	dmarc    Lookup
-	mtaSTS   Lookup
-	tlsRPT   Lookup
-	wild     []wildProbe // the random-name probes, in the order issued
-	wildSkip string      // why no probe was issued: an answer already in hand
-	caaApex  Lookup
-	caaWWW   Lookup
-	tlsaApex Lookup
-	tlsaWWW  Lookup
-	cache    *lookupCache
+	apex   map[string]Lookup
+	www    map[string]Lookup
+	ds     Lookup
+	dnskey Lookup
+	reach  map[string]string
+	// reachTrust is the trust of the root NS answer per family: whether
+	// the resolver validates at all.
+	reachTrust map[string]Trust
+	dmarc      Lookup
+	mtaSTS     Lookup
+	tlsRPT     Lookup
+	wild       []wildProbe // the random-name probes, in the order issued
+	wildSkip   string      // why no probe was issued: an answer already in hand
+	caaApex    Lookup
+	caaWWW     Lookup
+	tlsaApex   Lookup
+	tlsaWWW    Lookup
+	cache      *lookupCache
 }
 
 // run performs every check for cfg and returns the finished report.
@@ -98,23 +103,33 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 
 	// The DNS tools are capped together; quicprobe is left alone because it
 	// waits on the network rather than competing for CPU, and queueing it
-	// behind delv would only cost QUIC answers.
+	// behind DNS work would only cost QUIC answers.
 	dnsRunner := limitRunner(r, cfg.DNSConcurrency)
 
 	// A name reserved by RFC is not in the global DNS, so there is no
 	// delegation to trace; classifyZone records why.
 	reserved := reservedName(cfg.Domain) != ""
 	var dns dnsResults
+	web := &earlyWeb{}
+	defer web.stop()
 	parallel(
 		func() {
 			if !reserved {
 				rep.Delegation = runTrace(ctx, cfg, dnsRunner)
 			}
 		},
-		func() { dns = gatherDNS(ctx, cfg, dnsRunner, r) },
+		func() {
+			dns = gatherDNS(ctx, cfg, dnsRunner, r, func(first dnsResults) {
+				// A reserved name's addresses are the resolver's local
+				// answers (localhost is 127.0.0.1 and ::1), not the
+				// domain's, so they are never probed.
+				if !reserved {
+					web.start(ctx, cfg, r, d, first, rep)
+				}
+			})
+		},
 	)
-	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach}
-	classifyZone(ctx, rep, cfg, dns, dnsRunner)
+	classifyDNS(ctx, rep, cfg, &dns, dnsRunner)
 
 	// When the delegated servers were silent to the trace, ask each of them
 	// before anything else. If none answers for the zone, nothing else can
@@ -124,6 +139,7 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	if delegationSilent(rep.Delegation, dns.apex["NS"]) {
 		rep.Nameservers, audited = auditFirst(ctx, cfg, dnsRunner, dns, rep), true
 		if zoneUnreachable(rep) {
+			web.stop() // nothing is reported about a zone no server answers for
 			return finishReport(ctx, rep, start)
 		}
 	}
@@ -131,7 +147,7 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	defer cancel()
 	dns.cache.setContext(probeCtx) // late lookups share the probe budget
 	parallel(
-		func() { rep.Web = probeWeb(probeCtx, cfg, r, d, dns, rep) },
+		func() { rep.Web = web.wait() },
 		func() {
 			if !audited {
 				rep.Nameservers = auditNameservers(probeCtx, cfg, dnsRunner, dns, rep)
@@ -147,6 +163,72 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	rep.Wildcard = wildcardSection(dns, rep.Web)
 	rep.CAA, rep.TLSA = assessCertPolicies(dns, rep)
 	return finishReport(ctx, rep, start)
+}
+
+// classifyDNS records the lookups and judges the zone. Every trust level
+// is the resolver's AD bit, so a resolver that does not validate has its
+// silence withheld rather than read as every zone being unsigned.
+func classifyDNS(ctx context.Context, rep *Report, cfg config, dns *dnsResults, r Runner) {
+	validates := resolverValidates(dns.reachTrust)
+	blind := validates != nil && !*validates
+	if blind {
+		dns.dropTrust()
+	}
+	rep.DNS = DNSSection{Apex: dns.apex, WWW: dns.www, ResolverReachable: dns.reach, ResolverValidates: validates}
+	classifyZone(ctx, rep, cfg, *dns, r)
+	if blind && rep.ReservedName == "" {
+		rep.DNSSEC = DNSSECReport{State: DNSSECUnknown, DS: dns.ds.HasRecords(), DNSKEY: dns.dnskey.HasRecords(),
+			Detail: "the resolver does not validate DNSSEC (it did not authenticate the signed root zone), so no DNSSEC verdict is possible"}
+	}
+}
+
+// earlyWeb runs the web probes alongside the second DNS wave. They need only
+// the apex and www addresses, which the first wave settles, and waiting for
+// the dependent lookups, the delegation trace and the DNSSEC classification
+// left every TCP, TLS and QUIC handshake idle for that whole time. The
+// probes keep the budget they always had, counted from their own start.
+// While each lookup was a delv process (until 2026-10-07) this made a
+// CPU-bound host worse: the probes competed with the second wave for CPU.
+type earlyWeb struct {
+	done   chan struct{}
+	cancel context.CancelFunc
+	result WebSection
+}
+
+// start launches probeWeb on the first wave's answers. It gets its own copy
+// of the apex and www maps, which the classification may still rewrite
+// (dropTrust); rep is only written at ReservedAddresses, which nothing else
+// touches before the report is finished.
+func (w *earlyWeb) start(ctx context.Context, cfg config, r Runner, d dialer, first dnsResults, rep *Report) {
+	first.apex, first.www = maps.Clone(first.apex), maps.Clone(first.www)
+	wctx, cancel := context.WithTimeout(ctx, probeBudget(cfg))
+	w.done, w.cancel = make(chan struct{}), cancel
+	go func() {
+		defer close(w.done)
+		w.result = probeWeb(wctx, cfg, r, d, first, rep)
+	}()
+}
+
+// wait returns the probes' result once they finish; an empty section when
+// they never started (a reserved name, or a DNS phase that ended before its
+// first wave did).
+func (w *earlyWeb) wait() WebSection {
+	if w.done == nil {
+		return WebSection{}
+	}
+	<-w.done
+	w.cancel()
+	return w.result
+}
+
+// stop cancels the probes and waits for them to return, so no goroutine
+// outlives the run. It is safe to call more than once.
+func (w *earlyWeb) stop() {
+	if w.done == nil {
+		return
+	}
+	w.cancel()
+	<-w.done
 }
 
 // auditFirst runs the nameserver audit ahead of the probes, under a budget
@@ -305,32 +387,42 @@ func traceFamily(cfg config) string {
 	return familyIPv4
 }
 
-// gatherDNS runs all delv lookups in parallel in two waves: first the fixed
+// gatherDNS runs all DNS lookups in parallel in two waves: first the fixed
 // set, then the lookups that depend on those answers (SPF includes, MX
 // targets, DKIM selectors, NS names). Each wave gets its own budget.
+// afterFirst, when set, is called with the first wave's results before the
+// second wave starts.
 //
 // gatherDNS runs the record lookups through the capped runner. The
 // reachability probe uses the uncapped one: it measures our own resolver,
 // so letting the target's hung lookups starve it would turn a slow domain
 // into a false claim that the resolver is down.
-func gatherDNS(ctx context.Context, cfg config, r, reachRunner Runner) dnsResults {
+func gatherDNS(ctx context.Context, cfg config, r, reachRunner Runner, afterFirst func(dnsResults)) dnsResults {
 	dctx, cancel := context.WithTimeout(ctx, cfg.timeout())
 	defer cancel()
 	res := dnsResults{
-		apex:  make(map[string]Lookup, len(apexTypes)),
-		www:   make(map[string]Lookup, len(wwwTypes)),
-		reach: make(map[string]string, len(cfg.Families)),
-		cache: newLookupCache(dctx, cfg, r),
+		apex:       make(map[string]Lookup, len(apexTypes)),
+		www:        make(map[string]Lookup, len(wwwTypes)),
+		reach:      make(map[string]string, len(cfg.Families)),
+		reachTrust: make(map[string]Trust, len(cfg.Families)),
+		cache:      newLookupCache(dctx, cfg, r),
 	}
 	var mu sync.Mutex
 	get := res.cache.get
 	tasks := fixedLookups(&res, &mu, cfg, get)
 	for _, fam := range cfg.Families {
 		tasks = append(tasks, func() {
-			store(&mu, res.reach, fam, checkReachability(dctx, cfg, reachRunner, fam))
+			status, trust := checkReachability(dctx, cfg, reachRunner, fam)
+			store(&mu, res.reach, fam, status)
+			store(&mu, res.reachTrust, fam, trust)
 		})
 	}
 	parallel(tasks...)
+	if afterFirst != nil {
+		// The apex and www maps are complete; the second wave only reads
+		// them, and the hook takes its own copy before anything rewrites them.
+		afterFirst(res)
+	}
 
 	// The second wave gets its own allowance rather than the remainder of
 	// the first. Sharing one budget charged the first wave's queueing to
@@ -387,6 +479,12 @@ func dependentLookups(res *dnsResults, cfg config, get lookupFn) []func() {
 	}
 	for _, ns := range nsNames(res.apex["NS"]) {
 		tasks = append(tasks, func() { get(ns, "A") }, func() { get(ns, "AAAA") })
+	}
+	// The policy fetch resolves mta-sts.<domain> late in the probe phase,
+	// A then AAAA, where the two lookups were the run's last serial step.
+	if parseMTASTSRecord(res.mtaSTS).Record {
+		host := "mta-sts." + cfg.Domain
+		tasks = append(tasks, func() { get(host, "A") }, func() { get(host, "AAAA") })
 	}
 	tasks = append(tasks,
 		func() { evaluateSPF(cfg.Domain, res.apex["TXT"], get) },
@@ -445,17 +543,107 @@ func store[V any](mu *sync.Mutex, m map[string]V, k string, v V) {
 const reachabilityQuery = "."
 
 // checkReachability asks the resolver for the root NS set over a single
-// transport family. It is skipped when the resolver has no address of
-// that family.
-func checkReachability(ctx context.Context, cfg config, r Runner, family string) string {
+// transport family, and returns the answer's trust too: the root zone is
+// signed, so a validating resolver always authenticates it. It is skipped
+// when the resolver has no address of that family.
+func checkReachability(ctx context.Context, cfg config, r Runner, family string) (string, Trust) {
 	if !resolverSupports(cfg, family) {
-		return ReachSkipped + ": resolver has no " + family + " address"
+		return ReachSkipped + ": resolver has no " + family + " address", ""
 	}
-	l := delvLookup(ctx, r, cfg.DelvPath, cfg.Resolver, family, reachabilityQuery, "NS")
+	server, ok := serverForFamily(ctx, cfg, family)
+	if !ok {
+		return ReachNo, ""
+	}
+	l := dnsLookup(ctx, r, cfg.DogPath, server, cfg.TimeoutSec, reachabilityQuery, "NS")
 	if l.Answered() {
-		return ReachYes
+		return ReachYes, l.Trust
 	}
-	return ReachNo
+	return ReachNo, ""
+}
+
+// serverForFamily names the resolver by an address of one family, since
+// dog has no switch to force the transport: a literal @server as given, a
+// hostname @server through its address of that family, and the system
+// resolver through the first resolv.conf nameserver of that family.
+func serverForFamily(ctx context.Context, cfg config, family string) (string, bool) {
+	res := cfg.Resolver
+	if res.Host == "" {
+		addr, ok := resolvConfServer(resolvConfPath, family)
+		return addr, ok
+	}
+	if cfg.dnsFamily != "" {
+		return res.dogServer(), true
+	}
+	network := map[string]string{familyIPv4: "ip4", familyIPv6: "ip6"}[family]
+	ips, err := net.DefaultResolver.LookupNetIP(ctx, network, res.Host)
+	if err != nil || len(ips) == 0 {
+		return "", false
+	}
+	port := res.Port
+	if port == 0 {
+		port = 53
+	}
+	return net.JoinHostPort(ips[0].Unmap().String(), strconv.Itoa(port)), true
+}
+
+// resolvConfServer returns the first nameserver of family in a resolv.conf
+// file. A scoped link-local address (fe80::1%eth0) is skipped: dog cannot
+// name the interface.
+func resolvConfServer(path, family string) (string, bool) {
+	for _, ns := range resolvConfNameservers(path) {
+		if !strings.Contains(ns, "%") && serverFamily(ns) == family {
+			return ns, true
+		}
+	}
+	return "", false
+}
+
+// resolverValidates reads whether the resolver validates DNSSEC from the
+// root NS answers: nil when no family answered.
+func resolverValidates(reachTrust map[string]Trust) *bool {
+	var seen, validated bool
+	for _, t := range reachTrust {
+		if t == "" {
+			continue
+		}
+		seen = true
+		validated = validated || t == TrustSecure
+	}
+	if !seen {
+		return nil
+	}
+	return &validated
+}
+
+// dropTrust clears every lookup's trust. A resolver that does not validate
+// never sets AD, so its silence says nothing about a zone's signatures.
+func (d *dnsResults) dropTrust() {
+	for _, m := range []map[string]Lookup{d.apex, d.www} {
+		for k, l := range m {
+			l.Trust = ""
+			m[k] = l
+		}
+	}
+	for _, l := range []*Lookup{&d.ds, &d.dnskey, &d.dmarc, &d.mtaSTS, &d.tlsRPT, &d.caaApex, &d.caaWWW, &d.tlsaApex, &d.tlsaWWW} {
+		l.Trust = ""
+	}
+	for i := range d.wild {
+		d.wild[i].a.Trust, d.wild[i].aaaa.Trust = "", ""
+	}
+	d.cache.dropTrust()
+}
+
+// dropTrust clears the trust of every memoised lookup.
+func (c *lookupCache) dropTrust() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for k, l := range c.done {
+		l.Trust = ""
+		c.done[k] = l
+	}
 }
 
 // resolverSupports reports whether DNS over family makes sense: a literal
@@ -478,22 +666,31 @@ var resolvConfPath = "/etc/resolv.conf"
 // resolv.conf file. An unreadable file yields an empty map.
 func resolvConfFamilies(path string) map[string]bool {
 	fams := map[string]bool{}
-	f, err := os.Open(path)
-	if err != nil {
-		return fams
-	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		fields := strings.Fields(sc.Text())
-		if len(fields) < 2 || fields[0] != "nameserver" {
-			continue
-		}
-		if fam := serverFamily(strings.Split(fields[1], "%")[0]); fam != "" {
+	for _, ns := range resolvConfNameservers(path) {
+		if fam := serverFamily(strings.Split(ns, "%")[0]); fam != "" {
 			fams[fam] = true
 		}
 	}
 	return fams
+}
+
+// resolvConfNameservers returns the nameserver addresses of a resolv.conf
+// file in order. An unreadable file yields none.
+func resolvConfNameservers(path string) []string {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	var out []string
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) >= 2 && fields[0] == "nameserver" {
+			out = append(out, fields[1])
+		}
+	}
+	return out
 }
 
 // ------------------------------------------------------------------ web

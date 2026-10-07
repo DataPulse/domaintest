@@ -18,7 +18,7 @@ import (
 	"github.com/DataPulse/dpdomain"
 )
 
-// lookupFn resolves name/qtype through the run's memoised delv cache.
+// lookupFn resolves name/qtype through the run's memoised lookup cache.
 type lookupFn func(name, qtype string) Lookup
 
 // ---------------------------------------------------------------- DMARC
