@@ -79,8 +79,10 @@ func dogOnce(ctx context.Context, r Runner, dogPath, server string, timeoutSec i
 	l.Name = name
 	if exitCode(err) == dogOptionsError {
 		// dog validates names before sending them and refuses a label that
-		// is not a valid IDN, such as xn--bad (punycode for two control
-		// characters), which domaintest's lenient input still accepts.
+		// is not a valid IDN. dpdomain refuses the case first seen,
+		// xn--bad (punycode for two control characters), at input since
+		// 2026-10-07; this is the backstop for any other name the two
+		// libraries judge differently.
 		l.unqueryable = true
 		l.Error = "dog cannot query the name: " + strings.TrimPrefix(firstLine(strings.TrimSpace(string(stderr))), "dog: ")
 	}

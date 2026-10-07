@@ -471,12 +471,16 @@ func TestIntegration_WarmModeAndProcessRace(t *testing.T) {
 	}
 }
 
-// A name whose xn-- label dog refuses to encode is reported as unqueryable,
-// not as a resolver failure.
-func TestIntegration_NameDogCannotEncode(t *testing.T) {
-	cfg := integrationConfig(t, "xn--bad.com")
-	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
-	check(t, "dnssec unknown", rep.DNSSEC.State, DNSSECUnknown)
-	check(t, "says why", strings.Contains(rep.DNSSEC.Detail, "dog cannot query the name"), true)
-	check(t, "no resolver verdict", contains(rep.Errors, "SERVFAIL"), false)
+// xn--bad.com is punycode for two control characters. dpdomain refuses a
+// control character in every mode, so it is a usage error before any
+// lookup, rather than a name dog would refuse to send.
+func TestIntegration_ControlCharacterNameRefused(t *testing.T) {
+	if testing.Short() {
+		t.Skip("network test skipped in -short mode")
+	}
+	var out, errBuf bytes.Buffer
+	rc := realMain([]string{"xn--bad.com"}, &out, &errBuf)
+	check(t, "usage error", rc, 2)
+	check(t, "says why", strings.Contains(errBuf.String(), "control character U+0083"), true)
+	check(t, "no report", out.Len(), 0)
 }

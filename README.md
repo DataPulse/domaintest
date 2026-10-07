@@ -59,9 +59,11 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    It is null when the resolver answered over no family. dog checks names
    before sending them and refuses an `xn--` label that is not a valid IDN
    (`xn--bad` is punycode for two control characters), which domaintest's
-   lenient input still accepts; such a name is never queried, its lookups
-   fail saying dog cannot query it, and `dnssec.state` is `unknown` with
-   that reason rather than a verdict on the resolver.
+   lenient input accepted until dpdomain refused control characters in
+   every mode (2026-10-07; it is now a usage error). Any other name dog
+   refuses is never queried: its lookups fail saying dog cannot query it,
+   and `dnssec.state` is `unknown` with that reason rather than a verdict on
+   the resolver.
    Until 2026-10-07 every lookup ran `delv`, which validated by itself.
    That cost about 36 ms of CPU per lookup (process start-up, not
    cryptography) against dog's 2, about 1.6 CPU-seconds a run, which on a

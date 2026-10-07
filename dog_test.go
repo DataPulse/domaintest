@@ -289,6 +289,8 @@ func exitError(t *testing.T, code int) error {
 
 // dog refuses to encode a label that is not a valid IDN (xn--bad is
 // punycode for two control characters) and exits 3 without querying.
+// dpdomain now refuses that name at input, so the capture stands in for
+// any name the two judge differently.
 // That is reported as such, never as a resolver failure, and the DNSSEC
 // state is unknown rather than a servfail verdict on the resolver.
 func TestDNSLookup_NameDogCannotEncode(t *testing.T) {
