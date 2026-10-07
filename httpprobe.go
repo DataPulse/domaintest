@@ -44,12 +44,12 @@ func httpRequest(conn net.Conn, host, path string, deadline time.Time) HTTPResul
 	_ = conn.SetDeadline(deadline)
 	req := fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: domaintest/1 (+https://github.com/DataPulse/domaintest)\r\nAccept: */*\r\nConnection: close\r\n\r\n", path, host)
 	if _, err := io.WriteString(conn, req); err != nil {
-		return HTTPResult{Error: "write: " + scrubProbeError(err.Error())}
+		return HTTPResult{Error: stageError("write", err)}
 	}
 	br := bufio.NewReaderSize(io.LimitReader(conn, maxHeaderBytes), 4096)
 	resp, err := readFinalResponse(br)
 	if err != nil {
-		return HTTPResult{Error: "read: " + scrubProbeError(err.Error())}
+		return HTTPResult{Error: stageError("read", err)}
 	}
 	defer resp.Body.Close()
 	res := HTTPResult{Status: resp.StatusCode, Location: resp.Header.Get("Location"), Server: resp.Header.Get("Server"), AltSvc: resp.Header.Get("Alt-Svc")}
@@ -57,6 +57,18 @@ func httpRequest(conn net.Conn, host, path string, deadline time.Time) HTTPResul
 		res.HSTS = parseHSTS(h)
 	}
 	return res
+}
+
+// stageError names the stage a request failed in, unless the error already
+// does: Go reports a reset as "read tcp a->b: read: connection reset by
+// peer", which scrubs to "read: connection reset by peer", and prefixing
+// the stage again printed "read: read: ...".
+func stageError(stage string, err error) string {
+	msg := scrubProbeError(err.Error())
+	if strings.HasPrefix(msg, stage+": ") {
+		return msg
+	}
+	return stage + ": " + msg
 }
 
 // maxInterimResponses bounds how many 1xx responses are skipped before

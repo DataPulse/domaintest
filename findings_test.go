@@ -79,7 +79,7 @@ func TestFindings_ParityWithLegacyArrays(t *testing.T) {
 			check(t, name+": no warnings", rep.Warnings, []string{})
 		} else {
 			check(t, name+": errors unchanged", rep.Errors, oldErrors)
-			check(t, name+": warnings only shrink", isSubsequence(rep.Warnings, oldWarnings), true)
+			check(t, name+": warnings only shrink", isSubsequence(withoutNewChecks(rep), oldWarnings), true)
 		}
 		var fails, warns []string
 		anyFail := false
@@ -109,6 +109,21 @@ func TestFindings_ParityWithLegacyArrays(t *testing.T) {
 
 // isSubsequence reports whether every element of sub appears in seq, in
 // order.
+// newChecks are warn codes added after the captured reports were made: a
+// replay may carry them although the old warnings could not.
+var newChecks = map[string]bool{"http_port80_partial": true, "dkim_key_invalid": true, "h3_advertised_unreachable": true}
+
+// withoutNewChecks is rep's warnings minus those of newChecks.
+func withoutNewChecks(rep *Report) []string {
+	out := []string{}
+	for _, f := range rep.Findings {
+		if f.Severity == SeverityWarn && !newChecks[f.Code] {
+			out = append(out, f.Message)
+		}
+	}
+	return out
+}
+
 func isSubsequence(sub, seq []string) bool {
 	i := 0
 	for _, s := range seq {
@@ -156,7 +171,9 @@ func TestFindings_FlagshipCalibration(t *testing.T) {
 		{"google.com.json", []string{"http_cleartext", "http_redirect_insecure"}},
 		{"facebook.com.json", []string{"dkim_selector_revoked"}},
 		{"microsoft.ar.json", []string{"apex_no_address", "spf_absent"}},
-		{"microsoft.org.json", []string{"dmarc_absent"}},
+		// One of its five apex addresses timed out on port 80 in this
+		// capture, which went unreported until http_port80_partial.
+		{"microsoft.org.json", []string{"dmarc_absent", "http_port80_partial"}},
 		{"nikonic.net.json", []string{"apex_no_address", "dmarc_absent", "spf_absent"}},
 		{"microsoftdrive.com.json", []string{"dmarc_absent", "spf_absent"}},
 	}

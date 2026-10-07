@@ -500,7 +500,7 @@ func TestIntegration_OSUReview(t *testing.T) {
 	check(t, "TXT octets", m.SPF.AnswerOctets >= 2813, true)
 	check(t, "selector1 is RSA-1024", contains(notes(rep), "DKIM selector selector1: RSA key of 1024 bits"), true)
 	check(t, "selector2 dangles", m.DKIM.Dangling, []string{"selector2"})
-	check(t, "operators", rep.Nameservers.Operators, []string{"oar.net", "ohio-state.edu"})
+	check(t, "ns_domains", rep.Nameservers.NSDomains, []string{"oar.net", "ohio-state.edu"})
 	codes := map[string]bool{}
 	for _, f := range rep.Findings {
 		codes[f.Code] = true

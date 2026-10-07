@@ -630,7 +630,7 @@ func TestProbeDKIM_KeyStrengthAndDangling(t *testing.T) {
 	for _, x := range f.list {
 		codes = append(codes, x.Code+":"+x.Severity)
 	}
-	check(t, "findings", codes, []string{"dkim_key_weak:info", "dkim_selector_dangling:warn"})
+	check(t, "findings", codes, []string{"dkim_key_weak:info", "dkim_selector_dangling:info"})
 }
 
 func TestDKIMKeyInfo(t *testing.T) {
@@ -681,7 +681,7 @@ func TestEvaluateSPF_OSUReview(t *testing.T) {
 	for _, x := range f.list {
 		hosts[x.Code] = x.Host + "/" + x.Severity
 	}
-	check(t, "size finding is the apex's", hosts["spf_txt_over_udp_limit"], "apex/info")
+	check(t, "size finding is the domain's, like every mail finding", hosts["spf_txt_over_udp_limit"], "/info")
 	check(t, "redundancy is info", hosts["spf_redundant_ip"], "/info")
 }
 

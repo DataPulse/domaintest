@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"regexp"
@@ -715,15 +716,46 @@ func TestCleartextFindings_TemporaryUpgrade(t *testing.T) {
 
 // osu.edu's six nameservers (2026-10-07) sit in six /24s but under two
 // operators; google.com's four are all under google.com.
-func TestNSOperators(t *testing.T) {
-	check(t, "osu.edu", nsOperators([]string{"ns6.oar.net.", "ns5.net.ohio-state.edu.", "ns4.net.ohio-state.edu.", "ns5.oar.net.", "ns4.oar.net.", "ns7.oar.net."}), []string{"oar.net", "ohio-state.edu"})
-	check(t, "route 53 counts its TLDs apart", len(nsOperators([]string{"ns-2001.awsdns-58.co.uk.", "ns-692.awsdns-22.net."})), 2)
-	check(t, "none", nsOperators(nil), []string{})
+func TestNSDomains(t *testing.T) {
+	check(t, "osu.edu", nsDomains([]string{"ns6.oar.net.", "ns5.net.ohio-state.edu.", "ns4.net.ohio-state.edu.", "ns5.oar.net.", "ns4.oar.net.", "ns7.oar.net."}), []string{"oar.net", "ohio-state.edu"})
+	check(t, "route 53 counts its TLDs apart", len(nsDomains([]string{"ns-2001.awsdns-58.co.uk.", "ns-692.awsdns-22.net."})), 2)
+	check(t, "none", nsDomains(nil), []string{})
 
 	var f findings
-	f.diversityFindings(&NSReport{Count: 4, Operators: []string{"google.com"}})
-	check(t, "single operator", f.list[0].Code+":"+f.list[0].Severity, "ns_single_operator:info")
+	f.diversityFindings(&NSReport{Count: 4, NSDomains: []string{"google.com"}})
+	check(t, "single operator", f.list[0].Code+":"+f.list[0].Severity, "ns_single_domain:info")
 	f = findings{}
-	f.diversityFindings(&NSReport{Count: 1, Operators: []string{"example.net"}})
+	f.diversityFindings(&NSReport{Count: 1, NSDomains: []string{"example.net"}})
 	check(t, "one nameserver is ns_count_low's business", len(f.list), 0)
+}
+
+// The 2026-10-07 review: on www, one address timed out on 80 and another
+// was reset after connecting, among twelve; both answered on 443. The
+// microsoft.org capture has the timeout shape on its apex.
+func TestPort80PartialFindings(t *testing.T) {
+	ok := AddrWeb{IP: "52.85.12.6", HTTP: PortOpen, HTTPS: PortOpen, HTTPRes: &HTTPResult{Status: 301}}
+	timeout := AddrWeb{IP: "52.85.12.104", HTTP: PortTimeout, HTTPS: PortOpen}
+	reset := AddrWeb{IP: "2600:9000:2007:1c00::1", HTTP: PortOpen, HTTPS: PortOpen, HTTPRes: &HTTPResult{Error: "read: connection reset by peer"}}
+	bothDown := AddrWeb{IP: "192.0.2.9", HTTP: PortTimeout, HTTPS: PortTimeout}
+	run := func(addrs ...AddrWeb) []Finding {
+		var f findings
+		f.port80PartialFindings("www", addrs)
+		return f.list
+	}
+	got := run(ok, timeout, reset)
+	check(t, "one warning", len(got), 1)
+	check(t, "message", got[0].Message, "www: port 80 failed on 2 of 3 addresses while the others answered: 52.85.12.104 timeout; 2600:9000:2007:1c00::1 read: connection reset by peer")
+	check(t, "severity", got[0].Severity, SeverityWarn)
+	check(t, "all answered", len(run(ok, ok)), 0)
+	check(t, "none answered: an HTTPS-only site", len(run(timeout, timeout)), 0)
+	check(t, "down on both ports is web_no_listener's", len(run(ok, bothDown)), 0)
+
+	rep, _, _ := replayFixture(t, "testdata/reports/microsoft.org.json")
+	check(t, "microsoft.org capture", contains(notes(rep), "apex: port 80 failed on 1 of 5 addresses while the others answered: 20.76.201.171 read: i/o timeout"), true)
+}
+
+func TestStageError(t *testing.T) {
+	check(t, "reset is not stuttered", stageError("read", errors.New("read tcp 10.0.0.5:46962->93.184.216.34:80: read: connection reset by peer")), "read: connection reset by peer")
+	check(t, "timeout gets its stage", stageError("read", errors.New("read tcp 10.0.0.5:46962->93.184.216.34:80: i/o timeout")), "read: i/o timeout")
+	check(t, "write", stageError("write", errors.New("broken pipe")), "write: broken pipe")
 }

@@ -240,10 +240,14 @@ func TestRun_WebDomainFullProbe(t *testing.T) {
 	check(t, "errors", rep.Errors, []string{})
 	// google.com publishes 17 apex TXT records (1176 octets without EDNS;
 	// a live dig +noedns really is truncated), and Google's four
-	// nameservers really do share 2001:4860:4802::/48.
+	// nameservers really do share 2001:4860:4802::/48. The scenario refuses
+	// port 80 on the IPv6 address while IPv4 answers, which is a partial
+	// port-80 failure on each name.
 	check(t, "warnings", otherNotes(rep), []string{
+		"apex: port 80 failed on 1 of 2 addresses while the others answered: 2607:f8b0:4009:81d::200e refused",
+		"www: port 80 failed on 1 of 2 addresses while the others answered: 2607:f8b0:4009:81d::200e refused",
 		"SPF: apex TXT answer is 1176 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP",
-		"every nameserver is named under google.com, so one operator likely runs them all",
+		"every nameserver is named under google.com",
 		"all IPv6 nameserver addresses share one /48",
 	})
 	check(t, "absence facts", notes(rep)[:1], []string{"the zone is not DNSSEC-signed"})

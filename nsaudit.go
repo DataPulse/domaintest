@@ -47,12 +47,14 @@ type NSReport struct {
 	IPv4Prefixes24    *int        `json:"ipv4_prefixes_24"`   // null: no address was examined
 	IPv6Prefixes48    *int        `json:"ipv6_prefixes_48"`
 	Glue              *GlueReport `json:"glue,omitempty"` // absent: nothing could be checked
-	// Operators are the distinct registrable domains the nameservers are
-	// named under: an approximation of who runs them, since one provider
-	// can use several (Route 53 names its servers under awsdns-NN.com,
-	// .net, .org and .co.uk), but enough to show that six /24s can belong
-	// to two operators (osu.edu: ohio-state.edu and oar.net).
-	Operators    []string `json:"operators"`
+	// NSDomains are the distinct registrable domains the nameserver
+	// hostnames sit under. They are names, not network ownership: a
+	// provider can use several (Route 53: awsdns-NN.com, .net, .org and
+	// .co.uk), and vanity nameservers (ns1.example.com on a DNS host) hide
+	// who runs them. Still, six /24s under two of them (osu.edu:
+	// ohio-state.edu and oar.net) is less diversity than the /24 count
+	// suggests.
+	NSDomains    []string `json:"ns_domains"`
 	NSCNAME      []string `json:"ns_cname"`
 	Unresolvable []string `json:"unresolvable"` // answered, and the name has no address
 	Unresolved   []string `json:"unresolved"`   // the address lookup did not complete
@@ -77,7 +79,7 @@ func nsNames(ns Lookup) []string {
 // resolveNS looks up every NS name, separating names the resolver denied an
 // address for from names whose lookup never completed.
 func resolveNS(names []string, lookup lookupFn) NSReport {
-	rep := NSReport{Count: len(names), addrs: map[string][]netip.Addr{}, Servers: []NSServer{}, NSCNAME: []string{}, Unresolvable: []string{}, Unresolved: []string{}, Operators: nsOperators(names)}
+	rep := NSReport{Count: len(names), addrs: map[string][]netip.Addr{}, Servers: []NSServer{}, NSCNAME: []string{}, Unresolvable: []string{}, Unresolved: []string{}, NSDomains: nsDomains(names)}
 	type answer struct{ a, aaaa Lookup }
 	answers := make([]answer, len(names))
 	var tasks []func()
@@ -109,9 +111,9 @@ func resolveNS(names []string, lookup lookupFn) NSReport {
 	return rep
 }
 
-// nsOperators returns the sorted distinct registrable domains of the NS
+// nsDomains returns the sorted distinct registrable domains of the NS
 // names; a name with none (a public suffix, or not a name) stands for itself.
-func nsOperators(names []string) []string {
+func nsDomains(names []string) []string {
 	seen := map[string]bool{}
 	out := []string{}
 	for _, n := range names {

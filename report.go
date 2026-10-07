@@ -564,6 +564,43 @@ func (f *findings) webFindings(label string, h *HostWeb) {
 	}
 	f.quicFindings(label, addrs)
 	f.httpVersionFindings(label, addrs)
+	f.port80PartialFindings(label, addrs)
+}
+
+// port80PartialFindings warns when some of a host's addresses failed on 80
+// while others answered, and 443 worked on the failing ones (an address
+// down on both ports is web_no_listener's). Each address is reported on its
+// own, so one silent CDN node out of twelve read as a clean web tier from
+// findings alone (2026-10-07 review: a timeout and a reset on www).
+func (f *findings) port80PartialFindings(label string, addrs []AddrWeb) {
+	answered, total := 0, 0
+	var failed []string
+	for _, a := range addrs {
+		if a.HTTP == PortSkipped {
+			continue
+		}
+		total++
+		switch {
+		case a.HTTPRes != nil && a.HTTPRes.Status > 0:
+			answered++
+		case a.HTTPS == PortOpen:
+			failed = append(failed, a.IP+" "+port80Failure(a))
+		}
+	}
+	if answered > 0 && len(failed) > 0 {
+		f.warn("http_port80_partial", label, "%s: port 80 failed on %d of %d addresses while the others answered: %s", label, len(failed), total, strings.Join(failed, "; "))
+	}
+}
+
+// port80Failure says how one address failed on 80.
+func port80Failure(a AddrWeb) string {
+	if a.HTTP != PortOpen {
+		return string(a.HTTP)
+	}
+	if a.HTTPRes != nil && a.HTTPRes.Error != "" {
+		return a.HTTPRes.Error
+	}
+	return "no response"
 }
 
 // listenerFindings reports an address that answered on neither port, or
@@ -1309,7 +1346,9 @@ func (f *findings) dmarcFindings(d DMARC) {
 // more. A 1024-bit key is info, not a warning: the 2026-10-07 calibration
 // found one on 21 of the 80 reference names (Microsoft 365's default among
 // them), which makes it a common choice rather than a defect. A selector
-// that is a CNAME to nothing cannot be verified at all.
+// that is a CNAME to nothing is info too: it is how a Microsoft 365 tenant
+// that never rotated its keys looks (microsoft.com's own selector1 dangles),
+// and since nobody signs with it, no mail fails because of it.
 func (f *findings) dkimKeyFindings(d DKIMResult) {
 	for _, k := range d.Keys {
 		switch {
@@ -1322,7 +1361,7 @@ func (f *findings) dkimKeyFindings(d DKIMResult) {
 		}
 	}
 	for _, sel := range d.Dangling {
-		f.warn("dkim_selector_dangling", "", "DKIM selector %s is a CNAME to a name that does not exist", sel)
+		f.info("dkim_selector_dangling", "", "DKIM selector %s is a CNAME to a name that does not exist", sel)
 	}
 }
 
@@ -1331,11 +1370,7 @@ func (f *findings) dkimKeyFindings(d DKIMResult) {
 func (f *findings) spfFindings(s SPFResult) {
 	for _, p := range s.Problems {
 		code, sev := spfProblemClass(p)
-		host := ""
-		if strings.HasPrefix(p, "apex ") {
-			host = "apex" // the apex's own TXT answer
-		}
-		f.add(sev, code, host, "SPF: %s", p)
+		f.add(sev, code, "", "SPF: %s", p)
 	}
 }
 
@@ -1577,8 +1612,8 @@ func serverFamilies(servers []NSServer) (v4, v6 int) {
 }
 
 func (f *findings) diversityFindings(n *NSReport) {
-	if n.Count >= 2 && len(n.Operators) == 1 {
-		f.info("ns_single_operator", "", "every nameserver is named under %s, so one operator likely runs them all", n.Operators[0])
+	if n.Count >= 2 && len(n.NSDomains) == 1 {
+		f.info("ns_single_domain", "", "every nameserver is named under %s", n.NSDomains[0])
 	}
 	if n.IPv4Prefixes24 == nil || n.IPv6Prefixes48 == nil {
 		return
@@ -1609,7 +1644,7 @@ func (f *findings) caaFindings(c *CAAReport) {
 		return
 	}
 	if c.absent {
-		f.info("caa_absent", "apex", "no CAA records: any certificate authority may issue for the domain")
+		f.info("caa_absent", "", "no CAA records: any certificate authority may issue for the domain")
 	}
 	for _, label := range []string{"apex", "www"} {
 		if v := c.Hosts[label]; v != nil && v.Permitted != nil && !*v.Permitted {
