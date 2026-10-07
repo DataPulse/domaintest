@@ -163,6 +163,8 @@ type AddrWeb struct {
 	TLS      *TLSResult  `json:"tls,omitempty"`
 	TLSA     string      `json:"tlsa,omitempty"`
 	QUIC     *QUICResult `json:"quic,omitempty"`
+	// HTTPVersions is absent only for an address that was not probed.
+	HTTPVersions *HTTPVersions `json:"http_versions,omitempty"`
 }
 
 func (h *HostWeb) addrs() []AddrWeb {
@@ -513,6 +515,10 @@ func (f *findings) dnssecFindings(d DNSSECReport) {
 		f.warn("dnssec_dnskey_no_ds", "", "DNSSEC: %s", d.Detail)
 	case DNSSECUnknown:
 		f.warn("dnssec_unknown", "", "DNSSEC state unknown: %s", d.Detail)
+	case DNSSECInsecure:
+		// A fact, like aaaa_absent: most zones are unsigned, and the
+		// report should say so in findings rather than only in its body.
+		f.info("dnssec_unsigned", "", "the zone is not DNSSEC-signed")
 	}
 }
 
@@ -557,6 +563,7 @@ func (f *findings) webFindings(label string, h *HostWeb) {
 		f.listenerFindings(label, a)
 	}
 	f.quicFindings(label, addrs)
+	f.httpVersionFindings(label, addrs)
 }
 
 // listenerFindings reports an address that answered on neither port, or
@@ -579,6 +586,74 @@ func (f *findings) listenerFindings(label string, a AddrWeb) {
 		f.info("https_not_verified", label, "%s %s: HTTP on 80 refused the probe (HTTP %d) and HTTPS on 443 did not answer (%s), so neither was verified", label, a.IP, a.HTTPRes.Status, a.HTTPS)
 	case a.HTTPS != PortOpen:
 		f.warn("https_unreachable", label, "%s %s: HTTP on 80 answers but HTTPS on 443 does not (%s)", label, a.IP, a.HTTPS)
+	}
+}
+
+// versionTally counts the probed addresses that do and do not serve one
+// HTTP version; an unknown answer counts as neither.
+type versionTally struct{ yes, no int }
+
+func (v *versionTally) add(b *bool) {
+	switch {
+	case b == nil:
+	case *b:
+		v.yes++
+	default:
+		v.no++
+	}
+}
+
+// hostVersions tallies one host's HTTP versions over its probed addresses.
+type hostVersions struct {
+	h1, h2, h3              versionTally
+	advertised, unreachable int // addresses advertising h3, and those not answering it
+}
+
+// HTTP/1.1 and HTTP/2 are counted only where 443 answered: an address with
+// no HTTPS at all serves neither, but that is https_unreachable's finding,
+// not a fact about which versions the site speaks.
+func tallyVersions(addrs []AddrWeb) hostVersions {
+	var t hostVersions
+	for _, a := range addrs {
+		v := a.HTTPVersions
+		if v == nil {
+			continue
+		}
+		if a.HTTPS == PortOpen {
+			t.h1.add(v.HTTP1_1)
+			t.h2.add(v.HTTP2)
+		}
+		t.h3.add(v.HTTP3)
+		if isTrue(v.H3Advertised) {
+			t.advertised++
+			if !isTrue(v.HTTP3) {
+				t.unreachable++
+			}
+		}
+	}
+	return t
+}
+
+// httpVersionFindings reports, per host, the HTTP versions no probed address
+// serves, HTTP/2 served by only some, and addresses that advertise HTTP/3
+// without answering it. Facts are info; only the advertisement a browser
+// acts on and then fails is a warning.
+func (f *findings) httpVersionFindings(label string, addrs []AddrWeb) {
+	t := tallyVersions(addrs)
+	if t.h1.yes == 0 && t.h1.no > 0 {
+		f.info("http1_1_absent", label, "%s: no address serves HTTP/1.1 over TLS (%d refused it)", label, t.h1.no)
+	}
+	switch {
+	case t.h2.yes == 0 && t.h2.no > 0:
+		f.info("http2_absent", label, "%s: no address negotiates HTTP/2 (h2)", label)
+	case t.h2.yes > 0 && t.h2.no > 0:
+		f.info("http2_partial", label, "%s: HTTP/2 (h2) on %d of %d addresses", label, t.h2.yes, t.h2.yes+t.h2.no)
+	}
+	if t.h3.yes == 0 && t.h3.no > 0 {
+		f.info("http3_absent", label, "%s: no address serves HTTP/3", label)
+	}
+	if t.unreachable > 0 {
+		f.warn("h3_advertised_unreachable", label, "%s: Alt-Svc advertises HTTP/3 but QUIC did not answer on %d of %d advertising addresses", label, t.unreachable, t.advertised)
 	}
 }
 
@@ -967,31 +1042,49 @@ func preloadCovers(rep *Report) (apex, www bool) {
 // Serving content in the clear on a preloaded host is info: no browser
 // will ever make that request.
 func (f *findings) cleartextFindings(label string, addrs []AddrWeb, preloaded bool) {
-	served, elsewhere, total := 0, 0, 0
-	for _, a := range addrs {
-		r := a.HTTPRes
-		if r == nil || r.Status == 0 {
-			continue
-		}
-		total++
-		switch {
-		case r.Status < 300:
-			served++
-		case isRedirect(r.Status) && !strings.HasPrefix(strings.ToLower(r.Location), "https://"):
-			elsewhere++
-		}
-	}
+	t := tallyUpgrades(addrs)
 	// A code keeps one severity, so the preloaded case is its own code.
 	sev, suffix := SeverityWarn, ""
 	if preloaded {
 		sev, suffix = SeverityInfo, "_preloaded"
 	}
-	if served > 0 {
-		f.add(sev, "http_cleartext"+suffix, label, "%s: HTTP serves content in the clear instead of redirecting to HTTPS (%d of %d addresses)", label, served, total)
+	if t.served > 0 {
+		f.add(sev, "http_cleartext"+suffix, label, "%s: HTTP serves content in the clear instead of redirecting to HTTPS (%d of %d addresses)", label, t.served, t.total)
 	}
-	if elsewhere > 0 {
-		f.add(sev, "http_redirect_insecure"+suffix, label, "%s: HTTP redirects to a non-HTTPS URL (%d of %d addresses)", label, elsewhere, total)
+	if t.elsewhere > 0 {
+		f.add(sev, "http_redirect_insecure"+suffix, label, "%s: HTTP redirects to a non-HTTPS URL (%d of %d addresses)", label, t.elsewhere, t.total)
 	}
+	if t.temporary > 0 {
+		f.info("http_redirect_temporary", label, "%s: the HTTP to HTTPS redirect is temporary (HTTP %s) on %d of %d addresses; a permanent 301 or 308 is what browsers and caches remember", label, distinctStatuses(t.statuses), t.temporary, t.total)
+	}
+}
+
+// upgradeTally counts how a host's addresses answer plain HTTP on 80.
+type upgradeTally struct {
+	total, served, elsewhere, temporary int
+	statuses                            []int // the temporary redirects' statuses
+}
+
+func tallyUpgrades(addrs []AddrWeb) upgradeTally {
+	var t upgradeTally
+	for _, a := range addrs {
+		r := a.HTTPRes
+		if r == nil || r.Status == 0 {
+			continue
+		}
+		t.total++
+		toHTTPS := strings.HasPrefix(strings.ToLower(r.Location), "https://")
+		switch {
+		case r.Status < 300:
+			t.served++
+		case isRedirect(r.Status) && !toHTTPS:
+			t.elsewhere++
+		case r.Status == 302, r.Status == 303, r.Status == 307:
+			t.temporary++
+			t.statuses = append(t.statuses, r.Status)
+		}
+	}
+	return t
 }
 
 func (f *findings) redirectFindings(label string, chains map[string]*RedirectChain) {
@@ -1155,7 +1248,22 @@ func (f *findings) mailFindings(m *MailReport, zoneBroken bool) {
 		f.dmarcFindings(m.DMARC)
 	}
 	f.spfFindings(m.SPF)
-	for _, mx := range m.MX {
+	f.mxFindings(m.MX)
+	if m.DKIM.Wildcard {
+		f.warn("dkim_wildcard", "", "the zone answers every _domainkey selector (wildcard), so no selector could be verified")
+	}
+	f.dkimKeyFindings(m.DKIM)
+	for _, sel := range m.DKIM.Revoked {
+		f.warn("dkim_selector_revoked", "", "DKIM selector %s publishes a revoked (empty) key", sel)
+	}
+	f.mtaSTSFindings(m.MTASTS)
+	f.mailAbsenceFindings(m)
+}
+
+// mxFindings reports every MX target's problems; an unresolved target is a
+// warning, the rest fail.
+func (f *findings) mxFindings(mxs []MXCheck) {
+	for _, mx := range mxs {
 		for _, p := range mx.Problems {
 			if mx.Unresolved && p == mxUnresolvedProblem {
 				f.warn("mx_target_unresolved", mx.Host, "MX %s: %s", mx.Host, p)
@@ -1164,13 +1272,17 @@ func (f *findings) mailFindings(m *MailReport, zoneBroken bool) {
 			f.fail(mxProblemCode(p), mx.Host, "MX %s: %s", mx.Host, p)
 		}
 	}
-	if m.DKIM.Wildcard {
-		f.warn("dkim_wildcard", "", "the zone answers every _domainkey selector (wildcard), so no selector could be verified")
+}
+
+// mailAbsenceFindings states the mail records the zone answered it does not
+// publish, as facts.
+func (f *findings) mailAbsenceFindings(m *MailReport) {
+	if m.mtaSTSAbsent {
+		f.info("mta_sts_absent", "", "no MTA-STS record (_mta-sts)")
 	}
-	for _, sel := range m.DKIM.Revoked {
-		f.warn("dkim_selector_revoked", "", "DKIM selector %s publishes a revoked (empty) key", sel)
+	if m.tlsRPTAbsent {
+		f.info("tls_rpt_absent", "", "no TLS-RPT record (_smtp._tls)")
 	}
-	f.mtaSTSFindings(m.MTASTS)
 }
 
 func (f *findings) dmarcFindings(d DMARC) {
@@ -1192,12 +1304,38 @@ func (f *findings) dmarcFindings(d DMARC) {
 	}
 }
 
+// dkimKeyFindings judges the published keys against RFC 8301: verifiers
+// must not accept RSA keys under 1024 bits, and signers should use 2048 or
+// more. A 1024-bit key is info, not a warning: the 2026-10-07 calibration
+// found one on 21 of the 80 reference names (Microsoft 365's default among
+// them), which makes it a common choice rather than a defect. A selector
+// that is a CNAME to nothing cannot be verified at all.
+func (f *findings) dkimKeyFindings(d DKIMResult) {
+	for _, k := range d.Keys {
+		switch {
+		case k.Error != "":
+			f.warn("dkim_key_invalid", "", "DKIM selector %s: %s", k.Selector, k.Error)
+		case k.Type == "rsa" && k.Bits < 1024:
+			f.fail("dkim_key_too_short", "", "DKIM selector %s: RSA key of %d bits, which verifiers reject (RFC 8301 §3.2)", k.Selector, k.Bits)
+		case k.Type == "rsa" && k.Bits < 2048:
+			f.info("dkim_key_weak", "", "DKIM selector %s: RSA key of %d bits, under the 2048 RFC 8301 recommends", k.Selector, k.Bits)
+		}
+	}
+	for _, sel := range d.Dangling {
+		f.warn("dkim_selector_dangling", "", "DKIM selector %s is a CNAME to a name that does not exist", sel)
+	}
+}
+
 // spfFindings maps evaluator problems to codes and severities: anything
 // that makes SPF fail outright or authorise everyone fails.
 func (f *findings) spfFindings(s SPFResult) {
 	for _, p := range s.Problems {
 		code, sev := spfProblemClass(p)
-		f.add(sev, code, "", "SPF: %s", p)
+		host := ""
+		if strings.HasPrefix(p, "apex ") {
+			host = "apex" // the apex's own TXT answer
+		}
+		f.add(sev, code, host, "SPF: %s", p)
 	}
 }
 
@@ -1227,6 +1365,7 @@ var spfClasses = []spfClass{
 	{prefix: "include:", substr: " has no SPF record", code: "spf_include_missing", sev: SeverityWarn},
 	{prefix: "include:", substr: " could not be checked", code: "spf_include_unchecked", sev: SeverityWarn},
 	{prefix: "include loop ", code: "spf_include_loop", sev: SeverityFail},
+	{substr: " is already covered by ", code: "spf_redundant_ip", sev: SeverityInfo},
 }
 
 // spfProblemClass returns the code and severity of one SPF problem. An
@@ -1438,6 +1577,9 @@ func serverFamilies(servers []NSServer) (v4, v6 int) {
 }
 
 func (f *findings) diversityFindings(n *NSReport) {
+	if n.Count >= 2 && len(n.Operators) == 1 {
+		f.info("ns_single_operator", "", "every nameserver is named under %s, so one operator likely runs them all", n.Operators[0])
+	}
 	if n.IPv4Prefixes24 == nil || n.IPv6Prefixes48 == nil {
 		return
 	}
@@ -1465,6 +1607,9 @@ func (f *findings) glueFindings(g *GlueReport) {
 func (f *findings) caaFindings(c *CAAReport) {
 	if c == nil {
 		return
+	}
+	if c.absent {
+		f.info("caa_absent", "apex", "no CAA records: any certificate authority may issue for the domain")
 	}
 	for _, label := range []string{"apex", "www"} {
 		if v := c.Hosts[label]; v != nil && v.Permitted != nil && !*v.Permitted {

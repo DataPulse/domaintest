@@ -23,3 +23,11 @@ an AAAA record, and `outlook_host_txt_failure.json` is a real SERVFAIL.
 `reserved/localhost_*.json` and `reserved/www_localhost_*.json` are Unbound's
 answers from its built-in `localhost` local zone, which delv never let
 through: they are what a reserved name looks like through the resolver.
+
+Captured from 1.1.1.1 (validating) on 2026-10-07, for the review of the osu.edu
+report: `mail/txt_osu_edu.json` (35 TXT records, a 360-byte SPF string; `dig +tcp
++noedns` measures the answer at 2813 octets), `mail/dkim_selector1_osu_edu.json`
+(a CNAME to an RSA-1024 key at onmicrosoft.com), `mail/dkim_selector2_osu_edu_dangling.json`
+(a CNAME whose target is NXDOMAIN), `mail/dkim_s1_github_com.json` (RSA-2048) and
+`caa/osu_edu_none.json` (no CAA). `caa/jschmidt.json` was `caa/jschmidt_none.json`
+until jschmidt.org was found to publish two CAA records when it was re-captured.

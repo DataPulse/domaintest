@@ -44,9 +44,10 @@ func healthyReport(t *testing.T) *Report {
 func TestBuildFindings_Healthy(t *testing.T) {
 	rep := healthyReport(t)
 	buildFindings(rep)
-	if !rep.OK || len(rep.Errors) != 0 || len(notes(rep)) != 0 {
-		t.Errorf("healthy report should be clean: errors %v warnings %v", rep.Errors, notes(rep))
+	if !rep.OK || len(rep.Errors) != 0 || len(otherNotes(rep)) != 0 {
+		t.Errorf("healthy report should be clean: errors %v warnings %v", rep.Errors, otherNotes(rep))
 	}
+	check(t, "google.com is unsigned, a fact", contains(notes(rep), "the zone is not DNSSEC-signed"), true)
 	out, _ := json.Marshal(rep)
 	if !strings.Contains(string(out), `"errors":[]`) || !strings.Contains(string(out), `"warnings":[]`) {
 		t.Errorf("empty lists must serialise as [] not null: %s", out)
@@ -183,7 +184,7 @@ func TestBuildFindings_ReachabilityAndWeb(t *testing.T) {
 	rep.Web.Apex.IPv4[0].QUIC = &QUICResult{Error: "context deadline exceeded"}
 	rep.Web.Apex.IPv6[0].QUIC = &QUICResult{Error: "context deadline exceeded"}
 	buildFindings(rep)
-	check(t, "no QUIC warnings without asymmetry", notes(rep), []string{})
+	check(t, "no QUIC warnings without asymmetry", otherNotes(rep), []string{})
 
 	// www with its own addresses is reported under its own label.
 	rep = healthyReport(t)
@@ -250,7 +251,7 @@ func TestBuildFindings_HTTPSDownWhileHTTPUp(t *testing.T) {
 	check(t, "still ok (warning only)", rep.OK, true)
 	check(t, "https warning", contains(notes(rep), "HTTP on 80 answers but HTTPS on 443 does not (timeout)"), true)
 	check(t, "no both-closed warning", contains(notes(rep), "no listener"), false)
-	check(t, "single warning", len(notes(rep)), 1)
+	check(t, "single warning", len(otherNotes(rep)), 1)
 }
 
 func TestBuildFindings_LameZoneReportedOnce(t *testing.T) {
@@ -685,4 +686,44 @@ func TestPreloadFindings_NoResponseIsNotAMissingHeader(t *testing.T) {
 	var k findings
 	k.preloadFindings(&Report{Domain: "sunshinepress.org", HSTSPreload: PreloadPreloaded, HSTSPreloadPolicy: "bulk-legacy", Web: WebSection{Apex: timedOut}})
 	check(t, "the answering address is the one described", contains(k.warnings, "(https://sunshinepress.org/ answered 200)"), true)
+}
+
+// osu.edu answers plain HTTP on its apex with a 302 to https (2026-10-07),
+// www with a 301. Only the temporary one is a fact worth stating.
+func TestCleartextFindings_TemporaryUpgrade(t *testing.T) {
+	addr := func(status int, loc string) AddrWeb {
+		return AddrWeb{IP: "192.0.2.1", HTTPRes: &HTTPResult{Status: status, Location: loc}}
+	}
+	codes := func(addrs ...AddrWeb) []string {
+		var f findings
+		f.cleartextFindings("apex", addrs, false)
+		var out []string
+		for _, x := range f.list {
+			out = append(out, x.Code+":"+x.Severity)
+		}
+		return out
+	}
+	check(t, "302 to https", codes(addr(302, "https://osu.edu/")), []string{"http_redirect_temporary:info"})
+	check(t, "307 to https", codes(addr(307, "https://x.org/")), []string{"http_redirect_temporary:info"})
+	check(t, "301 to https", codes(addr(301, "https://www.osu.edu/")), []string(nil))
+	check(t, "308 to https", codes(addr(308, "https://x.org/")), []string(nil))
+	check(t, "302 elsewhere is insecure, not temporary", codes(addr(302, "http://x.org/")), []string{"http_redirect_insecure:warn"})
+	var f findings
+	f.cleartextFindings("apex", []AddrWeb{addr(302, "https://x.org/"), addr(307, "https://x.org/"), addr(301, "https://x.org/")}, false)
+	check(t, "message", f.list[0].Message, "apex: the HTTP to HTTPS redirect is temporary (HTTP 302/307) on 2 of 3 addresses; a permanent 301 or 308 is what browsers and caches remember")
+}
+
+// osu.edu's six nameservers (2026-10-07) sit in six /24s but under two
+// operators; google.com's four are all under google.com.
+func TestNSOperators(t *testing.T) {
+	check(t, "osu.edu", nsOperators([]string{"ns6.oar.net.", "ns5.net.ohio-state.edu.", "ns4.net.ohio-state.edu.", "ns5.oar.net.", "ns4.oar.net.", "ns7.oar.net."}), []string{"oar.net", "ohio-state.edu"})
+	check(t, "route 53 counts its TLDs apart", len(nsOperators([]string{"ns-2001.awsdns-58.co.uk.", "ns-692.awsdns-22.net."})), 2)
+	check(t, "none", nsOperators(nil), []string{})
+
+	var f findings
+	f.diversityFindings(&NSReport{Count: 4, Operators: []string{"google.com"}})
+	check(t, "single operator", f.list[0].Code+":"+f.list[0].Severity, "ns_single_operator:info")
+	f = findings{}
+	f.diversityFindings(&NSReport{Count: 1, Operators: []string{"example.net"}})
+	check(t, "one nameserver is ns_count_low's business", len(f.list), 0)
 }

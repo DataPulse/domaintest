@@ -611,3 +611,122 @@ func TestMTASTSFindings_ModeNone(t *testing.T) {
 	f.mtaSTSFindings(&MTASTS{Record: true, Mode: "testing", PolicyOK: true, MXCovered: false})
 	check(t, "testing still judged", findingCodes(&f), []string{"warn:mta_sts_mx_uncovered"})
 }
+
+// osu.edu's Microsoft 365 selectors (captures of 2026-10-07): selector1 is a
+// CNAME to an RSA-1024 key, selector2 a CNAME to a name that does not exist.
+func TestProbeDKIM_KeyStrengthAndDangling(t *testing.T) {
+	lookup := fixtureLookup(t, map[string]string{
+		"selector1._domainkey.osu.edu/TXT": "dog/mail/dkim_selector1_osu_edu.json",
+		"selector2._domainkey.osu.edu/TXT": "dog/mail/dkim_selector2_osu_edu_dangling.json",
+	})
+	d := probeDKIM("osu.edu", lookup)
+	check(t, "found", d.SelectorsFound, []string{"selector1"})
+	check(t, "keys", d.Keys, []DKIMKey{{Selector: "selector1", Type: "rsa", Bits: 1024}})
+	check(t, "dangling", d.Dangling, []string{"selector2"})
+
+	var f findings
+	f.dkimKeyFindings(d)
+	var codes []string
+	for _, x := range f.list {
+		codes = append(codes, x.Code+":"+x.Severity)
+	}
+	check(t, "findings", codes, []string{"dkim_key_weak:info", "dkim_selector_dangling:warn"})
+}
+
+func TestDKIMKeyInfo(t *testing.T) {
+	gh := dogFixture(t, "dog/mail/dkim_s1_github_com.json", "TXT")
+	tags := parseTags(gh.Records[0])
+	check(t, "github s1 is RSA-2048", dkimKeyInfo("s1", tags), DKIMKey{Selector: "s1", Type: "rsa", Bits: 2048})
+
+	osu := dogFixture(t, "dog/mail/dkim_selector1_osu_edu.json", "TXT")
+	tags = parseTags(osu.Records[0])
+	// The same key with its last 40 base64 characters cut off: a record
+	// someone truncated while pasting.
+	tags["p"] = tags["p"][:len(tags["p"])-40]
+	check(t, "truncated key", dkimKeyInfo("selector1", tags).Error != "", true)
+	check(t, "not base64", dkimKeyInfo("x", map[string]string{"p": "!!!"}).Error, "p= is not base64")
+	check(t, "ed25519 wrong size", dkimKeyInfo("x", map[string]string{"k": "ed25519", "p": "AAAA"}).Error, "p= is not a 32-byte Ed25519 key")
+	// The Ed25519 key from RFC 8463 §A.2 (brisbane._domainkey.football.example.com).
+	check(t, "ed25519 ok", dkimKeyInfo("x", map[string]string{"k": "ed25519", "p": "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="}), DKIMKey{Selector: "x", Type: "ed25519"})
+
+	var f findings
+	f.dkimKeyFindings(DKIMResult{Keys: []DKIMKey{{Selector: "old", Type: "rsa", Bits: 512}, {Selector: "s1", Type: "rsa", Bits: 2048}}})
+	check(t, "512-bit fails, 2048 is clean", len(f.list) == 1 && f.list[0].Code == "dkim_key_too_short" && f.list[0].Severity == SeverityFail, true)
+}
+
+// osu.edu's SPF record (capture of 2026-10-07) lists 128.146.163.14, .18 and
+// .21 beside 128.146.163.0/26, which already covers them. Its 2813-octet
+// TXT answer is over the 512-octet limit and the 1232-octet EDNS buffer.
+func TestEvaluateSPF_OSUReview(t *testing.T) {
+	txt := dogFixture(t, "dog/mail/txt_osu_edu.json", "TXT")
+	txt.Name = "osu.edu"
+	s := evaluateSPF("osu.edu", txt, fixtureLookup(t, nil))
+	var redundant []string
+	for _, p := range s.Problems {
+		if strings.Contains(p, " is already covered by ") {
+			redundant = append(redundant, p)
+		}
+	}
+	check(t, "redundant", redundant, []string{
+		"ip4:128.146.163.14 is already covered by ip4:128.146.163.0/26 in osu.edu",
+		"ip4:128.146.163.18 is already covered by ip4:128.146.163.0/26 in osu.edu",
+		"ip4:128.146.163.21 is already covered by ip4:128.146.163.0/26 in osu.edu",
+	})
+	check(t, "octets", s.AnswerOctets, 2813)
+	check(t, "EDNS buffer named", contains(s.Problems, "also exceeds the 1232-octet EDNS buffer"), true)
+
+	var f findings
+	f.spfFindings(s)
+	hosts := map[string]string{}
+	for _, x := range f.list {
+		hosts[x.Code] = x.Host + "/" + x.Severity
+	}
+	check(t, "size finding is the apex's", hosts["spf_txt_over_udp_limit"], "apex/info")
+	check(t, "redundancy is info", hosts["spf_redundant_ip"], "/info")
+}
+
+func TestRedundantIPs(t *testing.T) {
+	cases := []struct {
+		record string
+		want   []string
+	}{
+		{"v=spf1 ip4:192.0.2.0/24 ip4:192.0.2.7 -all", []string{"ip4:192.0.2.7 is already covered by ip4:192.0.2.0/24 in x.org"}},
+		{"v=spf1 ip4:192.0.2.7 ip4:192.0.2.7 -all", []string{"ip4:192.0.2.7 is already covered by ip4:192.0.2.7 in x.org"}},
+		{"v=spf1 ip4:192.0.2.0/24 -ip4:192.0.2.7 ~all", nil}, // an exception, not a repeat
+		{"v=spf1 ip6:2001:db8::/32 ip6:2001:db8:1::1 ip4:198.51.100.0/24 -all", []string{"ip6:2001:db8:1::1 is already covered by ip6:2001:db8::/32 in x.org"}},
+		{"v=spf1 ip4:192.0.2.0/25 ip4:192.0.2.128/25 -all", nil},
+		{"v=spf1 ip4:not-an-ip ip4:192.0.2.1 -all", nil},
+	}
+	for _, c := range cases {
+		check(t, c.record, redundantIPs(parseSPFTerms(c.record), "x.org"), c.want)
+	}
+}
+
+// Absence facts are stated only when the lookup answered that nothing is
+// there; a lookup that failed says nothing.
+func TestAbsenceFacts(t *testing.T) {
+	none := dogFixture(t, "dog/caa/osu_edu_none.json", "CAA")
+	failed := dogFixture(t, "dog/timeout.json", "CAA")
+	present := dogFixture(t, "dog/caa/google.json", "CAA")
+	for _, c := range []struct {
+		name string
+		apex Lookup
+		want bool
+	}{{"no CAA", none, true}, {"lookup failed", failed, false}, {"CAA published", present, false}} {
+		r := assessCAA(c.apex, c.apex, servedCert{}, servedCert{})
+		var f findings
+		f.caaFindings(&r)
+		got := len(f.list) == 1 && f.list[0].Code == "caa_absent" && f.list[0].Severity == SeverityInfo
+		check(t, c.name, got, c.want)
+	}
+
+	var f findings
+	f.mailAbsenceFindings(&MailReport{mtaSTSAbsent: true, tlsRPTAbsent: true})
+	check(t, "mail absences", []string{f.list[0].Code, f.list[1].Code}, []string{"mta_sts_absent", "tls_rpt_absent"})
+	f = findings{}
+	f.dnssecFindings(DNSSECReport{State: DNSSECInsecure})
+	check(t, "unsigned", f.list[0].Code+"/"+f.list[0].Severity, "dnssec_unsigned/info")
+	f = findings{}
+	f.dnssecFindings(DNSSECReport{State: DNSSECSecure})
+	check(t, "signed says nothing", len(f.list), 0)
+}

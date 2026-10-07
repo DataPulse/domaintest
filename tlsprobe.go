@@ -64,7 +64,6 @@ type TLSResult struct {
 	// a name it does not cover.
 	Problems []string `json:"chain_problems"`
 	Version  string   `json:"version,omitempty"`
-	ALPN     string   `json:"alpn,omitempty"`
 	Cipher   string   `json:"cipher,omitempty"`
 	// TLS10 and TLS11 say whether the server completes a handshake capped
 	// at that version: null when the question was never put (no
@@ -77,6 +76,7 @@ type TLSResult struct {
 	Error       string    `json:"error,omitempty"`
 	chain       []*x509.Certificate
 	pkixValid   bool
+	noALPN      bool // the handshake ended in alert 120: no HTTP/1.1 over TLS
 }
 
 // tlsConfig is the client configuration for a probe: SNI set, verification
@@ -98,12 +98,11 @@ func probeTLS(ctx context.Context, conn net.Conn, host, apex, www string, deadli
 	_ = conn.SetDeadline(deadline)
 	tc := tls.Client(conn, tlsConfig(host, 0, 0))
 	if err := tc.Handshake(); err != nil {
-		return nil, TLSResult{Chain: ChainHandshakeFailed, Error: scrubProbeError(err.Error())}
+		return nil, TLSResult{Chain: ChainHandshakeFailed, Error: scrubProbeError(err.Error()), noALPN: noALPNAlert(err)}
 	}
 	state := tc.ConnectionState()
 	res := TLSResult{
 		Version:     formatTLSVersion(state.Version),
-		ALPN:        state.NegotiatedProtocol,
 		Cipher:      tls.CipherSuiteName(state.CipherSuite),
 		ChainLength: len(state.PeerCertificates),
 		chain:       state.PeerCertificates,
@@ -350,21 +349,13 @@ func probeOldVersions(ctx context.Context, d dialer, ip netip.Addr, host string,
 // a connection that could not be made, or a handshake still unanswered at
 // the deadline, says nothing about which versions the server accepts.
 func acceptsVersion(ctx context.Context, d dialer, ip netip.Addr, host string, ver uint16, timeout time.Duration) *bool {
-	dctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	conn, err := d.DialContext(dctx, tcpNetwork(ip), netip.AddrPortFrom(ip, 443).String())
-	if err != nil {
-		return nil
-	}
-	defer conn.Close()
-	_ = conn.SetDeadline(ioDeadline(ctx, timeout))
-	tc := tls.Client(conn, tlsConfig(host, ver, ver))
-	err = tc.Handshake()
-	var ne net.Error
+	_, err, dialed := handshakeOnce(ctx, d, ip, tlsConfig(host, ver, ver), timeout)
 	switch {
+	case !dialed:
+		return nil
 	case err == nil:
 		return boolPtr(true)
-	case ctx.Err() != nil, errors.As(err, &ne) && ne.Timeout():
+	case ctx.Err() != nil, isTimeoutErr(err):
 		return nil
 	}
 	return boolPtr(false)

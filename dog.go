@@ -252,12 +252,26 @@ func dogRR(rec dogRecord) (RR, bool) {
 	switch rr.Type {
 	case "TXT":
 		for _, s := range d.strs("messages") {
-			rr.RDLen += 1 + len(s)
+			rr.RDLen += len(s) + txtLengthOctets(len(s))
 		}
 	case "CNAME":
 		rr.RDLen = wireNameLen(rr.RData)
 	}
 	return rr, true
+}
+
+// txtLengthOctets is how many character-string length octets carried a dog
+// TXT message of n bytes. dog joins a 255-byte character-string with the
+// one after it (its reader treats 255 as "continued"), so a message longer
+// than 255 bytes was several strings on the wire: osu.edu's 360-byte SPF
+// record is 255 + 105, two length octets, and counting one made the answer
+// an octet short. A non-zero multiple of 255 is taken to have ended the
+// record; an empty message is one empty string.
+func txtLengthOctets(n int) int {
+	if n == 0 {
+		return 1
+	}
+	return (n + 254) / 255
 }
 
 // dogData reads the fields of one record's data object.

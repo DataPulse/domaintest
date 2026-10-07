@@ -132,17 +132,18 @@ type addrProbe struct {
 	HTTPRes  *HTTPResult
 	HTTPSRes *HTTPResult
 	TLS      *TLSResult
+	http2    *bool // h2 negotiated on a handshake that offered only h2
 }
 
 // probeAddress connects to 80 and 443 for host at ip. On 80 it issues one
-// GET; on 443 it performs the TLS handshake, issues one GET over it and
-// then tests TLS 1.0/1.1 acceptance on fresh connections. Each stage is
-// bounded by timeout.
+// GET; on 443 it performs the TLS handshake and issues one HTTP/1.1 GET
+// over it, while fresh connections test TLS 1.0/1.1 acceptance and HTTP/2.
+// Each stage is bounded by timeout.
 func probeAddress(ctx context.Context, d dialer, ip netip.Addr, host, apex, www string, timeout time.Duration) addrProbe {
 	p := addrProbe{IP: ip}
 	parallel(
 		func() { p.HTTP, p.HTTPRes = probeHTTPPort(ctx, d, ip, host, timeout) },
-		func() { p.HTTPS, p.TLS, p.HTTPSRes = probeHTTPSPort(ctx, d, ip, host, apex, www, timeout) },
+		func() { probeHTTPSPort(ctx, d, &p, host, apex, www, timeout) },
 	)
 	return p
 }
@@ -157,20 +158,37 @@ func probeHTTPPort(ctx context.Context, d dialer, ip netip.Addr, host string, ti
 	return st, &res
 }
 
-func probeHTTPSPort(ctx context.Context, d dialer, ip netip.Addr, host, apex, www string, timeout time.Duration) (PortState, *TLSResult, *HTTPResult) {
-	conn, st := dialPort(ctx, d, portKey{IP: ip, Port: 443}, timeout)
+// probeHTTPSPort fills p's 443 results. HTTP/2 is asked on a connection of
+// its own even when the main handshake failed: an h2-only server refuses
+// that handshake (it offered only http/1.1) and is found out this way.
+func probeHTTPSPort(ctx context.Context, d dialer, p *addrProbe, host, apex, www string, timeout time.Duration) {
+	conn, st := dialPort(ctx, d, portKey{IP: p.IP, Port: 443}, timeout)
+	p.HTTPS = st
 	if conn == nil {
-		return st, nil, nil
+		if st == PortRefused {
+			p.http2 = boolPtr(false)
+		}
+		return
 	}
 	defer conn.Close()
 	tc, tlsRes := probeTLS(ctx, conn, host, apex, www, ioDeadline(ctx, timeout))
-	var httpRes *HTTPResult
-	if tc != nil && tlsRes.Chain != ChainHandshakeFailed {
-		r := httpRequest(tc, host, "/", ioDeadline(ctx, timeout))
-		httpRes = &r
-		tlsRes.TLS10, tlsRes.TLS11 = probeOldVersions(ctx, d, ip, host, timeout)
-	}
-	return st, &tlsRes, httpRes
+	p.TLS = &tlsRes
+	ok := tc != nil && tlsRes.Chain != ChainHandshakeFailed
+	parallel(
+		func() { p.http2 = acceptsALPN(ctx, d, p.IP, host, "h2", timeout) },
+		func() {
+			if ok {
+				r := httpRequest(tc, host, "/", ioDeadline(ctx, timeout))
+				p.HTTPSRes = &r
+			}
+		},
+		func() {
+			if ok {
+				tlsRes.TLS10, tlsRes.TLS11 = probeOldVersions(ctx, d, p.IP, host, timeout)
+			}
+		},
+	)
+	p.TLS = &tlsRes
 }
 
 // ioDeadline is when a probe's reads and writes must stop: its own timeout

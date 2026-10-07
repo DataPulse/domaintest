@@ -103,6 +103,9 @@ type CAAVerdict struct {
 // the apex's.
 type CAAReport struct {
 	Hosts map[string]*CAAVerdict `json:"hosts"`
+	// absent: the apex answered that it publishes no CAA, so any CA may
+	// issue for it.
+	absent bool
 }
 
 // caaPermits decides whether a CA (by its identifiers) may issue for a
@@ -229,5 +232,5 @@ func assessCAA(apexRec, wwwRec Lookup, apexCert, wwwCert servedCert) CAAReport {
 	return CAAReport{Hosts: map[string]*CAAVerdict{
 		"apex": caaVerdict(apexRec, apexRec.Records, apexRec.Answered(), apexCert),
 		"www":  caaVerdict(wwwRec, wwwEffective, wwwKnown, wwwCert),
-	}}
+	}, absent: apexRec.Answered() && !apexRec.HasRecords()}
 }

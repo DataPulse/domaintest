@@ -133,8 +133,15 @@ func TestRun_SignedDomainWithoutWeb(t *testing.T) {
 	check(t, "reachability", rep.DNS.ResolverReachable, map[string]string{familyIPv4: ReachYes, familyIPv6: "skipped: resolver has no ipv6 address"})
 	check(t, "web", rep.Web, WebSection{})
 	// jschmidt.org's SPF includes amazonses.com, whose TXT answer is 523
-	// octets on the wire.
-	check(t, "warnings", notes(rep), []string{"apex has no A or AAAA records", "www has no A or AAAA records", "SPF: include:amazonses.com TXT answer is 523 octets, over the 512-octet UDP limit (RFC 7208 §3.4)"})
+	// octets on the wire; its Microsoft 365 DKIM keys are RSA-1024; it
+	// publishes no MTA-STS or TLS-RPT record.
+	check(t, "warnings", notes(rep), []string{
+		"apex has no A or AAAA records", "www has no A or AAAA records",
+		"SPF: include:amazonses.com TXT answer is 523 octets, over the 512-octet UDP limit (RFC 7208 §3.4)",
+		"DKIM selector selector1: RSA key of 1024 bits, under the 2048 RFC 8301 recommends",
+		"DKIM selector selector2: RSA key of 1024 bits, under the 2048 RFC 8301 recommends",
+		"no MTA-STS record (_mta-sts)", "no TLS-RPT record (_smtp._tls)",
+	})
 	check(t, "no quic", len(s.r.called("quicprobe")), 0)
 	check(t, "no dials", len(s.dialer.seen), 0)
 	check(t, "no bogus probe", len(s.digCalls("+cd")), 0)
@@ -234,10 +241,12 @@ func TestRun_WebDomainFullProbe(t *testing.T) {
 	// google.com publishes 17 apex TXT records (1176 octets without EDNS;
 	// a live dig +noedns really is truncated), and Google's four
 	// nameservers really do share 2001:4860:4802::/48.
-	check(t, "warnings", notes(rep), []string{
+	check(t, "warnings", otherNotes(rep), []string{
 		"SPF: apex TXT answer is 1176 octets, over the 512-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP",
+		"every nameserver is named under google.com, so one operator likely runs them all",
 		"all IPv6 nameserver addresses share one /48",
 	})
+	check(t, "absence facts", notes(rep)[:1], []string{"the zone is not DNSSEC-signed"})
 	check(t, "dnssec", rep.DNSSEC.State, DNSSECInsecure)
 	check(t, "delegation", rep.Delegation.Status, DelegationMatch)
 	apex := rep.Web.Apex

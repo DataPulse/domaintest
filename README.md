@@ -117,7 +117,11 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    between servers a warning. A reserved address (as for apex and www) is
    never queried: the server entry carries `reserved` (the reason) and an
    `error` saying it was not queried, and the name fails as
-   `ns_reserved_address`. A nameserver published at 10.x or 169.254.x is
+   `ns_reserved_address`. `operators` lists the registrable domains the
+   nameservers are named under, an approximation of who runs them (one
+   provider can use several: Route 53 names servers under awsdns-NN.com,
+   .net, .org and .co.uk), and all of them under one is info
+   (`ns_single_operator`): six /24s can still be two operators. A nameserver published at 10.x or 169.254.x is
    unreachable from the Internet, and querying it would send the probe's
    DNS into the network the probe runs in. The delegation trace is `dig
    +trace`, which follows the referral glue itself and has no way to skip
@@ -204,16 +208,19 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    completes, false when the server refuses it, null when it was never
    tested because no connection was made or nothing answered before the
    deadline; info), and negotiating less than TLS 1.3
-   is info. Only `http/1.1` is offered via ALPN so that the HTTP
-   request below can reuse the connection.
+   is info. The main handshake offers only `http/1.1` via ALPN so that the
+   HTTP request below can reuse the connection; which versions the address
+   serves is reported in `http_versions` (§9).
 7. **HTTP** (`http` on 80, `https` on 443, per address): one `GET /` with
    the proper Host header; status, Location and Server header are
    recorded from the final response (interim 1xx responses such as 103
-   Early Hints are skipped), plus the parsed `Strict-Transport-Security` header
+   Early Hints are skipped), the `Alt-Svc` header as `alt_svc`, plus the parsed `Strict-Transport-Security` header
    (`max_age`, `include_subdomains`, `preload`). Every address answering
    5xx on a port is an error, some of them a warning, every address 4xx a
    warning. Port 80 serving content instead of redirecting to https is a
-   warning, as is an HSTS max-age under 180 days. HSTS absence is a fact,
+   warning, as is an HSTS max-age under 180 days. Upgrading to https with a
+   temporary redirect (302, 303, 307) instead of a permanent one (301, 308)
+   is info (`http_redirect_temporary`): only a permanent one is remembered. HSTS absence is a fact,
    not a warning. `hsts_preload` says whether browsers enforce HSTS for the
    name regardless of the header, read from Chromium's preload list (see
    **HSTS preload list** below): `preloaded`, `absent` or `unknown` (the
@@ -277,9 +284,35 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    CloudFront cache key ignored the Host header: the apex was sometimes
    served www's redirect, pointing at itself, and www sometimes the apex's
    page.
-9. **QUIC / HTTP3** via the sibling `quicprobe` tool, on every address of
-   both names, so every address carries a `quic` object and the "QUIC/h3
-   works on another probed address" warning means what it says.
+9. **HTTP versions** (`http_versions`, per address, HTTPS only; port 80 is
+   plain HTTP/1.1 and is the `http` result): `http1_1`, `http2`, `http3`
+   and `h3_advertised`, each true, false, or null when the question could
+   not be put (no connection, a timeout, nothing probed), as for `tls10`.
+   `http1_1` is the main handshake (offering only `http/1.1`) and its GET:
+   true when a response came back, false when the port is refused, the
+   server ends the handshake with alert 120 (`no_application_protocol`) or
+   the session carries something that is not HTTP/1.1. `http2` is a fresh
+   handshake offering only `h2`, run beside the TLS 1.0/1.1 ones and even
+   when the main handshake failed (an h2-only server refuses that one):
+   true when `h2` was negotiated, false when the handshake completed
+   without it or ended in alert 120; no HTTP/2 request is sent, ALPN being
+   what browsers act on. `http3` is the sibling `quicprobe` tool's QUIC
+   handshake with ALPN `h3`, on every address of both names (every address
+   carries its `quic` object): true when it completed, false when an
+   endpoint answered and refused, and, when nothing answered on UDP 443,
+   false only if nothing advertises h3 either; an address whose `Alt-Svc`
+   offers h3 but is silent on UDP may be filtered on the probe's path, so
+   it is null. `h3_advertised` is whether the HTTPS response's `Alt-Svc`
+   lists `h3` (or an `h3-NN` draft); HTTPS DNS records are not consulted.
+   Per host (for 1.1 and 2, among the addresses whose 443 answered: no
+   HTTPS at all is `https_unreachable`'s finding), no address serving
+   HTTP/1.1, HTTP/2 or HTTP/3 is info
+   (`http1_1_absent`, `http2_absent`, `http3_absent`), HTTP/2 on only some
+   addresses is info (`http2_partial`), and an address advertising h3 that
+   did not answer it is a warning (`h3_advertised_unreachable`): browsers
+   try it and fall back. The "QUIC/h3 works on another probed address"
+   info (`quic_partial`) is unchanged. Until 2026-10-07 the report carried
+   `tls.alpn` instead, which could only ever say `http/1.1`.
 10. **Mail** (`mail`, zone apexes only; absent for a host inside a zone,
     like `nameservers`, since mail policy lives at the zone): DMARC at
     `_dmarc` (missing or `p=none` warn,
@@ -290,7 +323,12 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     DNS-querying terms counted (more than 10 is a permerror and an error,
     as are multiple records, `+all`, an include loop and unknown
     mechanisms; `?all`, `ptr`, a missing `all`, more than two void lookups
-    and includes without SPF warn). Every evaluation is charged as RFC 7208
+    and includes without SPF warn; an `ip4`/`ip6` entry another prefix of
+    the same record and qualifier already covers is info,
+    `spf_redundant_ip`). `void_lookups` counts only the lookups that can be
+    evaluated without a sender: an `exists` mechanism or a macro depends on
+    who is sending, so a void lookup it may cost at evaluation time is not
+    counted. Every evaluation is charged as RFC 7208
     §4.6.4 requires, so a domain included from two places costs its
     lookups twice. A `redirect` is ignored when the record has an `all`
     (§6.1), and the `all` a redirect target ends with is the domain's: it
@@ -303,12 +341,22 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     TXT record at the name, since verification tokens ride along) is
     reported as `txt_answer_octets` and warns above 450 octets and again
     above the 512-octet limit; an include whose own TXT reply exceeds 512
-    octets warns too. Every MX target must be a resolvable hostname that is not a
+    octets warns too. Above 1232 octets, the EDNS buffer resolvers commonly
+    advertise, the finding adds that nearly every lookup needs TCP. The
+    size is the wire size: a TXT string longer than 255 octets is several
+    character-strings, each with its own length octet. Every MX target must be a resolvable hostname that is not a
     CNAME or IP literal (errors); DKIM is probed at the selectors
     `google, selector1, selector2, default, k1, s1, mail, dkim` alongside a
     random selector as a negative control (found selectors are reported, a
     revoked empty key warns, none found is a fact since selectors cannot be
-    enumerated). If the control answers, the zone wildcards `_domainkey`
+    enumerated). Each key found is described in `dkim.keys` (`selector`,
+    `type`, RSA `bits`, `error` when `p=` is not a usable key): an RSA key
+    under 1024 bits fails (verifiers reject it, RFC 8301 §3.2), under 2048
+    is info (`dkim_key_weak`: RFC 8301 recommends 2048, but a quarter of the
+    reference set, Microsoft 365's default among them, uses 1024), an
+    unusable key warns (`dkim_key_invalid`). A selector that is a CNAME to a
+    name that does not exist is listed in `dkim.dangling` and warns
+    (`dkim_selector_dangling`): a signature made with it cannot verify. If the control answers, the zone wildcards `_domainkey`
     and `dkim.wildcard` is set: every guess would answer, so no selector is
     reported. Checking that the record parses as DKIM is not enough on its
     own, since a wildcard can serve a valid key for every name; MTA-STS `_mta-sts` record
@@ -465,9 +513,10 @@ true), `elapsed_ms`.
 
 Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has
 `ip`, `80`, `443` (open / refused / timeout / unreachable / error /
-skipped), `http` and `https` (status, location, server, hsts, error),
-`tls` (chain, chain_problems, version, alpn, cipher, tls10 and tls11
-(null when untested), cert, chain_length, error), `tlsa` (match / mismatch / none, only when TLSA records exist) and
+skipped), `http` and `https` (status, location, server, hsts, alt_svc, error),
+`tls` (chain, chain_problems, version, cipher, tls10 and tls11
+(null when untested), cert, chain_length, error), `http_versions` (§9),
+`tlsa` (match / mismatch / none, only when TLSA records exist) and
 `quic` (every address: supported, alpn, tls_version, server_addr,
 handshake_ms, and on failure `reason`, `error` and, for `tls_rejected`,
 `tls_alert` / `tls_alert_code`). `reason` is one of `timeout` (nothing
@@ -640,9 +689,16 @@ set.
 
 | severity | codes |
 |---|---|
-| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `ns_reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `redirect_self` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_include_loop` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` |
-| warn | `reserved_name` `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `redirect_downgrade` `http_response_inconsistent` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_include_unchecked` `spf_problem` `dmarc_pct_invalid` `dmarc_subdomain_policy_unknown` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` |
-| info | `not_a_zone` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `https_not_verified` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` `run_deadline_reached` |
+| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `ns_reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `redirect_self` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_include_loop` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` `dkim_key_too_short` |
+| warn | `reserved_name` `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `redirect_downgrade` `http_response_inconsistent` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_include_unchecked` `spf_problem` `dmarc_pct_invalid` `dmarc_subdomain_policy_unknown` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` `dkim_key_invalid` `dkim_selector_dangling` `h3_advertised_unreachable` |
+| info | `not_a_zone` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `https_not_verified` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` `run_deadline_reached` `dnssec_unsigned` `caa_absent` `mta_sts_absent` `tls_rpt_absent` `http1_1_absent` `http2_absent` `http2_partial` `http3_absent` `http_redirect_temporary` `dkim_key_weak` `spf_redundant_ip` `ns_single_operator` |
+
+What a domain does not publish is stated as an info finding when the
+lookup answered that it is not there (never when it failed): an unsigned
+zone (`dnssec_unsigned`), no CAA (`caa_absent`: any CA may issue), no
+MTA-STS (`mta_sts_absent`) and no TLS-RPT (`tls_rpt_absent`), alongside
+the older `aaaa_absent` and `mx_absent`. Until 2026-10-07 these appeared
+only in the body of the report, so `findings` was not a complete list.
 
 A zone no delegated nameserver answers for is reported as one finding,
 `zone_unreachable`, and the probe stops there. For this to apply, the

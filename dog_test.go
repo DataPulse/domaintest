@@ -316,3 +316,16 @@ func TestDNSLookup_NameDogCannotEncode(t *testing.T) {
 	r.on("dog", dogArgs("", 3, "gone.org", "A"), other)
 	check(t, "network error is not unqueryable", dnsLookup(context.Background(), r, "dog", "", 3, "gone.org", "A").unqueryable, false)
 }
+
+// osu.edu's TXT answer (dog capture, 2026-10-07): 35 records, one of them a
+// 360-byte SPF string that is two character-strings on the wire. dig +tcp
+// +noedns reports the message as 2813 octets; dog's JSON merges the two
+// strings, so each length octet has to be counted from the length.
+func TestTXTAnswerOctets_MergedCharacterStrings(t *testing.T) {
+	l := dogFixture(t, "dog/mail/txt_osu_edu.json", "TXT")
+	l.Name = "osu.edu"
+	check(t, "octets as dig measures them", l.udpAnswerOctets(), 2813)
+	for _, c := range []struct{ n, want int }{{0, 1}, {1, 1}, {254, 1}, {255, 1}, {256, 2}, {360, 2}, {510, 2}, {511, 3}} {
+		check(t, "length octets for "+strconv.Itoa(c.n), txtLengthOctets(c.n), c.want)
+	}
+}

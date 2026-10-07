@@ -800,7 +800,7 @@ func probeHost(ctx context.Context, cfg config, r Runner, d dialer, host string,
 }
 
 func addrEntry(p addrProbe, q *QUICResult) AddrWeb {
-	return AddrWeb{IP: p.IP.String(), HTTP: p.HTTP, HTTPS: p.HTTPS, HTTPRes: p.HTTPRes, HTTPSRes: p.HTTPSRes, TLS: p.TLS, QUIC: q}
+	return AddrWeb{IP: p.IP.String(), HTTP: p.HTTP, HTTPS: p.HTTPS, HTTPRes: p.HTTPRes, HTTPSRes: p.HTTPSRes, TLS: p.TLS, QUIC: q, HTTPVersions: httpVersionsFor(p, q)}
 }
 
 // redirectChains follows the HTTP entry point of host once per family.
@@ -947,6 +947,8 @@ func assessMail(ctx context.Context, cfg config, dns dnsResults, skip bool) *Mai
 		TLSRPT: hasTLSRPT(dns.tlsRPT),
 	}
 	m.MTASTS = checkMTASTS(ctx, cfg.Domain, dns.mtaSTS, mxHosts(dns.apex["MX"]), cfg.tcpTimeout(), get)
+	m.mtaSTSAbsent = dns.mtaSTS.Answered() && !m.MTASTS.Record
+	m.tlsRPTAbsent = dns.tlsRPT.Answered() && !m.TLSRPT
 	return m
 }
 

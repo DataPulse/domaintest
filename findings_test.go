@@ -422,12 +422,19 @@ func TestSPFProblemClass(t *testing.T) {
 // report says [] rather than null.
 func TestFindings_SerialisedShape(t *testing.T) {
 	rep := healthyReport(t)
+	rep.DNSSEC.State = DNSSECSecure // nothing at all to report, not even a fact
 	buildFindings(rep)
 	out, _ := json.Marshal(rep)
 	check(t, "empty findings is []", strings.Contains(string(out), `"findings":[]`), true)
 
 	rep, _, _ = replayFixture(t, "testdata/reports/microsoft.com.json")
-	out, _ = json.Marshal(rep.Findings[0])
+	var cleartext Finding
+	for _, f := range rep.Findings {
+		if f.Code == "http_cleartext" {
+			cleartext = f
+		}
+	}
+	out, _ = json.Marshal(cleartext)
 	check(t, "finding shape", string(out), `{"code":"http_cleartext","severity":"warn","host":"www","message":"www: HTTP serves content in the clear instead of redirecting to HTTPS (4 of 4 addresses)"}`)
 }
 

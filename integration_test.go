@@ -484,3 +484,36 @@ func TestIntegration_ControlCharacterNameRefused(t *testing.T) {
 	check(t, "says why", strings.Contains(errBuf.String(), "control character U+0083"), true)
 	check(t, "no report", out.Len(), 0)
 }
+
+// osu.edu, the domain of the 2026-10-07 review: the TXT answer the reviewer
+// measured at 2813 octets, an RSA-1024 DKIM selector and a dangling one, a
+// temporary HTTP upgrade on the apex, two nameserver operators, and HTTP
+// versions per address (www is on a CDN that serves h3; the apex is not).
+// Live data drifts, so only what the review established is asserted.
+func TestIntegration_OSUReview(t *testing.T) {
+	cfg := integrationConfig(t, "osu.edu")
+	rep := run(context.Background(), cfg, execRunner{}, &netDialer{})
+	m := rep.Mail
+	if m == nil {
+		t.Fatal("mail section missing")
+	}
+	check(t, "TXT octets", m.SPF.AnswerOctets >= 2813, true)
+	check(t, "selector1 is RSA-1024", contains(notes(rep), "DKIM selector selector1: RSA key of 1024 bits"), true)
+	check(t, "selector2 dangles", m.DKIM.Dangling, []string{"selector2"})
+	check(t, "operators", rep.Nameservers.Operators, []string{"oar.net", "ohio-state.edu"})
+	codes := map[string]bool{}
+	for _, f := range rep.Findings {
+		codes[f.Code] = true
+	}
+	check(t, "302 upgrade on the apex", codes["http_redirect_temporary"], true)
+	check(t, "redundant SPF entries", codes["spf_redundant_ip"], true)
+	if rep.Web.WWW == nil || len(rep.Web.WWW.addrs()) == 0 {
+		t.Fatal("www not probed")
+	}
+	for _, a := range rep.Web.WWW.addrs() {
+		v := a.HTTPVersions
+		check(t, "www "+a.IP+" http1_1", isTrue(v.HTTP1_1), true)
+		check(t, "www "+a.IP+" http2", isTrue(v.HTTP2), true)
+		check(t, "www "+a.IP+" h3 advertised", isTrue(v.H3Advertised), true)
+	}
+}

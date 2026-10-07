@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -123,6 +127,19 @@ const (
 	spfAnswerWarn  = 450
 )
 
+// ednsBuffer is the EDNS UDP payload size most resolvers advertise (the DNS
+// Flag Day 2020 default). An answer larger than it is truncated even with
+// EDNS, so every lookup of it needs TCP.
+const ednsBuffer = 1232
+
+// ednsNote is the clause added when an answer exceeds the EDNS buffer too.
+func ednsNote(octets int) string {
+	if octets <= ednsBuffer {
+		return ""
+	}
+	return fmt.Sprintf("; it also exceeds the %d-octet EDNS buffer resolvers commonly use, so nearly every lookup needs TCP", ednsBuffer)
+}
+
 // SPFResult is the evaluation of the apex SPF policy.
 type SPFResult struct {
 	Records      int      `json:"records"`
@@ -233,6 +250,9 @@ func parseSPFTerms(record string) []spfTerm {
 // the redirect that led there.
 func (e *spfEvaluator) walk(record string, path []string) (all, via string) {
 	terms := parseSPFTerms(record)
+	for _, p := range redundantIPs(terms, path[len(path)-1]) {
+		e.problem(p)
+	}
 	own := recordAll(terms)
 	all = own
 	hasRedirect := false
@@ -279,6 +299,57 @@ func (e *spfEvaluator) mechanism(t spfTerm, path []string) {
 	default:
 		e.term(t, path[len(path)-1])
 	}
+}
+
+// spfPrefix is one ip4/ip6 mechanism of a record as a prefix.
+type spfPrefix struct {
+	text      string // as written, "ip4:128.146.163.14"
+	qualifier string
+	prefix    netip.Prefix
+}
+
+// redundantIPs names the ip4/ip6 mechanisms of one record that another of
+// its prefixes with the same qualifier already covers: osu.edu lists
+// 128.146.163.14, .18 and .21 beside 128.146.163.0/26. Only the same
+// qualifier counts, since -ip4 inside +ip4 is an exception, not a repeat.
+func redundantIPs(terms []spfTerm, domain string) []string {
+	prefixes := spfPrefixes(terms)
+	var out []string
+	for i, p := range prefixes {
+		for j, q := range prefixes {
+			if i == j || p.qualifier != q.qualifier || q.prefix.Bits() > p.prefix.Bits() || !q.prefix.Contains(p.prefix.Addr()) {
+				continue
+			}
+			if q.prefix == p.prefix && j > i {
+				continue // a duplicate: name only the later copy
+			}
+			out = append(out, fmt.Sprintf("%s is already covered by %s in %s", p.text, q.text, domain))
+			break
+		}
+	}
+	return out
+}
+
+// spfPrefixes parses a record's ip4/ip6 mechanisms; an unparsable one is
+// skipped, the evaluator having nothing to compare it with.
+func spfPrefixes(terms []spfTerm) []spfPrefix {
+	var out []spfPrefix
+	for _, t := range terms {
+		if t.modifier || (t.name != "ip4" && t.name != "ip6") {
+			continue
+		}
+		arg := strings.TrimPrefix(t.arg, ":")
+		p, err := netip.ParsePrefix(arg)
+		if err != nil {
+			a, aerr := netip.ParseAddr(arg)
+			if aerr != nil {
+				continue
+			}
+			p = netip.PrefixFrom(a, a.BitLen())
+		}
+		out = append(out, spfPrefix{text: t.name + ":" + arg, qualifier: firstNonEmpty(t.qualifier, "+"), prefix: p.Masked()})
+	}
+	return out
 }
 
 // recordAll is the qualified all mechanism of a record, "" when it has
@@ -332,7 +403,7 @@ func (e *spfEvaluator) noteAll(qualifier, via string) {
 func (e *spfEvaluator) apexSize(octets int) {
 	switch {
 	case octets > spfAnswerLimit:
-		e.problem(fmt.Sprintf("apex TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP", octets, spfAnswerLimit))
+		e.problem(fmt.Sprintf("apex TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4): resolvers without EDNS get a truncated reply and must retry over TCP%s", octets, spfAnswerLimit, ednsNote(octets)))
 	case octets > spfAnswerWarn:
 		e.problem(fmt.Sprintf("apex TXT answer is %d octets, close to the %d-octet UDP limit (RFC 7208 §3.4): one more TXT record may push it over", octets, spfAnswerLimit))
 	}
@@ -343,7 +414,7 @@ func (e *spfEvaluator) apexSize(octets int) {
 // domain owner's to trim.
 func (e *spfEvaluator) includeSize(target string, l Lookup) {
 	if octets := l.udpAnswerOctets(); octets > spfAnswerLimit {
-		e.problem(fmt.Sprintf("include:%s TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4)", target, octets, spfAnswerLimit))
+		e.problem(fmt.Sprintf("include:%s TXT answer is %d octets, over the %d-octet UDP limit (RFC 7208 §3.4)%s", target, octets, spfAnswerLimit, ednsNote(octets)))
 	}
 }
 
@@ -487,6 +558,20 @@ type DKIMResult struct {
 	Wildcard       bool     `json:"wildcard"`
 	SelectorsFound []string `json:"selectors_found"`
 	Revoked        []string `json:"revoked"`
+	// Keys describes the key of every found selector that is not revoked.
+	Keys []DKIMKey `json:"keys"`
+	// Dangling lists selectors that are a CNAME to a name that does not
+	// exist (osu.edu's selector2 into onmicrosoft.com): a signature made
+	// with them cannot verify.
+	Dangling []string `json:"dangling"`
+}
+
+// DKIMKey is one published DKIM public key.
+type DKIMKey struct {
+	Selector string `json:"selector"`
+	Type     string `json:"type"`            // rsa or ed25519 (the k= tag; rsa by default)
+	Bits     int    `json:"bits,omitempty"`  // RSA modulus size
+	Error    string `json:"error,omitempty"` // the p= value is not a usable key
 }
 
 // probeDKIM looks every selector up in parallel (a dead resolver would
@@ -500,7 +585,7 @@ type DKIMResult struct {
 // record parses as DKIM does not help there, only that it is answered for
 // a name chosen at random.
 func probeDKIM(domain string, lookup lookupFn) DKIMResult {
-	res := DKIMResult{SelectorsFound: []string{}, Revoked: []string{}}
+	res := DKIMResult{SelectorsFound: []string{}, Revoked: []string{}, Keys: []DKIMKey{}, Dangling: []string{}}
 	answers := make([]Lookup, len(dkimSelectors))
 	var control Lookup
 	tasks := []func(){func() { control = lookup(randomLabel()+"._domainkey."+domain, "TXT") }}
@@ -514,16 +599,60 @@ func probeDKIM(domain string, lookup lookupFn) DKIMResult {
 		return res
 	}
 	for i, sel := range dkimSelectors {
-		revoked, _, ok := dkimKey(answers[i])
-		if !ok {
-			continue
-		}
-		res.SelectorsFound = append(res.SelectorsFound, sel)
-		if revoked {
-			res.Revoked = append(res.Revoked, sel)
-		}
+		res.addSelector(sel, answers[i])
 	}
 	return res
+}
+
+// addSelector records what one selector's lookup showed.
+func (res *DKIMResult) addSelector(sel string, l Lookup) {
+	revoked, record, ok := dkimKey(l)
+	switch {
+	case !ok:
+		if len(l.CNAME) > 0 && l.Status == StatusNXDomain {
+			res.Dangling = append(res.Dangling, sel)
+		}
+	case revoked:
+		res.SelectorsFound = append(res.SelectorsFound, sel)
+		res.Revoked = append(res.Revoked, sel)
+	default:
+		res.SelectorsFound = append(res.SelectorsFound, sel)
+		res.Keys = append(res.Keys, dkimKeyInfo(sel, parseTags(record)))
+	}
+}
+
+// dkimKeyInfo reads the key type and size from a record's tags. An RSA p=
+// is a SubjectPublicKeyInfo (RFC 6376 §3.6.1), though some publishers put a
+// bare PKCS#1 key there, which verifiers commonly accept too; an Ed25519 p=
+// is the raw 32-byte key (RFC 8463).
+func dkimKeyInfo(sel string, tags map[string]string) DKIMKey {
+	k := DKIMKey{Selector: sel, Type: strings.ToLower(firstNonEmpty(tags["k"], "rsa"))}
+	der, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(tags["p"]), ""))
+	switch {
+	case err != nil:
+		k.Error = "p= is not base64"
+	case k.Type == "ed25519":
+		if len(der) != ed25519.PublicKeySize {
+			k.Error = "p= is not a 32-byte Ed25519 key"
+		}
+	case k.Type == "rsa":
+		k.Bits, k.Error = rsaKeyBits(der)
+	}
+	return k
+}
+
+// rsaKeyBits returns the modulus size of a DER RSA public key.
+func rsaKeyBits(der []byte) (int, string) {
+	if pub, err := x509.ParsePKIXPublicKey(der); err == nil {
+		if rk, ok := pub.(*rsa.PublicKey); ok {
+			return rk.N.BitLen(), ""
+		}
+		return 0, "p= is not an RSA key"
+	}
+	if rk, err := x509.ParsePKCS1PublicKey(der); err == nil {
+		return rk.N.BitLen(), ""
+	}
+	return 0, "p= is not a parsable RSA key"
 }
 
 // dkimKey reports whether a lookup carries a DKIM key, and whether that key
@@ -764,6 +893,8 @@ type MailReport struct {
 	DKIM   DKIMResult `json:"dkim"`
 	MTASTS *MTASTS    `json:"mta_sts,omitempty"`
 	TLSRPT bool       `json:"tls_rpt"`
+	// The lookups answered that no record exists (not merely failed).
+	mtaSTSAbsent, tlsRPTAbsent bool
 }
 
 // mxHosts returns the exchange names of an MX lookup, sorted.

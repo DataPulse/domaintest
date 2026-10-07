@@ -398,3 +398,19 @@ func notes(rep *Report) []string {
 	}
 	return out
 }
+
+// absenceFacts are the info findings that state what a domain does not
+// publish (added 2026-10-07 so findings list every such fact). Most domains
+// carry several, so tests about something else leave them out.
+var absenceFacts = map[string]bool{"dnssec_unsigned": true, "caa_absent": true, "mta_sts_absent": true, "tls_rpt_absent": true}
+
+// otherNotes is notes without the absence facts.
+func otherNotes(rep *Report) []string {
+	out := []string{}
+	for _, f := range rep.Findings {
+		if f.Severity != SeverityFail && !absenceFacts[f.Code] {
+			out = append(out, f.Message)
+		}
+	}
+	return out
+}

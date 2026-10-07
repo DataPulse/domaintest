@@ -32,7 +32,10 @@ type HTTPResult struct {
 	Location string `json:"location,omitempty"`
 	Server   string `json:"server,omitempty"`
 	HSTS     *HSTS  `json:"hsts,omitempty"`
-	Error    string `json:"error,omitempty"`
+	// AltSvc is the Alt-Svc header as received, which is how a browser
+	// learns an origin offers HTTP/3 (http_versions.h3_advertised).
+	AltSvc string `json:"alt_svc,omitempty"`
+	Error  string `json:"error,omitempty"`
 }
 
 // httpRequest sends GET path with Host host over an open connection (plain
@@ -49,7 +52,7 @@ func httpRequest(conn net.Conn, host, path string, deadline time.Time) HTTPResul
 		return HTTPResult{Error: "read: " + scrubProbeError(err.Error())}
 	}
 	defer resp.Body.Close()
-	res := HTTPResult{Status: resp.StatusCode, Location: resp.Header.Get("Location"), Server: resp.Header.Get("Server")}
+	res := HTTPResult{Status: resp.StatusCode, Location: resp.Header.Get("Location"), Server: resp.Header.Get("Server"), AltSvc: resp.Header.Get("Alt-Svc")}
 	if h := resp.Header.Get("Strict-Transport-Security"); h != "" {
 		res.HSTS = parseHSTS(h)
 	}

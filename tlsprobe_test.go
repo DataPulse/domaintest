@@ -37,7 +37,6 @@ func TestProbeTLS_ValidChain(t *testing.T) {
 	}
 	check(t, "chain", res.Chain, ChainValid)
 	check(t, "version", res.Version, "TLS 1.3")
-	check(t, "alpn", res.ALPN, "http/1.1")
 	check(t, "chain length", res.ChainLength, 2)
 	check(t, "pkix valid", res.pkixValid, true)
 	c := res.Cert
