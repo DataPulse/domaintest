@@ -31,3 +31,8 @@ report: `mail/txt_osu_edu.json` (35 TXT records, a 360-byte SPF string; `dig +tc
 (a CNAME whose target is NXDOMAIN), `mail/dkim_s1_github_com.json` (RSA-2048) and
 `caa/osu_edu_none.json` (no CAA). `caa/jschmidt.json` was `caa/jschmidt_none.json`
 until jschmidt.org was found to publish two CAA records when it was re-captured.
+
+Captured from 1.1.1.1 (validating) on 2026-10-07, for the google.com DKIM
+report: `mail/dkim_20251104_google_com.json` (google.com's active RSA key,
+at a dated selector the probe does not try) and
+`mail/dkim_google_google_com_nxdomain.json` (NXDOMAIN at `google`).

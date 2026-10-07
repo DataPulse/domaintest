@@ -314,6 +314,7 @@ func TestProbeDKIM(t *testing.T) {
 	res := probeDKIM("jschmidt.org", fixtureLookup(t, table))
 	check(t, "selectors", res.SelectorsFound, []string{"selector1", "selector2"})
 	check(t, "none revoked", len(res.Revoked), 0)
+	check(t, "probed", res.SelectorsProbed, dkimSelectors)
 	revoked := func(name, qtype string) Lookup {
 		if strings.HasPrefix(name, "k1.") {
 			return Lookup{Status: StatusOK, Records: []string{"v=DKIM1; k=rsa; p="}}
@@ -323,6 +324,31 @@ func TestProbeDKIM(t *testing.T) {
 	res = probeDKIM("x.example", revoked)
 	check(t, "revoked selector", res.Revoked, []string{"k1"})
 	check(t, "still found", res.SelectorsFound, []string{"k1"})
+}
+
+// google.com signs with dated selectors (20251104 on 2026-10-07) and
+// publishes nothing at any name in dkimSelectors. The probe cannot find
+// such a key; it must say which names it tried, and claim no absence.
+func TestProbeDKIM_UnguessedSelector(t *testing.T) {
+	table := map[string]string{
+		"google._domainkey.google.com/TXT":   "dog/mail/dkim_google_google_com_nxdomain.json",
+		"20251104._domainkey.google.com/TXT": "dog/mail/dkim_20251104_google_com.json",
+	}
+	lookup := fixtureLookup(t, table)
+	_, _, ok := dkimKey(lookup("20251104._domainkey.google.com", "TXT"))
+	check(t, "the key exists", ok, true)
+
+	res := probeDKIM("google.com", lookup)
+	check(t, "nothing found", res.SelectorsFound, []string{})
+	check(t, "probed names reported", res.SelectorsProbed, []string{"google", "selector1", "selector2", "default", "k1", "s1", "mail", "dkim"})
+
+	f := &findings{}
+	f.mailFindings(&MailReport{DMARC: DMARC{Present: true, Pct: 100}, MX: []MXCheck{}, DKIM: res}, false)
+	for _, fd := range f.list {
+		if strings.HasPrefix(fd.Code, "dkim") {
+			t.Errorf("finding %s for selectors that were only guessed", fd.Code)
+		}
+	}
 }
 
 func TestMTASTS(t *testing.T) {
@@ -464,6 +490,7 @@ func TestProbeDKIM_WildcardControl(t *testing.T) {
 	check(t, "wildcard detected", res.Wildcard, true)
 	check(t, "no selector claimed", res.SelectorsFound, []string{})
 	check(t, "none called revoked", res.Revoked, []string{})
+	check(t, "probed even so", res.SelectorsProbed, dkimSelectors)
 
 	f := &findings{}
 	f.mailFindings(&MailReport{DMARC: DMARC{}, MX: []MXCheck{}, DKIM: res}, false)

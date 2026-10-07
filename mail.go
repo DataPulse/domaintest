@@ -555,9 +555,14 @@ var dkimSelectors = []string{"google", "selector1", "selector2", "default", "k1"
 // answers every selector, which makes the found list meaningless: the
 // names were never evidence of anything a sender configured.
 type DKIMResult struct {
-	Wildcard       bool     `json:"wildcard"`
-	SelectorsFound []string `json:"selectors_found"`
-	Revoked        []string `json:"revoked"`
+	Wildcard bool `json:"wildcard"`
+	// SelectorsProbed names every selector looked up. Selectors cannot be
+	// enumerated, so an empty found list means none of these answered, not
+	// that the domain has no DKIM key (google.com signs with dated
+	// selectors such as 20251104, which no fixed list can guess).
+	SelectorsProbed []string `json:"selectors_probed"`
+	SelectorsFound  []string `json:"selectors_found"`
+	Revoked         []string `json:"revoked"`
 	// Keys describes the key of every found selector that is not revoked.
 	Keys []DKIMKey `json:"keys"`
 	// Dangling lists selectors that are a CNAME to a name that does not
@@ -585,7 +590,7 @@ type DKIMKey struct {
 // record parses as DKIM does not help there, only that it is answered for
 // a name chosen at random.
 func probeDKIM(domain string, lookup lookupFn) DKIMResult {
-	res := DKIMResult{SelectorsFound: []string{}, Revoked: []string{}, Keys: []DKIMKey{}, Dangling: []string{}}
+	res := DKIMResult{SelectorsProbed: slices.Clone(dkimSelectors), SelectorsFound: []string{}, Revoked: []string{}, Keys: []DKIMKey{}, Dangling: []string{}}
 	answers := make([]Lookup, len(dkimSelectors))
 	var control Lookup
 	tasks := []func(){func() { control = lookup(randomLabel()+"._domainkey."+domain, "TXT") }}

@@ -356,7 +356,9 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     `google, selector1, selector2, default, k1, s1, mail, dkim` alongside a
     random selector as a negative control (found selectors are reported, a
     revoked empty key warns, none found is a fact since selectors cannot be
-    enumerated). Each key found is described in `dkim.keys` (`selector`,
+    enumerated). `dkim.selectors_probed` lists the names tried, so an empty
+    `selectors_found` reads as "none of these", not "no DKIM": google.com
+    signs with dated selectors (`20251104`) that no fixed list guesses. Each key found is described in `dkim.keys` (`selector`,
     `type`, RSA `bits`, `error` when `p=` is not a usable key): an RSA key
     under 1024 bits fails (verifiers reject it, RFC 8301 §3.2), under 2048
     is info (`dkim_key_weak`: RFC 8301 recommends 2048, but a quarter of the
