@@ -17,6 +17,9 @@ const (
 	DNSSECBogus    DNSSECState = "bogus"    // validation fails although data exists
 	DNSSECServfail DNSSECState = "servfail" // resolver failed and no data even with CD
 	DNSSECUnknown  DNSSECState = "unknown"  // lookups timed out
+	// DNSSECNonexistent: the name is NXDOMAIN, so there is no zone to be
+	// signed or unsigned. Detail says whether the denial itself validated.
+	DNSSECNonexistent DNSSECState = "nonexistent"
 )
 
 // DNSSECReport is the dnssec section of the JSON report.
@@ -46,6 +49,10 @@ func classifyDNSSEC(ds, dnskey Lookup, apex map[string]Lookup, probe bogusProbe)
 		rep.Detail = "DS or DNSKEY lookup did not complete"
 		return rep
 	}
+	if nameDoesNotExist(apex) {
+		nonexistentState(&rep, ds)
+		return rep
+	}
 	switch {
 	case rep.DS && rep.DNSKEY:
 		signedState(&rep, dnskey.Trust)
@@ -59,6 +66,24 @@ func classifyDNSSEC(ds, dnskey Lookup, apex map[string]Lookup, probe bogusProbe)
 		rep.State = DNSSECInsecure
 	}
 	return rep
+}
+
+// nonexistentState reports a name that does not exist. "insecure" read as a
+// verdict on a zone that is not there, beside a TLSA section whose validated
+// denial said signed: true (tester, 2026-10-06). The DS lookup carries the
+// parent's denial; its trust says whether that denial validated.
+func nonexistentState(rep *DNSSECReport, ds Lookup) {
+	rep.State = DNSSECNonexistent
+	if ds.Trust == TrustSecure {
+		rep.Detail = "the name does not exist (NXDOMAIN); the parent's denial of existence was DNSSEC-validated"
+		return
+	}
+	rep.Detail = "the name does not exist (NXDOMAIN); the parent's denial of existence was not validated"
+}
+
+// nameDoesNotExist reports an apex the resolver answered NXDOMAIN for.
+func nameDoesNotExist(apex map[string]Lookup) bool {
+	return apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain
 }
 
 // signedState judges a zone that publishes DS and DNSKEY by whether the

@@ -46,6 +46,28 @@ func TestClassifyDNSSEC_Insecure(t *testing.T) {
 	}
 }
 
+// A .com name that does not exist (delv captures, 2026-10-06): every lookup
+// is a validated NXDOMAIN. The state is "nonexistent", not a verdict on a
+// zone, and the detail says the denial validated.
+func TestClassifyDNSSEC_Nonexistent(t *testing.T) {
+	apex := lookups(t, map[string]string{"A": "delv/nxdomain_com_a.yaml", "NS": "delv/nxdomain_com_ns.yaml"})
+	ds := parseDelvYAML(fixture(t, "delv/nxdomain_com_ds.yaml"), "DS")
+	key := parseDelvYAML(fixture(t, "delv/nxdomain_com_dnskey.yaml"), "DNSKEY")
+	rep := classifyDNSSEC(ds, key, apex, func(string, string) (bool, string) {
+		t.Fatal("bogus probe must not run for a validated denial")
+		return false, ""
+	})
+	if rep.State != DNSSECNonexistent || rep.DS || rep.DNSKEY || !strings.Contains(rep.Detail, "was DNSSEC-validated") {
+		t.Errorf("unexpected %+v", rep)
+	}
+	// The unsigned capture: the same state, the denial not validated.
+	un := parseDelvYAML(fixture(t, "delv/nxdomain_unsigned.yaml"), "A")
+	rep = classifyDNSSEC(un, un, map[string]Lookup{"A": un, "NS": un}, nil)
+	if rep.State != DNSSECNonexistent || !strings.Contains(rep.Detail, "not validated") {
+		t.Errorf("unsigned denial: %+v", rep)
+	}
+}
+
 func TestClassifyDNSSEC_Island(t *testing.T) {
 	apex := lookups(t, map[string]string{"A": "delv/google_a_unsigned.yaml"})
 	ds := parseDelvYAML(fixture(t, "delv/google_ds_nxrrset.yaml"), "DS")

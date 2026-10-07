@@ -380,7 +380,7 @@ func TestRun_NXDomain(t *testing.T) {
 	check(t, "ok", rep.OK, false)
 	check(t, "nxdomain error", contains(rep.Errors, "NXDOMAIN"), true)
 	check(t, "not delegated error", contains(rep.Errors, "not delegated"), true)
-	check(t, "dnssec", rep.DNSSEC.State, DNSSECInsecure)
+	check(t, "dnssec", rep.DNSSEC.State, DNSSECNonexistent)
 	check(t, "no nameserver audit", rep.Nameservers, (*NSReport)(nil))
 }
 

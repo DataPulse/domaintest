@@ -354,7 +354,7 @@ func (f *findings) dnsFindings(rep *Report) {
 func (f *findings) apexMissing(rep *Report) bool {
 	apex := rep.DNS.Apex
 	switch {
-	case apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain:
+	case nameDoesNotExist(apex):
 		f.fail("apex_nxdomain", "apex", "apex %s does not exist (NXDOMAIN)", rep.Domain)
 		return true
 	case noRecordsAtAll(apex):

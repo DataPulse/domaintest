@@ -54,7 +54,12 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    DNSKEY are not enough for `secure`: the validator must have validated
    the DNSKEY answer. A DS whose algorithm or digest the validator does
    not support makes it treat the zone as unsigned, which is reported as
-   `insecure` with a detail saying so.
+   `insecure` with a detail saying so. A name that does not exist
+   (NXDOMAIN) is `nonexistent`: there is no zone to judge, and the detail
+   says whether the parent's denial of existence validated. Every lookup of
+   such a name can carry trust `secure` (a validated denial) and the TLSA
+   section `signed: true` for the same reason; neither means the name is
+   signed.
 3. **Delegation**: `dig +trace` from `a.root-servers.net` compares the NS
    set the parent zone delegates to with the NS set the zone itself serves.
    Status `same_servers` means the parent zone's servers also host the

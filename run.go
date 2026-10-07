@@ -734,8 +734,7 @@ func noMailPossible(rep *Report, dns dnsResults) bool {
 	if rep.NotAZone || rep.ReservedName != "" || registrySuffix(rep.Domain) {
 		return true
 	}
-	apex := dns.apex
-	return apex["NS"].Status == StatusNXDomain || apex["A"].Status == StatusNXDomain
+	return nameDoesNotExist(dns.apex)
 }
 
 func assessMail(ctx context.Context, cfg config, dns dnsResults, skip bool) *MailReport {
