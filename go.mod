@@ -2,6 +2,8 @@ module github.com/DataPulse/domaintest
 
 go 1.27.1
 
+toolchain go1.27.2
+
 require github.com/DataPulse/dpdomain v0.0.0
 
 require (
