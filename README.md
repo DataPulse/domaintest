@@ -106,7 +106,9 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
    negative answer carried the SOA of a zone above it, and the parent does
    not delegate it. The delegation trace and the DS/DNSKEY zone checks are
    then skipped, `dnssec.state` is taken from the validation status of the
-   answers, and `not_a_zone` / `enclosing_zone` appear in the report.
+   answers, and `not_a_zone` / `enclosing_zone` appear in the report. The
+   zone DNSSEC finding (`dnssec_unsigned`) is not reported for such a name:
+   it has no zone of its own to call unsigned.
 4. **Nameserver audit** (`nameservers`): every NS name is resolved (a
    CNAME is an error, and so is a name the resolver says has no address;
    a name whose lookup never completed is listed in `unresolved` and
@@ -383,7 +385,8 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
 11. **CAA** (`caa`): the certificate each host actually served is compared
     with the CAA records that govern that host, using a table of CA
     organisations to CAA identifiers. `caa` holds nothing but `hosts`, with
-    one verdict for `apex` and one for `www`, so no value can be read as
+    one verdict for `apex` and one for `www` (when www is looked up: see
+    `web.www` below), so no value can be read as
     the domain's when it is only the apex's. Each verdict carries
     `published` (the records at that name, empty when it publishes none),
     `effective` (the set that governs it after RFC 8659 climbs to the
@@ -399,7 +402,8 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     that answered: a www with no records of its own takes the apex set, so
     when the apex lookup failed, www is unknown too. A CA
     the records forbid is an error naming the host.
-12. **DANE / TLSA** (`tlsa`): `_443._tcp.` records for apex and www are
+12. **DANE / TLSA** (`tlsa`): `_443._tcp.` records for apex, and for www
+    when www is looked up, are
     matched against every address's served chain per usage, selector and
     matching type. No match anywhere is an error; records in an unsigned
     zone are a warning because DANE clients ignore them. `signed` says
@@ -566,7 +570,9 @@ one label below a public suffix as the Public Suffix List defines it.
 `www.old.reddit.com` is a name only this tool would ever ask for. Asking
 for it got an answer from a catch-all, served with a `*.reddit.com`
 certificate that cannot cover the extra label, and reported a hostname
-mismatch on a healthy site.
+mismatch on a healthy site. The same rule governs every www lookup: for a
+name that is not registrable, www's A, AAAA, CAA and TLSA are not looked
+up, and `dns.www`, `caa.hosts.www` and `tlsa.www` are absent.
 
 The list is the right test rather than "is this a zone apex", in both
 directions. A registrable domain stays registrable however odd its DNS
@@ -604,6 +610,13 @@ record of some type, since a mail-only host still has an MX and a
 verification host still has a TXT. Requiring every lookup to have answered
 keeps a failed probe from being read as an empty name, and the per-type
 presence warnings are folded into the one error.
+
+That one error is the whole verdict for a name with nothing at it, NXDOMAIN
+or every type denied. Such a name is not delegated by definition, so
+`not_delegated` is not added beside it (`delegation.status` still records
+what the trace saw), and it has no certificate policy to report, so the
+`caa` and `tlsa` sections are absent and `caa_absent` ("any certificate
+authority may issue") is never said of it.
 
 The same rule governs three checks whose absence is only meaningful once
 observed. A `_dmarc` lookup that did not complete sets `mail.dmarc.unresolved`
@@ -890,7 +903,7 @@ off-site; the most representative healthy web domain), jschmidt.org
 MX; captured while one of its registrar's nameservers was unreachable
 from the capturing host, so it also shows a nameserver error),
 expired.badssl.com (certificate errors on a host inside a zone) and
-dnssec-failed.org (DNSSEC bogus). The calibration fixtures, captured live
+dnssec-failed.org (DNSSEC bogus), datapulse-nonexistent-7f3a9c.com (a name that does not exist) and gist.github.com (a host inside a zone, not registrable), the last two captured live on 2026-10-19. The calibration fixtures, captured live
 on 2026-10-05, are google.com, microsoft.com, facebook.com, oracle.com,
 sap.com, icann.org, wikipedia.org, nic.cz, docs.github.com and
 app.slack.com. Alongside them are parked defensive registrations from a

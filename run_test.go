@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -404,8 +405,9 @@ func TestRun_NXDomain(t *testing.T) {
 	s.trace("trace/nxdomain.txt", t)
 	rep := s.run()
 	check(t, "ok", rep.OK, false)
-	check(t, "nxdomain error", contains(rep.Errors, "NXDOMAIN"), true)
-	check(t, "not delegated error", contains(rep.Errors, "not delegated"), true)
+	check(t, "one error, the NXDOMAIN", rep.Errors, []string{"apex nonexistent-zzz-qq.org does not exist (NXDOMAIN)"})
+	check(t, "findings", reportCodes(rep), []string{"fail:apex_nxdomain"})
+	check(t, "delegation still recorded", rep.Delegation.Status, DelegationNotDelegated)
 	check(t, "dnssec", rep.DNSSEC.State, DNSSECNonexistent)
 	check(t, "no nameserver audit", rep.Nameservers, (*NSReport)(nil))
 	// .org denies the name with an NSEC3 opt-out span, so the resolver
@@ -413,7 +415,10 @@ func TestRun_NXDomain(t *testing.T) {
 	// (tester, 2026-10-06).
 	check(t, "denial not called validated", rep.DNSSEC.Detail, "the name does not exist (NXDOMAIN); the parent's denial of existence was not validated")
 	check(t, "apex A trust from the resolver", rep.DNS.Apex["A"].Trust, TrustInsecure)
-	check(t, "tlsa not signed", rep.TLSA.Signed, false)
+	// A name that does not exist has no CAA or TLSA policy to report: "any
+	// CA may issue" would describe a domain that is not there.
+	check(t, "no caa section", rep.CAA, (*CAAReport)(nil))
+	check(t, "no tlsa section", rep.TLSA, (*TLSAReport)(nil))
 }
 
 func TestRun_ReservedAddress(t *testing.T) {
@@ -745,6 +750,48 @@ func TestRun_HostInsideZoneIsNotAZone(t *testing.T) {
 	check(t, "not-a-zone warning", contains(notes(rep), "is not a zone apex"), true)
 	check(t, "addresses probed (refused)", rep.Web.Apex.IPv4[0].HTTPS, PortRefused)
 	check(t, "no mail section", rep.Mail, (*MailReport)(nil))
+	// www is a name only beside a registrable domain: nothing about
+	// www.<host> is looked up or reported, and the zone DNSSEC finding is
+	// skipped like the other zone checks.
+	for _, c := range s.r.called("dog") {
+		if strings.Contains(c, "www."+host) {
+			t.Errorf("looked up a www name for a host inside a zone: %s", c)
+		}
+	}
+	check(t, "no dns.www", rep.DNS.WWW, map[string]Lookup(nil))
+	check(t, "caa hosts", caaHostLabels(rep.CAA), []string{"apex"})
+	check(t, "no tlsa www", rep.TLSA.WWW, (*[]string)(nil))
+	check(t, "no zone DNSSEC finding", contains(reportCodes(rep), "info:dnssec_unsigned"), false)
+	b, err := json.Marshal(rep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var shape struct {
+		DNS  map[string]json.RawMessage                 `json:"dns"`
+		CAA  struct{ Hosts map[string]json.RawMessage } `json:"caa"`
+		TLSA map[string]json.RawMessage                 `json:"tlsa"`
+	}
+	if err := json.Unmarshal(b, &shape); err != nil {
+		t.Fatal(err)
+	}
+	_, dnsWWW := shape.DNS["www"]
+	_, caaWWW := shape.CAA.Hosts["www"]
+	_, tlsaWWW := shape.TLSA["www"]
+	check(t, "serialised without any www", []bool{dnsWWW, caaWWW, tlsaWWW}, []bool{false, false, false})
+}
+
+// A registrable domain keeps every www lookup and section.
+func TestRun_RegistrableDomainKeepsWWW(t *testing.T) {
+	s := jschmidtScenario(t)
+	rep := s.run()
+	check(t, "dns.www", len(rep.DNS.WWW) > 0, true)
+	check(t, "caa hosts", caaHostLabels(rep.CAA), []string{"apex", "www"})
+	check(t, "tlsa www listed", rep.TLSA.WWW != nil, true)
+	var www bool
+	for _, c := range s.r.called("dog") {
+		www = www || strings.Contains(c, "www.jschmidt.org")
+	}
+	check(t, "www looked up", www, true)
 }
 
 // A first-wave lookup that hangs must not poison the nameserver audit:
@@ -1086,4 +1133,17 @@ func TestRun_ReservedNameAnsweredByResolver(t *testing.T) {
 	check(t, "no reserved addresses", len(rep.ReservedAddresses), 0)
 	check(t, "nothing dialed", len(s.dialer.seen), 0)
 	check(t, "no quic", len(s.r.called("quicprobe")), 0)
+}
+
+// caaHostLabels lists the hosts a CAA section judged, sorted.
+func caaHostLabels(c *CAAReport) []string {
+	out := []string{}
+	if c == nil {
+		return out
+	}
+	for k := range c.Hosts {
+		out = append(out, k)
+	}
+	slices.Sort(out)
+	return out
 }

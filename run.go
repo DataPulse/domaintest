@@ -402,10 +402,12 @@ func gatherDNS(ctx context.Context, cfg config, r, reachRunner Runner, afterFirs
 	defer cancel()
 	res := dnsResults{
 		apex:       make(map[string]Lookup, len(apexTypes)),
-		www:        make(map[string]Lookup, len(wwwTypes)),
 		reach:      make(map[string]string, len(cfg.Families)),
 		reachTrust: make(map[string]Trust, len(cfg.Families)),
 		cache:      newLookupCache(dctx, cfg, r),
+	}
+	if registrableDomain(cfg.Domain) {
+		res.www = make(map[string]Lookup, len(wwwTypes))
 	}
 	var mu sync.Mutex
 	get := res.cache.get
@@ -452,16 +454,21 @@ func fixedLookups(res *dnsResults, mu *sync.Mutex, cfg config, get lookupFn) []f
 	for _, t := range apexTypes {
 		tasks = append(tasks, func() { store(mu, res.apex, t, get(d, t)) })
 	}
-	for _, t := range wwwTypes {
-		tasks = append(tasks, func() { store(mu, res.www, t, get(www, t)) })
-	}
 	tasks = append(tasks,
 		set(&res.ds, d, "DS"), set(&res.dnskey, d, "DNSKEY"),
 		set(&res.dmarc, "_dmarc."+d, "TXT"), set(&res.mtaSTS, "_mta-sts."+d, "TXT"), set(&res.tlsRPT, "_smtp._tls."+d, "TXT"),
-		set(&res.caaApex, d, "CAA"), set(&res.caaWWW, www, "CAA"),
-		set(&res.tlsaApex, "_443._tcp."+d, "TLSA"), set(&res.tlsaWWW, "_443._tcp."+www, "TLSA"),
+		set(&res.caaApex, d, "CAA"), set(&res.tlsaApex, "_443._tcp."+d, "TLSA"),
 	)
-	return tasks
+	// www is a name only beside a registrable domain (registrableDomain):
+	// under a host inside a zone or a public suffix, www.<name> is nobody's
+	// name, so nothing about it is looked up or reported.
+	if res.www == nil {
+		return tasks
+	}
+	for _, t := range wwwTypes {
+		tasks = append(tasks, func() { store(mu, res.www, t, get(www, t)) })
+	}
+	return append(tasks, set(&res.caaWWW, www, "CAA"), set(&res.tlsaWWW, "_443._tcp."+www, "TLSA"))
 }
 
 // dependentLookups warm the cache for names learned from the first wave so
@@ -998,8 +1005,14 @@ func wildcardSection(dns dnsResults, web WebSection) *WildcardReport {
 // assessCertPolicies evaluates CAA and TLSA against the certificates that
 // were actually served.
 func assessCertPolicies(dns dnsResults, rep *Report) (*CAAReport, *TLSAReport) {
-	caa := assessCAA(dns.caaApex, dns.caaWWW, servedLeaf(rep.Web.Apex), servedLeaf(rep.Web.WWW))
-	tlsa := assessTLSA(dns.tlsaApex, dns.tlsaWWW, rep.Web)
+	// A name with nothing at it has no CAA or TLSA policy to report: "any
+	// CA may issue" would describe a domain that is not there.
+	if apexAbsent(rep.DNS.Apex) {
+		return nil, nil
+	}
+	wwwProbed := dns.www != nil
+	caa := assessCAA(dns.caaApex, dns.caaWWW, servedLeaf(rep.Web.Apex), servedLeaf(rep.Web.WWW), wwwProbed)
+	tlsa := assessTLSA(dns.tlsaApex, dns.tlsaWWW, rep.Web, wwwProbed)
 	return &caa, tlsa
 }
 
@@ -1018,18 +1031,27 @@ func servedLeaf(h *HostWeb) servedCert {
 // zone the denial of a missing TLSA set is itself signed, which is what
 // lets a DANE client trust the absence.
 type TLSAReport struct {
-	Apex   []string `json:"apex"`
-	WWW    []string `json:"www"`
-	Signed bool     `json:"signed"`
-	Result string   `json:"result"` // none, match, mismatch, unverified
+	Apex []string `json:"apex"`
+	// WWW is absent when www was not looked up (the name is not a
+	// registrable domain); otherwise its records, [] for none.
+	WWW    *[]string `json:"www,omitempty"`
+	Signed bool      `json:"signed"`
+	Result string    `json:"result"` // none, match, mismatch, unverified
 }
 
 // assessTLSA matches the TLSA sets against every address's chain and
 // stamps each address with its own verdict.
-func assessTLSA(apexRec, wwwRec Lookup, web WebSection) *TLSAReport {
-	rep := &TLSAReport{Apex: nonNil(apexRec.Records), WWW: nonNil(wwwRec.Records), Result: TLSANone}
+func assessTLSA(apexRec, wwwRec Lookup, web WebSection, wwwProbed bool) *TLSAReport {
+	rep := &TLSAReport{Apex: nonNil(apexRec.Records), Result: TLSANone}
+	if !wwwProbed {
+		// Only the apex was asked, so only the apex decides.
+		wwwRec = apexRec
+	} else {
+		www := nonNil(wwwRec.Records)
+		rep.WWW = &www
+	}
 	rep.Signed = tlsaSigned(apexRec) && tlsaSigned(wwwRec)
-	if len(apexRec.Records)+len(wwwRec.Records) == 0 {
+	if len(apexRec.Records)+len(rep.wwwRecords()) == 0 {
 		// No records and no answer is not "this domain has no DANE": the
 		// absence has to be observed before it can be reported.
 		if !apexRec.Answered() || !wwwRec.Answered() {
@@ -1037,8 +1059,19 @@ func assessTLSA(apexRec, wwwRec Lookup, web WebSection) *TLSAReport {
 		}
 		return rep
 	}
+	if !wwwProbed {
+		wwwRec = Lookup{}
+	}
 	rep.Result = tlsaResult(stampHosts(apexRec, wwwRec, web))
 	return rep
+}
+
+// wwwRecords is the www TLSA set, empty when www was not looked up.
+func (t *TLSAReport) wwwRecords() []string {
+	if t.WWW == nil {
+		return nil
+	}
+	return *t.WWW
 }
 
 // stampHosts matches each host's served chains against its TLSA records,

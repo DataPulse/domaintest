@@ -90,7 +90,7 @@ type Report struct {
 // DNSSection holds the record lookups.
 type DNSSection struct {
 	Apex              map[string]Lookup `json:"apex"`
-	WWW               map[string]Lookup `json:"www"`
+	WWW               map[string]Lookup `json:"www,omitempty"` // absent when www was not looked up (not a registrable domain)
 	ResolverReachable map[string]string `json:"resolver_reachable,omitempty"`
 	// ResolverValidates says whether the resolver authenticated the signed
 	// root NS answer; null when it answered over no family. Every trust
@@ -256,7 +256,7 @@ func buildFindings(rep *Report) {
 		return
 	}
 	f.dnsFindings(rep)
-	f.dnssecFindings(rep.DNSSEC)
+	f.dnssecFindings(rep)
 	f.delegationFindings(rep)
 	f.reachabilityFindings(rep.DNS.ResolverReachable)
 	f.deadlineFindings(rep)
@@ -401,6 +401,12 @@ func (f *findings) zoneKindFindings(rep *Report) {
 	}
 }
 
+// apexAbsent reports whether the name has nothing at it: NXDOMAIN, or
+// every type denied (compact denial of existence).
+func apexAbsent(apex map[string]Lookup) bool {
+	return nameDoesNotExist(apex) || noRecordsAtAll(apex)
+}
+
 // noRecordsAtAll reports whether every apex lookup answered and none of
 // them returned a record. A name someone created has at least one record
 // of some type: a mail-only host still has an MX, a verification host
@@ -505,7 +511,8 @@ func hasSPF(txt []string) bool {
 	return false
 }
 
-func (f *findings) dnssecFindings(d DNSSECReport) {
+func (f *findings) dnssecFindings(rep *Report) {
+	d := rep.DNSSEC
 	switch d.State {
 	case DNSSECBogus:
 		f.fail("dnssec_bogus", "", "DNSSEC validation fails (bogus): %s", firstNonEmpty(d.EDE, d.Detail))
@@ -518,7 +525,11 @@ func (f *findings) dnssecFindings(d DNSSECReport) {
 	case DNSSECInsecure:
 		// A fact, like aaaa_absent: most zones are unsigned, and the
 		// report should say so in findings rather than only in its body.
-		f.info("dnssec_unsigned", "", "the zone is not DNSSEC-signed")
+		// A host inside a zone has no zone of its own: not_a_zone already
+		// says the zone checks were skipped.
+		if !rep.NotAZone {
+			f.info("dnssec_unsigned", "", "the zone is not DNSSEC-signed")
+		}
 	}
 }
 
@@ -528,7 +539,11 @@ func (f *findings) delegationFindings(rep *Report) {
 	case DelegationMismatch:
 		f.fail("delegation_mismatch", "", "NS delegation mismatch: parent-only %v, child-only %v", d.ParentOnly, d.ChildOnly)
 	case DelegationNotDelegated:
-		f.fail("not_delegated", "", "domain is not delegated by its parent zone (%s)", d.ParentServer)
+		// A name with nothing at it is not delegated by definition;
+		// apex_nxdomain or apex_empty already says so.
+		if !apexAbsent(rep.DNS.Apex) {
+			f.fail("not_delegated", "", "domain is not delegated by its parent zone (%s)", d.ParentServer)
+		}
 	case DelegationNoChildAnswer:
 		// NOERROR with an empty answer is an answer. Saying the servers
 		// did not respond sends an operator after a reachability problem

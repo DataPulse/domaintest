@@ -1,0 +1,290 @@
+{
+  "version": "8b4d6bc16368370ef485b541f6a97a20ef8dfb0d",
+  "timestamp": "2026-10-19T18:50:34Z",
+  "domain": "gist.github.com",
+  "not_a_zone": true,
+  "enclosing_zone": "github.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "max_time_sec": 18,
+  "redirect_log": false,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "140.82.113.4"
+        ],
+        "cname": [
+          "github.com."
+        ]
+      },
+      "AAAA": {
+        "status": "nxrrset",
+        "trust": "insecure",
+        "cname": [
+          "github.com."
+        ]
+      },
+      "MX": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "0 github-com.mail.protection.outlook.com."
+        ],
+        "cname": [
+          "github.com."
+        ]
+      },
+      "NS": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "ns-1707.awsdns-21.co.uk.",
+          "ns-421.awsdns-52.com.",
+          "ns-520.awsdns-01.net.",
+          "dns1.p08.nsone.net.",
+          "dns2.p08.nsone.net.",
+          "dns3.p08.nsone.net.",
+          "dns4.p08.nsone.net.",
+          "ns-1283.awsdns-32.org."
+        ],
+        "cname": [
+          "github.com."
+        ]
+      },
+      "TXT": {
+        "status": "ok",
+        "trust": "insecure",
+        "records": [
+          "google-site-verification=82Le34Flgtd15ojYhHlGF_6g72muSjamlMVThBOJpks",
+          "google-site-verification=UTM-3akMgubp6tQtgEuAkYNYLyYAvpTnnSrDMWoDR3o",
+          "jamf-site-verification=XtaPNIYghF_e_xRDI8CjgQ",
+          "krisp-domain-verification=ZlyiK7XLhnaoUQb2hpak1PLY7dFkl1WE",
+          "loom-site-verification=f3787154f1154b7880e720a511ea664d",
+          "miro-verification=d2e174fdb00c71e0bcf58f8e58c3da2dd80dcfa9",
+          "openai-domain-verification=dv-3nh33eQwdkotMIAzLrIDVZo1",
+          "serval-domain-verification-ydryhj=qbkiEakpwEpTvHh5fIiCqtaue",
+          "shopify-verification-code=t1YPwcmvnxZyBycaCpk1MPyWoFs72o",
+          "stripe-verification=f88ef17321660a01bab1660454192e014defa29ba7b8de9633c69d6b4912217f",
+          "v=spf1 ip4:192.30.252.0/22 include:spf.protection.outlook.com include:_netblocks.google.com include:_netblocks2.google.com include:mail.zendesk.com include:_spf.salesforce.com include:servers.mcsv.net include:mktomail.com include:sendgrid.net ip4:62.253.227.114 ip4:166.78.69.169 ip4:166.78.69.170 ip4:166.78.71.131 ~all",
+          "00Dd0000000hHE0=1TBKg000000TN2r",
+          "MS=6BF03E6AF5CB689E315FB6199603BABF2C88D805",
+          "MS=ms44452932",
+          "MS=ms58704441",
+          "TAILSCALE-xOzoDvFUzZr5YYVCQFuD",
+          "adobe-idp-site-verification=b92c9e999aef825edc36e0a3d847d2dbad5b2fc0e05c79ddd7a16139b48ecf4b",
+          "anthropic-domain-verification-4az7qn=if8YWuRRqwLycGJDooumzHtxm",
+          "apple-domain-verification=RyQhdzTl6Z6x8ZP4",
+          "atlassian-domain-verification=jjgw98AKv2aeoYFxiL/VFaoyPkn3undEssTRuMg6C/3Fp/iqhkV4HVV7WjYlVeF8",
+          "calendly-site-verification=at0DQARi7IZvJtXQAWhMqpmIzpvoBNF7aam5VKKxP",
+          "cursor-domain-verification-gtfwmt=1rfLOtiTngX5QSxD5HvNKTvm3",
+          "docusign=087098e3-3d46-47b7-9b4e-8a23028154cd",
+          "facebook-domain-verification=39xu4jzl7roi7x0n93ldkxjiaarx50"
+        ],
+        "cname": [
+          "github.com."
+        ]
+      }
+    },
+    "www": {
+      "A": {
+        "status": "nxrrset",
+        "trust": "insecure"
+      },
+      "AAAA": {
+        "status": "nxdomain",
+        "trust": "insecure"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    },
+    "resolver_validates": true
+  },
+  "dnssec": {
+    "state": "insecure",
+    "ds": false,
+    "dnskey": false,
+    "detail": "not a zone apex; state taken from answer validation"
+  },
+  "delegation": {
+    "status": "not_a_zone",
+    "error": "name is a host inside github.com"
+  },
+  "web": {
+    "apex": {
+      "ipv4": [
+        {
+          "ip": "140.82.113.4",
+          "80": "open",
+          "443": "open",
+          "http": {
+            "status": 301,
+            "location": "https://gist.github.com/"
+          },
+          "https": {
+            "status": 302,
+            "location": "https://gist.github.com/starred",
+            "server": "github.com",
+            "hsts": {
+              "max_age": 31536000,
+              "include_subdomains": true,
+              "preload": true
+            }
+          },
+          "tls": {
+            "chain": "valid",
+            "chain_problems": [],
+            "version": "TLS 1.3",
+            "cipher": "TLS_AES_128_GCM_SHA256",
+            "tls10": false,
+            "tls11": false,
+            "cert": {
+              "subject": "*.github.com",
+              "issuer": "Sectigo Public Server Authentication CA DV E36",
+              "not_before": "2026-08-30T00:00:00Z",
+              "not_after": "2026-11-27T23:59:59Z",
+              "days_remaining": 39,
+              "covers_apex": true,
+              "covers_www": false,
+              "wildcard": true,
+              "key": "ECDSA P-256",
+              "fingerprint_sha256": "06e6a4a004329905d4a4e7c0d2c6ec7a632c56443f256424a43cc786951b3149"
+            },
+            "chain_length": 3
+          },
+          "quic": {
+            "supported": false,
+            "handshake_ms": 2000,
+            "reason": "timeout",
+            "error": "context deadline exceeded"
+          },
+          "http_versions": {
+            "http1_1": true,
+            "http2": true,
+            "http3": false,
+            "h3_advertised": false
+          }
+        }
+      ],
+      "cert_consistent": true
+    }
+  },
+  "certificates": {
+    "06e6a4a004329905d4a4e7c0d2c6ec7a632c56443f256424a43cc786951b3149": {
+      "sans": [
+        "*.github.com",
+        "github.com"
+      ]
+    }
+  },
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"sectigo.com\"",
+          "0 issuewild \"digicert.com\"",
+          "0 issuewild \"letsencrypt.org\"",
+          "0 issuewild \"sectigo.com\"",
+          "0 issue \"digicert.com\"",
+          "0 issue \"globalsign.com\""
+        ],
+        "effective": [
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"sectigo.com\"",
+          "0 issuewild \"digicert.com\"",
+          "0 issuewild \"letsencrypt.org\"",
+          "0 issuewild \"sectigo.com\"",
+          "0 issue \"digicert.com\"",
+          "0 issue \"globalsign.com\""
+        ],
+        "issuer": "Sectigo Limited",
+        "permitted": true
+      },
+      "www": {
+        "published": [
+          "0 issuewild \"digicert.com\"",
+          "0 issuewild \"letsencrypt.org\"",
+          "0 issuewild \"sectigo.com\"",
+          "0 issue \"digicert.com\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"sectigo.com\""
+        ],
+        "effective": [
+          "0 issuewild \"digicert.com\"",
+          "0 issuewild \"letsencrypt.org\"",
+          "0 issuewild \"sectigo.com\"",
+          "0 issue \"digicert.com\"",
+          "0 issue \"letsencrypt.org\"",
+          "0 issue \"sectigo.com\""
+        ],
+        "note": "no certificate observed"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the random name tcbfpqevbdpc is denied",
+    "probes": [
+      {
+        "label": "tcbfpqevbdpc",
+        "status": "denied",
+        "addresses": []
+      }
+    ],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "preloaded",
+  "hsts_preload_covered_by": "github.com",
+  "hsts_preload_policy": "bulk-18-weeks",
+  "hsts_preload_include_subdomains": true,
+  "errors": [],
+  "warnings": [],
+  "findings": [
+    {
+      "code": "not_a_zone",
+      "severity": "info",
+      "host": "",
+      "message": "gist.github.com is not a zone apex (inside zone github.com): delegation and DNSSEC zone checks skipped"
+    },
+    {
+      "code": "aaaa_absent",
+      "severity": "info",
+      "host": "apex",
+      "message": "apex has no AAAA record"
+    },
+    {
+      "code": "dnssec_unsigned",
+      "severity": "info",
+      "host": "",
+      "message": "the zone is not DNSSEC-signed"
+    },
+    {
+      "code": "http3_absent",
+      "severity": "info",
+      "host": "apex",
+      "message": "apex: no address serves HTTP/3"
+    }
+  ],
+  "ok": true,
+  "elapsed_ms": 2140
+}

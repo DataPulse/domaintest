@@ -220,7 +220,21 @@ func boolPtr(b bool) *bool { return &b }
 // assessCAA builds the CAA report with one verdict per host. The www name
 // is governed by its own records when it publishes any, otherwise by the
 // apex set, since RFC 8659 climbs to the closest ancestor with a CAA set.
-func assessCAA(apexRec, wwwRec Lookup, apexCert, wwwCert servedCert) CAAReport {
+// wwwProbed is false when www was not looked up (the name is not a
+// registrable domain); www then gets no verdict.
+func assessCAA(apexRec, wwwRec Lookup, apexCert, wwwCert servedCert, wwwProbed bool) CAAReport {
+	rep := CAAReport{Hosts: map[string]*CAAVerdict{
+		"apex": caaVerdict(apexRec, apexRec.Records, apexRec.Answered(), apexCert),
+	}, absent: apexRec.Answered() && !apexRec.HasRecords()}
+	if wwwProbed {
+		rep.Hosts["www"] = wwwVerdict(apexRec, wwwRec, wwwCert)
+	}
+	return rep
+}
+
+// wwwVerdict judges www against its own CAA set, or the apex's when it
+// publishes none.
+func wwwVerdict(apexRec, wwwRec Lookup, wwwCert servedCert) *CAAVerdict {
 	// The climb to the parent is only legitimate when www actually
 	// answered that it has no CAA of its own, and its result is only known
 	// when the apex answered too: a lookup that failed tells us nothing
@@ -229,8 +243,5 @@ func assessCAA(apexRec, wwwRec Lookup, apexCert, wwwCert servedCert) CAAReport {
 	if len(wwwEffective) == 0 && wwwRec.Answered() {
 		wwwEffective, wwwKnown = apexRec.Records, apexRec.Answered()
 	}
-	return CAAReport{Hosts: map[string]*CAAVerdict{
-		"apex": caaVerdict(apexRec, apexRec.Records, apexRec.Answered(), apexCert),
-		"www":  caaVerdict(wwwRec, wwwEffective, wwwKnown, wwwCert),
-	}, absent: apexRec.Answered() && !apexRec.HasRecords()}
+	return caaVerdict(wwwRec, wwwEffective, wwwKnown, wwwCert)
 }

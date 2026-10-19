@@ -740,7 +740,7 @@ func TestAbsenceFacts(t *testing.T) {
 		apex Lookup
 		want bool
 	}{{"no CAA", none, true}, {"lookup failed", failed, false}, {"CAA published", present, false}} {
-		r := assessCAA(c.apex, c.apex, servedCert{}, servedCert{})
+		r := assessCAA(c.apex, c.apex, servedCert{}, servedCert{}, true)
 		var f findings
 		f.caaFindings(&r)
 		got := len(f.list) == 1 && f.list[0].Code == "caa_absent" && f.list[0].Severity == SeverityInfo
@@ -751,9 +751,9 @@ func TestAbsenceFacts(t *testing.T) {
 	f.mailAbsenceFindings(&MailReport{mtaSTSAbsent: true, tlsRPTAbsent: true})
 	check(t, "mail absences", []string{f.list[0].Code, f.list[1].Code}, []string{"mta_sts_absent", "tls_rpt_absent"})
 	f = findings{}
-	f.dnssecFindings(DNSSECReport{State: DNSSECInsecure})
+	f.dnssecFindings(&Report{DNSSEC: DNSSECReport{State: DNSSECInsecure}})
 	check(t, "unsigned", f.list[0].Code+"/"+f.list[0].Severity, "dnssec_unsigned/info")
 	f = findings{}
-	f.dnssecFindings(DNSSECReport{State: DNSSECSecure})
+	f.dnssecFindings(&Report{DNSSEC: DNSSECReport{State: DNSSECSecure}})
 	check(t, "signed says nothing", len(f.list), 0)
 }

@@ -92,13 +92,13 @@ func TestTLSAMatches_UsagesSelectorsMatching(t *testing.T) {
 // signed flag must not claim a validated denial we never received.
 func TestAssessTLSA_UnansweredIsNotAbsence(t *testing.T) {
 	web := WebSection{}
-	unk := assessTLSA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusTimeout}, web)
+	unk := assessTLSA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusTimeout}, web, true)
 	check(t, "unknown, not none", unk.Result, TLSAUnknown)
 	check(t, "no validated denial claimed", unk.Signed, false)
 
 	// A signed zone denying the records is a real, useful absence.
 	denied := Lookup{Status: StatusNXRRSet, Trust: TrustSecure}
-	none := assessTLSA(denied, denied, web)
+	none := assessTLSA(denied, denied, web, true)
 	check(t, "absence observed", none.Result, TLSANone)
 	check(t, "and it was validated", none.Signed, true)
 }

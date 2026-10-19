@@ -412,8 +412,8 @@ func TestConventions_ArraysAndBooleansAlwaysPresent(t *testing.T) {
 	rep.Mail = &MailReport{DMARC: parseDMARC(Lookup{}), SPF: evaluateSPF("x", Lookup{}, lookup), MX: checkMX(Lookup{}, lookup), DKIM: probeDKIM("x", lookup), MTASTS: checkMTASTS(context.Background(), "x", Lookup{}, nil, time.Second, lookup)}
 	w := assessWildcard(nil, "", Lookup{}, Lookup{})
 	rep.Wildcard = &w
-	rep.TLSA = assessTLSA(Lookup{}, Lookup{}, rep.Web)
-	c := assessCAA(Lookup{}, Lookup{}, servedCert{}, servedCert{})
+	rep.TLSA = assessTLSA(Lookup{}, Lookup{}, rep.Web, true)
+	c := assessCAA(Lookup{}, Lookup{}, servedCert{}, servedCert{}, true)
 	rep.CAA = &c
 	n := resolveNS(nil, lookup)
 	rep.Nameservers = &n

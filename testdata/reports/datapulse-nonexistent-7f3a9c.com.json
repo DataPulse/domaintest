@@ -1,0 +1,122 @@
+{
+  "version": "8b4d6bc16368370ef485b541f6a97a20ef8dfb0d",
+  "timestamp": "2026-10-19T18:50:34Z",
+  "domain": "datapulse-nonexistent-7f3a9c.com",
+  "resolver": "system",
+  "families": [
+    "ipv4",
+    "ipv6"
+  ],
+  "timeout_sec": 3,
+  "tcp_timeout_sec": 2,
+  "dns_concurrency": 16,
+  "quic_timeout_sec": 2,
+  "max_time_sec": 18,
+  "redirect_log": false,
+  "dns": {
+    "apex": {
+      "A": {
+        "status": "nxdomain",
+        "trust": "insecure"
+      },
+      "AAAA": {
+        "status": "nxdomain",
+        "trust": "insecure"
+      },
+      "MX": {
+        "status": "nxdomain",
+        "trust": "insecure"
+      },
+      "NS": {
+        "status": "nxdomain",
+        "trust": "insecure"
+      },
+      "TXT": {
+        "status": "nxdomain",
+        "trust": "insecure"
+      }
+    },
+    "www": {
+      "A": {
+        "status": "nxdomain",
+        "trust": "insecure"
+      },
+      "AAAA": {
+        "status": "nxdomain",
+        "trust": "insecure"
+      }
+    },
+    "resolver_reachable": {
+      "ipv4": "yes",
+      "ipv6": "skipped: resolver has no ipv6 address"
+    },
+    "resolver_validates": true
+  },
+  "dnssec": {
+    "state": "nonexistent",
+    "ds": false,
+    "dnskey": false,
+    "detail": "the name does not exist (NXDOMAIN); the parent's denial of existence was not validated"
+  },
+  "delegation": {
+    "status": "not_delegated",
+    "parent_server": "c.gtld-servers.net"
+  },
+  "web": {},
+  "caa": {
+    "hosts": {
+      "apex": {
+        "published": [],
+        "effective": [],
+        "note": "no certificate observed"
+      },
+      "www": {
+        "published": [],
+        "effective": [],
+        "note": "no certificate observed"
+      }
+    }
+  },
+  "tlsa": {
+    "apex": [],
+    "www": [],
+    "signed": false,
+    "result": "none"
+  },
+  "wildcard": {
+    "status": "absent",
+    "determined_by": "the domain does not exist",
+    "probes": [],
+    "addresses": [],
+    "consistent": null,
+    "www_via_wildcard": false
+  },
+  "hsts_preload": "absent",
+  "errors": [
+    "apex datapulse-nonexistent-7f3a9c.com does not exist (NXDOMAIN)",
+    "domain is not delegated by its parent zone (c.gtld-servers.net)"
+  ],
+  "warnings": [],
+  "findings": [
+    {
+      "code": "apex_nxdomain",
+      "severity": "fail",
+      "host": "apex",
+      "message": "apex datapulse-nonexistent-7f3a9c.com does not exist (NXDOMAIN)"
+    },
+    {
+      "code": "not_delegated",
+      "severity": "fail",
+      "host": "",
+      "message": "domain is not delegated by its parent zone (c.gtld-servers.net)"
+    },
+    {
+      "code": "caa_absent",
+      "severity": "info",
+      "host": "",
+      "message": "no CAA records: any certificate authority may issue for the domain"
+    }
+  ],
+  "ok": false,
+  "elapsed_ms": 270
+}

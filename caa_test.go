@@ -66,7 +66,7 @@ func TestAssessCAA(t *testing.T) {
 	www := dogFixture(t, "dog/caa/www_google.json", "CAA") // NXRRSET: nothing published
 	gts := servedCert{issuer: "Google Trust Services LLC"}
 
-	rep := assessCAA(apex, www, gts, gts)
+	rep := assessCAA(apex, www, gts, gts, true)
 	check(t, "one verdict per host", len(rep.Hosts), 2)
 	a, w := rep.Hosts["apex"], rep.Hosts["www"]
 	check(t, "apex published", a.Published, []string{`0 issue "pki.goog"`})
@@ -79,13 +79,13 @@ func TestAssessCAA(t *testing.T) {
 
 	// Per-host issuers: the apex is fine, www serves a certificate the
 	// records forbid.
-	rep = assessCAA(apex, www, gts, servedCert{issuer: "Let's Encrypt"})
+	rep = assessCAA(apex, www, gts, servedCert{issuer: "Let's Encrypt"}, true)
 	check(t, "apex still permitted", *rep.Hosts["apex"].Permitted, true)
 	check(t, "www forbidden", *rep.Hosts["www"].Permitted, false)
 	check(t, "www issuer", rep.Hosts["www"].Issuer, "Let's Encrypt")
 
 	// Unjudgeable cases carry a note and no verdict.
-	rep = assessCAA(apex, www, servedCert{issuer: "Example Private CA"}, servedCert{})
+	rep = assessCAA(apex, www, servedCert{issuer: "Example Private CA"}, servedCert{}, true)
 	check(t, "unmapped issuer", rep.Hosts["apex"].Permitted, (*bool)(nil))
 	check(t, "note", rep.Hosts["apex"].Note, "issuer not in the CAA mapping table")
 	check(t, "www without a certificate", rep.Hosts["www"].Note, "no certificate observed")
@@ -93,21 +93,21 @@ func TestAssessCAA(t *testing.T) {
 
 	// No CAA anywhere: any CA may issue.
 	none := dogFixture(t, "dog/caa/www_google.json", "CAA")
-	rep = assessCAA(none, none, servedCert{issuer: "Let's Encrypt"}, servedCert{issuer: "Let's Encrypt"})
+	rep = assessCAA(none, none, servedCert{issuer: "Let's Encrypt"}, servedCert{issuer: "Let's Encrypt"}, true)
 	check(t, "permitted without records", *rep.Hosts["apex"].Permitted, true)
 	check(t, "note", rep.Hosts["apex"].Note, "no CAA records; any CA may issue")
 	check(t, "empty lists, not null", []bool{rep.Hosts["www"].Published != nil, rep.Hosts["www"].Effective != nil}, []bool{true, true})
 
 	// www with its own records is governed by them, not by the apex.
 	cf := dogFixture(t, "dog/caa/cloudflare.json", "CAA")
-	rep = assessCAA(apex, cf, gts, servedCert{issuer: "DigiCert Inc"})
+	rep = assessCAA(apex, cf, gts, servedCert{issuer: "DigiCert Inc"}, true)
 	check(t, "www published is its own", len(rep.Hosts["www"].Published), 11)
 	check(t, "www effective equals published", rep.Hosts["www"].Effective, rep.Hosts["www"].Published)
 	check(t, "www policy permits digicert", *rep.Hosts["www"].Permitted, true)
-	rep = assessCAA(apex, cf, gts, servedCert{issuer: "Amazon"})
+	rep = assessCAA(apex, cf, gts, servedCert{issuer: "Amazon"}, true)
 	check(t, "www policy forbids amazon", *rep.Hosts["www"].Permitted, false)
 	// A wildcard leaf consults issuewild.
-	rep = assessCAA(apex, cf, gts, servedCert{issuer: "Let's Encrypt", wildcard: true})
+	rep = assessCAA(apex, cf, gts, servedCert{issuer: "Let's Encrypt", wildcard: true}, true)
 	check(t, "issuewild honoured", *rep.Hosts["www"].Permitted, true)
 }
 
@@ -119,7 +119,7 @@ func TestAssessCAA_WildcardUsesIssuewild(t *testing.T) {
 		`0 issue "letsencrypt.org"`, `0 issue "ssl.com"`, `0 issuewild "ssl.com"`,
 	}}
 	none := Lookup{Status: StatusNXRRSet}
-	rep := assessCAA(records, none, servedCert{issuer: "Let's Encrypt"}, servedCert{issuer: "Let's Encrypt", wildcard: true})
+	rep := assessCAA(records, none, servedCert{issuer: "Let's Encrypt"}, servedCert{issuer: "Let's Encrypt", wildcard: true}, true)
 	check(t, "apex non-wildcard permitted", *rep.Hosts["apex"].Permitted, true)
 	check(t, "www wildcard forbidden", *rep.Hosts["www"].Permitted, false)
 }
@@ -128,7 +128,7 @@ func TestAssessCAA_WildcardUsesIssuewild(t *testing.T) {
 // zone that answered, never from a query that failed.
 func TestAssessCAA_UnansweredIsNotUnrestricted(t *testing.T) {
 	cert := servedCert{issuer: "Let's Encrypt"}
-	rep := assessCAA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusTimeout}, cert, cert)
+	rep := assessCAA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusTimeout}, cert, cert, true)
 	for _, host := range []string{"apex", "www"} {
 		v := rep.Hosts[host]
 		check(t, host+": no verdict", v.Permitted == nil, true)
@@ -136,14 +136,14 @@ func TestAssessCAA_UnansweredIsNotUnrestricted(t *testing.T) {
 	}
 
 	// A zone that answered with no CAA really is unrestricted.
-	answered := assessCAA(Lookup{Status: StatusNXRRSet}, Lookup{Status: StatusNXRRSet}, cert, cert)
+	answered := assessCAA(Lookup{Status: StatusNXRRSet}, Lookup{Status: StatusNXRRSet}, cert, cert, true)
 	check(t, "answered absence permits", *answered.Hosts["apex"].Permitted, true)
 	check(t, "and says so", answered.Hosts["apex"].Note, "no CAA records; any CA may issue")
 
 	// www must not inherit the apex policy on the strength of a failed
 	// lookup: we do not know what www publishes.
 	apex := Lookup{Status: StatusOK, Records: []string{`0 issue "ssl.com"`}}
-	mixed := assessCAA(apex, Lookup{Status: StatusTimeout}, cert, cert)
+	mixed := assessCAA(apex, Lookup{Status: StatusTimeout}, cert, cert, true)
 	check(t, "no climb from a failed lookup", mixed.Hosts["www"].Effective, []string{})
 	check(t, "www unknown", mixed.Hosts["www"].Permitted == nil, true)
 	check(t, "apex still judged", *mixed.Hosts["apex"].Permitted, false)
@@ -151,7 +151,7 @@ func TestAssessCAA_UnansweredIsNotUnrestricted(t *testing.T) {
 	// The reverse: www answered that it has no CAA, but the apex lookup
 	// failed. What governs www is the apex set, which is unknown, so www
 	// must not be declared unrestricted either.
-	reverse := assessCAA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusNXRRSet}, cert, cert)
+	reverse := assessCAA(Lookup{Status: StatusTimeout}, Lookup{Status: StatusNXRRSet}, cert, cert, true)
 	check(t, "www not cleared", reverse.Hosts["www"].Permitted == nil, true)
 	check(t, "www says why", reverse.Hosts["www"].Note, "no CAA records here, and the apex CAA lookup did not complete, so no restriction can be ruled out")
 	check(t, "apex unknown too", reverse.Hosts["apex"].Permitted == nil, true)
@@ -162,7 +162,7 @@ func TestAssessCAA_UnansweredIsNotUnrestricted(t *testing.T) {
 func TestCAA_CriticalUnknownTagForbids(t *testing.T) {
 	cert := servedCert{issuer: "Let's Encrypt"}
 	apex := Lookup{Status: StatusOK, Records: []string{`0 issue "letsencrypt.org"`, `128 tbs "unknown"`}}
-	rep := assessCAA(apex, Lookup{Status: StatusNXRRSet}, cert, cert)
+	rep := assessCAA(apex, Lookup{Status: StatusNXRRSet}, cert, cert, true)
 	for _, host := range []string{"apex", "www"} {
 		check(t, host+" forbidden", *rep.Hosts[host].Permitted, false)
 		check(t, host+" note", rep.Hosts[host].Note, "critical CAA property tbs is not one any CA understands, so none may issue")
@@ -171,7 +171,7 @@ func TestCAA_CriticalUnknownTagForbids(t *testing.T) {
 	// property without it is ignored.
 	for _, extra := range []string{`128 issue "letsencrypt.org"`, `0 tbs "unknown"`, `128 iodef "mailto:a@example.com"`} {
 		apex := Lookup{Status: StatusOK, Records: []string{`0 issue "letsencrypt.org"`, extra}}
-		rep := assessCAA(apex, Lookup{Status: StatusNXRRSet}, cert, cert)
+		rep := assessCAA(apex, Lookup{Status: StatusNXRRSet}, cert, cert, true)
 		check(t, extra+" permitted", *rep.Hosts["apex"].Permitted, true)
 	}
 }

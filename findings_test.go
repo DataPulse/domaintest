@@ -68,8 +68,10 @@ func TestFindings_ParityWithLegacyArrays(t *testing.T) {
 	if len(paths) < 10 {
 		t.Fatalf("expected the captured reports, found %d", len(paths))
 	}
-	// A zone no delegated server answers for is reported as that one fact.
-	collapsed := map[string]bool{"skvr.site.json": true, "login-microsoft-virtualperu.com.json": true}
+	// A zone no delegated server answers for is reported as that one fact,
+	// and so is a name that does not exist.
+	collapsed := map[string]bool{"skvr.site.json": true, "login-microsoft-virtualperu.com.json": true,
+		"datapulse-nonexistent-7f3a9c.com.json": true}
 	for _, p := range paths {
 		name := filepath.Base(p)
 		rep, oldErrors, oldWarnings := replayFixture(t, p)
@@ -505,10 +507,10 @@ func TestZoneUnreachable_Guards(t *testing.T) {
 // finding were this case.
 func TestTLSAFindings_UnknownSaysNothing(t *testing.T) {
 	f := &findings{}
-	f.tlsaFindings(&TLSAReport{Apex: []string{}, WWW: []string{}, Result: TLSAUnknown})
+	f.tlsaFindings(&TLSAReport{Apex: []string{}, WWW: &[]string{}, Result: TLSAUnknown})
 	check(t, "unknown", findingCodes(f), []string{})
 	g := &findings{}
-	g.tlsaFindings(&TLSAReport{Apex: []string{"3 1 1 ab"}, WWW: []string{}, Result: "unverified"})
+	g.tlsaFindings(&TLSAReport{Apex: []string{"3 1 1 ab"}, WWW: &[]string{}, Result: "unverified"})
 	check(t, "records in an unsigned zone", findingCodes(g), []string{"info:tlsa_unsigned_zone"})
 }
 
@@ -574,4 +576,33 @@ func TestListenerFindings_HTTPSUnreachableStillWarnsWhen80Served(t *testing.T) {
 	var f findings
 	f.listenerFindings("apex", AddrWeb{IP: "192.0.2.10", HTTP: PortOpen, HTTPS: PortRefused, HTTPRes: &HTTPResult{Status: 200}})
 	check(t, "a served 80 with 443 down still warns", findingCodes(&f), []string{"warn:https_unreachable"})
+}
+
+// A name that does not exist is one fact: apex_nxdomain. Its parent not
+// delegating it only restates that (captured live 2026-10-19).
+func TestFindings_NonexistentNameIsOneError(t *testing.T) {
+	rep, _, _ := replayFixture(t, "testdata/reports/datapulse-nonexistent-7f3a9c.com.json")
+	check(t, "codes", reportCodes(rep), []string{"fail:apex_nxdomain"})
+	check(t, "errors", rep.Errors, []string{"apex datapulse-nonexistent-7f3a9c.com does not exist (NXDOMAIN)"})
+	check(t, "ok", rep.OK, false)
+}
+
+// A host inside a zone has no zone of its own to call signed or unsigned:
+// the not_a_zone finding already says the zone checks were skipped
+// (gist.github.com, captured live 2026-10-19).
+func TestFindings_HostInsideZoneHasNoZoneDNSSECFinding(t *testing.T) {
+	rep, _, _ := replayFixture(t, "testdata/reports/gist.github.com.json")
+	codes := reportCodes(rep)
+	check(t, "not_a_zone reported", contains(codes, "info:not_a_zone"), true)
+	check(t, "no dnssec_unsigned", contains(codes, "info:dnssec_unsigned"), false)
+	check(t, "ok", rep.OK, true)
+}
+
+// reportCodes lists a report's findings as severity:code, in order.
+func reportCodes(rep *Report) []string {
+	out := []string{}
+	for _, x := range rep.Findings {
+		out = append(out, x.Severity+":"+x.Code)
+	}
+	return out
 }
