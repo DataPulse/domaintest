@@ -113,7 +113,7 @@ func TestFindings_ParityWithLegacyArrays(t *testing.T) {
 // order.
 // newChecks are warn codes added after the captured reports were made: a
 // replay may carry them although the old warnings could not.
-var newChecks = map[string]bool{"http_port80_partial": true, "dkim_key_invalid": true, "h3_advertised_unreachable": true}
+var newChecks = map[string]bool{"http_port80_partial": true, "dkim_key_invalid": true, "h3_advertised_unreachable": true, "domain_pending_deletion": true}
 
 // withoutNewChecks is rep's warnings minus those of newChecks.
 func withoutNewChecks(rep *Report) []string {

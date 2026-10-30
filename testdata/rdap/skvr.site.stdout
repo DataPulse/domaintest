@@ -1,0 +1,351 @@
+{
+  "rdapConformance": [
+    "rdap_level_0",
+    "icann_rdap_response_profile_1",
+    "icann_rdap_technical_implementation_guide_1",
+    "redacted"
+  ],
+  "notices": [
+    {
+      "title": "Terms of Service",
+      "description": [
+        "The WHOIS information provided in this page has been redacted",
+        "in compliance with ICANN's Temporary Specification for gTLD",
+        "Registration Data.",
+        "",
+        "The data in this record is provided by Tucows Registry for informational",
+        "purposes only, and it does not guarantee its accuracy. Tucows Registry is",
+        "authoritative for whois information in top-level domains it operates",
+        "under contract with the Internet Corporation for Assigned Names and",
+        "Numbers. Whois information from other top-level domains is provided by",
+        "a third-party under license to Tucows Registry.",
+        "",
+        "This service is intended only for query-based access. By using this",
+        "service, you agree that you will use any data presented only for lawful",
+        "purposes and that, under no circumstances will you use (a) data",
+        "acquired for the purpose of allowing, enabling, or otherwise supporting",
+        "the transmission by e-mail, telephone, facsimile or other",
+        "communications mechanism of mass  unsolicited, commercial advertising",
+        "or solicitations to entities other than your existing  customers; or",
+        "(b) this service to enable high volume, automated, electronic processes",
+        "that send queries or data to the systems of any Registrar or any",
+        "Registry except as reasonably necessary to register domain names or",
+        "modify existing domain name registrations.",
+        "",
+        "Tucows Registry reserves the right to modify these terms at any time. By",
+        "submitting this query, you agree to abide by this policy. All rights",
+        "reserved."
+      ],
+      "links": [
+        {
+          "value": "https://rdap.radix.host/rdap/domain/skvr.site",
+          "rel": "terms-of-service",
+          "href": "https://rdap.radix.host/",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "Status Codes",
+      "description": [
+        "For more information on domain status codes, please visit https://icann.org/epp"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.radix.host/rdap/domain/skvr.site",
+          "rel": "glossary",
+          "href": "https://icann.org/epp",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "RDDS Inaccuracy Complaint Form",
+      "description": [
+        "URL of the ICANN RDDS Inaccuracy Complaint Form: https://icann.org/wicf"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.radix.host/rdap/domain/skvr.site",
+          "rel": "help",
+          "href": "https://icann.org/wicf",
+          "type": "text/html"
+        }
+      ]
+    }
+  ],
+  "redacted": [
+    {
+      "name": {
+        "type": "Registrant Contact"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='registrant')]",
+      "pathLang": "jsonpath",
+      "method": "removal"
+    }
+  ],
+  "objectClassName": "domain",
+  "handle": "DO_303c6ff3ab7f0a28f39dea4719d9654f-RADIX",
+  "ldhName": "skvr.site",
+  "unicodeName": "skvr.site",
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "handle": "H257963-CNIC",
+      "ldhName": "ns-1119.awsdns-11.org",
+      "unicodeName": "ns-1119.awsdns-11.org",
+      "status": [
+        "associated"
+      ],
+      "events": [
+        {
+          "eventAction": "last update of RDAP database",
+          "eventDate": "2026-10-29T22:14:41.879Z"
+        }
+      ]
+    },
+    {
+      "objectClassName": "nameserver",
+      "handle": "H134568-CNIC",
+      "ldhName": "ns-1720.awsdns-23.co.uk",
+      "unicodeName": "ns-1720.awsdns-23.co.uk",
+      "status": [
+        "associated"
+      ],
+      "events": [
+        {
+          "eventAction": "last update of RDAP database",
+          "eventDate": "2026-10-29T22:14:41.879Z"
+        }
+      ]
+    },
+    {
+      "objectClassName": "nameserver",
+      "handle": "H271408-CNIC",
+      "ldhName": "ns-840.awsdns-41.net",
+      "unicodeName": "ns-840.awsdns-41.net",
+      "status": [
+        "associated"
+      ],
+      "events": [
+        {
+          "eventAction": "last update of RDAP database",
+          "eventDate": "2026-10-29T22:14:41.879Z"
+        }
+      ]
+    },
+    {
+      "objectClassName": "nameserver",
+      "handle": "H343521-CNIC",
+      "ldhName": "ns-316.awsdns-39.com",
+      "unicodeName": "ns-316.awsdns-39.com",
+      "status": [
+        "associated"
+      ],
+      "events": [
+        {
+          "eventAction": "last update of RDAP database",
+          "eventDate": "2026-10-29T22:14:41.879Z"
+        }
+      ]
+    }
+  ],
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "handle": "146",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "GoDaddy.com, LLC"
+          ],
+          [
+            "adr",
+            {
+              "cc": "US"
+            },
+            "text",
+            [
+              "",
+              "",
+              "100 S. Mill Ave Suite 1600 ",
+              "Tempe",
+              "Arizona",
+              "85281",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "uri",
+            "tel:+1.4805058800"
+          ],
+          [
+            "tel",
+            {
+              "type": "fax"
+            },
+            "uri",
+            "tel:+1.4802474195"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "tho@godaddy.com"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrar"
+      ],
+      "publicIds": [
+        {
+          "type": "IANA Registrar ID",
+          "identifier": "146"
+        }
+      ],
+      "entities": [
+        {
+          "objectClassName": "entity",
+          "handle": "CO_a19dce434071cb3aa98cfd05fab4aeb7-RADIX",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Abuse Contact"
+              ],
+              [
+                "org",
+                {},
+                "text",
+                "GoDaddy.com"
+              ],
+              [
+                "adr",
+                {
+                  "cc": "US"
+                },
+                "text",
+                [
+                  "",
+                  "",
+                  [
+                    "",
+                    "",
+                    ""
+                  ],
+                  "Tempe",
+                  "AZ",
+                  "85251",
+                  ""
+                ]
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "abuse@godaddy.com"
+              ]
+            ]
+          ],
+          "roles": [
+            "abuse"
+          ],
+          "events": [
+            {
+              "eventAction": "last update of RDAP database",
+              "eventDate": "2026-10-29T22:14:41.879Z"
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "value": "https://rdap.godaddy.com/v1/",
+          "rel": "about",
+          "href": "https://rdap.radix.host/rdap/entity/146",
+          "type": "application/rdap+json"
+        }
+      ],
+      "events": [
+        {
+          "eventAction": "last update of RDAP database",
+          "eventDate": "2026-10-29T22:14:41.879Z"
+        }
+      ]
+    }
+  ],
+  "status": [
+    "client update prohibited",
+    "client delete prohibited",
+    "client transfer prohibited",
+    "client renew prohibited"
+  ],
+  "links": [
+    {
+      "value": "https://rdap.radix.host/rdap/domain/skvr.site",
+      "rel": "related",
+      "href": "https://rdap.godaddy.com/v1/domain/skvr.site",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://rdap.radix.host/rdap/domain/skvr.site",
+      "rel": "self",
+      "href": "https://rdap.radix.host/rdap/domain/skvr.site",
+      "type": "application/rdap+json"
+    }
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventActor": "godaddy",
+      "eventDate": "2026-07-03T10:28:53.096Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-07-03T10:28:53.096Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-07-08T10:29:56.902Z"
+    },
+    {
+      "eventAction": "last update of RDAP database",
+      "eventDate": "2026-10-29T22:14:41.879Z"
+    }
+  ]
+}

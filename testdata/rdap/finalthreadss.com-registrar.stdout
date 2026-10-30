@@ -1,0 +1,299 @@
+{
+  "rdapConformance": [
+    "rdap_level_0",
+    "icann_rdap_technical_implementation_guide_1",
+    "icann_rdap_response_profile_1",
+    "redacted"
+  ],
+  "objectClassName": "domain",
+  "ldhName": "finalthreadss.com",
+  "unicodeName": "finalthreadss.com",
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns-cloud-e1.googledomains.com",
+      "unicodeName": "ns-cloud-e1.googledomains.com",
+      "lang": "en"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns-cloud-e2.googledomains.com",
+      "unicodeName": "ns-cloud-e2.googledomains.com",
+      "lang": "en"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns-cloud-e3.googledomains.com",
+      "unicodeName": "ns-cloud-e3.googledomains.com",
+      "lang": "en"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns-cloud-e4.googledomains.com",
+      "unicodeName": "ns-cloud-e4.googledomains.com",
+      "lang": "en"
+    }
+  ],
+  "secureDNS": {
+    "zoneSigned": false,
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Contact Privacy Inc. Customer 0179061478"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "individual"
+          ],
+          [
+            "lang",
+            {},
+            "language-tag",
+            "en"
+          ],
+          [
+            "org",
+            {},
+            "text",
+            "Contact Privacy Inc. Customer 0179061478"
+          ],
+          [
+            "adr",
+            {
+              "cc": "CA"
+            },
+            "text",
+            [
+              "",
+              "",
+              "96 Mowat Ave",
+              "Toronto",
+              "ON",
+              "M6K 3M1",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": [
+                "voice"
+              ]
+            },
+            "uri",
+            "tel:+1.4165385457"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "finalthreadss.com@contactprivacy.com"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrant"
+      ]
+    },
+    {
+      "objectClassName": "entity",
+      "handle": "69",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "TUCOWS.COM, CO."
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "individual"
+          ],
+          [
+            "lang",
+            {},
+            "language-tag",
+            "en"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrar"
+      ],
+      "publicIds": [
+        {
+          "type": "IANA Registrar ID",
+          "identifier": "69"
+        }
+      ],
+      "entities": [
+        {
+          "objectClassName": "entity",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                ""
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "lang",
+                {},
+                "language-tag",
+                "en"
+              ],
+              [
+                "tel",
+                {
+                  "type": [
+                    "voice"
+                  ]
+                },
+                "uri",
+                "tel:+1.4165350123"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "domainabuse@tucows.com"
+              ]
+            ]
+          ],
+          "roles": [
+            "abuse"
+          ]
+        }
+      ],
+      "links": [
+        {
+          "value": "https://opensrs.rdap.tucows.com/",
+          "rel": "about",
+          "href": "http://tucowsdomains.com"
+        }
+      ]
+    }
+  ],
+  "status": [
+    "client hold"
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2026-08-06T01:19:18Z"
+    },
+    {
+      "eventAction": "registrar expiration",
+      "eventDate": "2027-08-06T01:19:18Z"
+    },
+    {
+      "eventAction": "last update of RDAP database",
+      "eventDate": "2026-08-06T01:19:32Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-08-06T01:19:32Z"
+    }
+  ],
+  "notices": [
+    {
+      "title": "Status Codes",
+      "description": [
+        "For more information on domain status codes, please visit https://icann.org/epp"
+      ],
+      "links": [
+        {
+          "value": "https://opensrs.rdap.tucows.com/domain/finalthreadss.com",
+          "rel": "glossary",
+          "href": "https://icann.org/epp",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "RDDS Inaccuracy Complaint Form",
+      "description": [
+        "URL of the ICANN RDDS Inaccuracy Complaint Form: https://icann.org/wicf"
+      ],
+      "links": [
+        {
+          "value": "https://opensrs.rdap.tucows.com/domain/finalthreadss.com",
+          "rel": "help",
+          "href": "https://icann.org/wicf",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "Terms of Service",
+      "description": [
+        "The data provided by the Registration Data Access Protocol (“RDAP” or “Whois”) is provided to you by Tucows for information purposes only and may be used to assist you in obtaining information about or related to a domain name's registration record. These terms govern your use of this service and access to this database. We reserve the right to modify these terms at any time.",
+        "This information is provided \"as is\" and does not guarantee its accuracy.",
+        "By submitting a query, you certify that you have a legitimate purpose for requesting the data, that you will use this data only for lawful purposes and delete the data immediately when the data are no longer necessary for your lawful or legitimate purpose, and that, under no circumstances, will you use this data to: a) allow, enable, or otherwise support the transmission of mass, unsolicited, commercial advertising, or solicitations to entities other than the data recipient’s own existing customers; or (b) enable high volume, automated, electronic processes that send queries or data to the systems of any registry operator or ICANN-accredited registrar, except as reasonably necessary to register domain names or modify existing registrations.",
+        "The compilation, repackaging, dissemination, or other use of these data is expressly prohibited.",
+        "Your access to the database may be terminated at any time in our sole discretion including, without limitation, for excessive querying of the database or for failure to otherwise abide by this policy.",
+        "Your IP address, the queried domain, the response, and a timestamp is stored for the purposes of maintaining the service and to ensure adherence with these terms.",
+        "By submitting this query, you agree to these terms.",
+        "NOTE: THIS DATABASE IS A CONTACT DATABASE ONLY.  LACK OF A DOMAIN RECORD DOES NOT SIGNIFY DOMAIN AVAILABILITY."
+      ],
+      "links": [
+        {
+          "value": "https://opensrs.rdap.tucows.com/domain/finalthreadss.com",
+          "rel": "terms-of-service",
+          "href": "http://www.tucowsdomains.com/rdap/tos",
+          "type": "text/html"
+        }
+      ]
+    }
+  ],
+  "redacted": [
+    {
+      "name": {
+        "type": "Registry Domain ID"
+      },
+      "method": "removal",
+      "reason": {}
+    }
+  ]
+}

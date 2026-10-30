@@ -1,0 +1,261 @@
+{
+  "rdapConformance": [
+    "rdap_level_0",
+    "icann_rdap_response_profile_1",
+    "icann_rdap_technical_implementation_guide_1",
+    "redacted"
+  ],
+  "notices": [
+    {
+      "title": "Terms of Service",
+      "description": [
+        "The WHOIS information provided in this page has been redacted",
+        "in compliance with ICANN's Temporary Specification for gTLD",
+        "Registration Data.",
+        "",
+        "The data in this record is provided by Tucows Registry for informational",
+        "purposes only, and it does not guarantee its accuracy. Tucows Registry is",
+        "authoritative for whois information in top-level domains it operates",
+        "under contract with the Internet Corporation for Assigned Names and",
+        "Numbers. Whois information from other top-level domains is provided by",
+        "a third-party under license to Tucows Registry.",
+        "",
+        "This service is intended only for query-based access. By using this",
+        "service, you agree that you will use any data presented only for lawful",
+        "purposes and that, under no circumstances will you use (a) data",
+        "acquired for the purpose of allowing, enabling, or otherwise supporting",
+        "the transmission by e-mail, telephone, facsimile or other",
+        "communications mechanism of mass  unsolicited, commercial advertising",
+        "or solicitations to entities other than your existing  customers; or",
+        "(b) this service to enable high volume, automated, electronic processes",
+        "that send queries or data to the systems of any Registrar or any",
+        "Registry except as reasonably necessary to register domain names or",
+        "modify existing domain name registrations.",
+        "",
+        "Tucows Registry reserves the right to modify these terms at any time. By",
+        "submitting this query, you agree to abide by this policy. All rights",
+        "reserved."
+      ],
+      "links": [
+        {
+          "value": "https://rdap.registry.cloud/rdap/domain/loginmicrosoftonline.cloud",
+          "rel": "terms-of-service",
+          "href": "https://rdap.registry.cloud/",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "Status Codes",
+      "description": [
+        "For more information on domain status codes, please visit https://icann.org/epp"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.registry.cloud/rdap/domain/loginmicrosoftonline.cloud",
+          "rel": "glossary",
+          "href": "https://icann.org/epp",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "RDDS Inaccuracy Complaint Form",
+      "description": [
+        "URL of the ICANN RDDS Inaccuracy Complaint Form: https://icann.org/wicf"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.registry.cloud/rdap/domain/loginmicrosoftonline.cloud",
+          "rel": "help",
+          "href": "https://icann.org/wicf",
+          "type": "text/html"
+        }
+      ]
+    }
+  ],
+  "redacted": [
+    {
+      "name": {
+        "type": "Registrant Contact"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='registrant')]",
+      "pathLang": "jsonpath",
+      "method": "removal"
+    }
+  ],
+  "objectClassName": "domain",
+  "handle": "DO_2ea440f25c4c4935a0c9a6e728ca6ca3-ARUBA",
+  "ldhName": "loginmicrosoftonline.cloud",
+  "unicodeName": "loginmicrosoftonline.cloud",
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "handle": "3956",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Global Domain Group LLC"
+          ],
+          [
+            "adr",
+            {
+              "cc": "US"
+            },
+            "text",
+            [
+              "",
+              "",
+              "PO Box 345",
+              "San Mateo",
+              "CA",
+              "94401",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "uri",
+            "tel:+1.6502620100"
+          ],
+          [
+            "tel",
+            {
+              "type": "fax"
+            },
+            "uri",
+            "tel:+1.4158692893"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "abuse@globaldomaingroup.com"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrar"
+      ],
+      "publicIds": [
+        {
+          "type": "IANA Registrar ID",
+          "identifier": "3956"
+        }
+      ],
+      "entities": [
+        {
+          "objectClassName": "entity",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                ""
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+1.6502620100"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "abuse@globaldomaingroup.com"
+              ]
+            ]
+          ],
+          "roles": [
+            "abuse"
+          ],
+          "events": [
+            {
+              "eventAction": "last update of RDAP database",
+              "eventDate": "2026-10-29T22:15:27.333Z"
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "value": "https://rdap.globaldomaingroup.com/",
+          "rel": "about",
+          "href": "https://rdap.registry.cloud/rdap/entity/3956",
+          "type": "application/rdap+json"
+        }
+      ],
+      "events": [
+        {
+          "eventAction": "last update of RDAP database",
+          "eventDate": "2026-10-29T22:15:27.333Z"
+        }
+      ]
+    }
+  ],
+  "status": [
+    "inactive",
+    "client hold",
+    "client transfer prohibited"
+  ],
+  "links": [
+    {
+      "value": "https://rdap.registry.cloud/rdap/domain/loginmicrosoftonline.cloud",
+      "rel": "related",
+      "href": "https://rdap.globaldomaingroup.com/domain/loginmicrosoftonline.cloud",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://rdap.registry.cloud/rdap/domain/loginmicrosoftonline.cloud",
+      "rel": "self",
+      "href": "https://rdap.registry.cloud/rdap/domain/loginmicrosoftonline.cloud",
+      "type": "application/rdap+json"
+    }
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventActor": "globaldomain",
+      "eventDate": "2026-07-22T09:36:12.554Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-07-22T09:36:12.554Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-07-27T09:36:17.545Z"
+    },
+    {
+      "eventAction": "last update of RDAP database",
+      "eventDate": "2026-10-29T22:15:27.333Z"
+    }
+  ]
+}

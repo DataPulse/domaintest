@@ -1,0 +1,489 @@
+{
+  "rdapConformance": [
+    "icann_rdap_response_profile_1",
+    "icann_rdap_technical_implementation_guide_1",
+    "rdap_level_0",
+    "redacted"
+  ],
+  "lang": "en",
+  "objectClassName": "domain",
+  "handle": "D856547-CNIC",
+  "ldhName": "microsoft.jp.net",
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "dns1.onamae.com",
+      "handle": "H44528-CNIC",
+      "links": [
+        {
+          "title": "Authoritative URL for this resource",
+          "rel": "self",
+          "type": "application\/rdap+json",
+          "value": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net",
+          "href": "https:\/\/rdap.centralnic.com\/jp.net\/nameserver\/dns1.onamae.com"
+        }
+      ]
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "dns2.onamae.com",
+      "handle": "H44529-CNIC",
+      "links": [
+        {
+          "title": "Authoritative URL for this resource",
+          "rel": "self",
+          "type": "application\/rdap+json",
+          "value": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net",
+          "href": "https:\/\/rdap.centralnic.com\/jp.net\/nameserver\/dns2.onamae.com"
+        }
+      ]
+    }
+  ],
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "roles": [
+        "registrant"
+      ],
+      "handle": "C2404142-CNIC",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            ""
+          ],
+          [
+            "adr",
+            {
+              "cc": "JP"
+            },
+            "text",
+            [
+              "",
+              "",
+              "",
+              "",
+              "Chiba",
+              "",
+              ""
+            ]
+          ]
+        ]
+      ],
+      "remarks": [
+        {
+          "title": "Data Policy",
+          "type": "object truncated due to authorization",
+          "description": [
+            "Some of the data in this object has been removed."
+          ]
+        },
+        {
+          "title": "REDACTED FOR PRIVACY",
+          "type": "object redacted due to authorization",
+          "description": [
+            "Some of the data in this object has been removed."
+          ]
+        },
+        {
+          "title": "EMAIL REDACTED FOR PRIVACY",
+          "type": "object truncated due to authorization",
+          "description": [
+            "Please query the RDDS service of the Registrar of Record identified in this output for information on how to contact the Registrant of the queried domain name."
+          ]
+        }
+      ]
+    },
+    {
+      "objectClassName": "entity",
+      "roles": [
+        "technical"
+      ],
+      "handle": "C2404144-CNIC",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            ""
+          ]
+        ]
+      ],
+      "remarks": [
+        {
+          "title": "Data Policy",
+          "type": "object truncated due to authorization",
+          "description": [
+            "Some of the data in this object has been removed."
+          ]
+        },
+        {
+          "title": "REDACTED FOR PRIVACY",
+          "type": "object redacted due to authorization",
+          "description": [
+            "Some of the data in this object has been removed."
+          ]
+        },
+        {
+          "title": "EMAIL REDACTED FOR PRIVACY",
+          "type": "object truncated due to authorization",
+          "description": [
+            "Please query the RDDS service of the Registrar of Record identified in this output for information on how to contact the Registrant of the queried domain name."
+          ]
+        }
+      ]
+    },
+    {
+      "objectClassName": "entity",
+      "handle": "H1605993",
+      "roles": [
+        "registrar"
+      ],
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "GMO Internet Group, Inc. d\/b\/a Onamae.com"
+          ]
+        ]
+      ],
+      "links": [
+        {
+          "title": "Authoritative URL for this resource",
+          "rel": "self",
+          "type": "application\/rdap+json",
+          "value": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net",
+          "href": "https:\/\/rdap.centralnic.com\/jp.net\/entity\/H1605993"
+        },
+        {
+          "title": "Registrar's Website",
+          "rel": "about",
+          "value": "https:\/\/rdap.gmo-onamae.com\/rdap\/v1\/",
+          "href": "http:\/\/www.onamae.com"
+        }
+      ],
+      "entities": [
+        {
+          "objectClassName": "entity",
+          "handle": "not applicable",
+          "roles": [
+            "abuse"
+          ],
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Abuse Contact"
+              ],
+              [
+                "org",
+                {},
+                "text",
+                "GMO Internet Group, Inc. d\/b\/a Onamae.com"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "abuse@internet.gmo"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+81.337709199"
+              ]
+            ]
+          ]
+        }
+      ],
+      "publicIds": [
+        {
+          "type": "IANA Registrar ID",
+          "identifier": "49"
+        }
+      ]
+    }
+  ],
+  "redacted": [
+    {
+      "name": {
+        "type": "Registrant Name"
+      },
+      "postPath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='fn')][3]",
+      "pathLang": "jsonpath",
+      "method": "emptyValue",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Registrant Organization"
+      },
+      "postPath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='org')]",
+      "pathLang": "jsonpath",
+      "method": "removal",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Registrant Street"
+      },
+      "postPath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='adr')][3][:3]",
+      "pathLang": "jsonpath",
+      "method": "emptyValue",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Registrant City"
+      },
+      "postPath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='adr')][3][3]",
+      "pathLang": "jsonpath",
+      "method": "emptyValue",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Registrant Postal Code"
+      },
+      "postPath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='adr')][3][5]",
+      "pathLang": "jsonpath",
+      "method": "emptyValue",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Registrant Email"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='email')]",
+      "pathLang": "jsonpath",
+      "method": "removal",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Registrant Phone"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[1].type=='voice')]",
+      "pathLang": "jsonpath",
+      "method": "removal",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Registrant Fax"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[1].type=='fax')]",
+      "pathLang": "jsonpath",
+      "method": "removal",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Tech Name"
+      },
+      "postPath": "$.entities[?(@.roles[0]=='technical')].vcardArray[1][?(@[0]=='fn')][3]",
+      "pathLang": "jsonpath",
+      "method": "emptyValue",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Tech Email"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='technical')].vcardArray[1][?(@[0]=='email')]",
+      "pathLang": "jsonpath",
+      "method": "removal",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "type": "Tech Phone"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='technical')].vcardArray[1][?(@[1].type=='voice')]",
+      "pathLang": "jsonpath",
+      "method": "removal",
+      "reason": {
+        "description": "Server policy"
+      }
+    },
+    {
+      "name": {
+        "description": "Administrative Contact"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='administrative')]",
+      "method": "removal",
+      "reason": {
+        "description": "Refer to the technical contact"
+      }
+    },
+    {
+      "name": {
+        "description": "Billing Contact"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='billing')]",
+      "method": "removal",
+      "reason": {
+        "description": "Refer to the registrant contact"
+      }
+    }
+  ],
+  "status": [
+    "active"
+  ],
+  "port43": "whois.centralnic.com",
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2012-04-28T02:43:26.0Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-04-28T23:59:59.0Z"
+    },
+    {
+      "eventAction": "last update of RDAP database",
+      "eventDate": "2026-10-29T22:15:27.0Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-04-17T15:22:07.0Z"
+    }
+  ],
+  "notices": [
+    {
+      "title": "Status Codes",
+      "description": [
+        "For more information on domain status codes, please visit https:\/\/icann.org\/epp"
+      ],
+      "links": [
+        {
+          "title": "More information on domain status codes",
+          "rel": "glossary",
+          "value": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net",
+          "href": "https:\/\/icann.org\/epp"
+        }
+      ]
+    },
+    {
+      "title": "Terms of Use",
+      "description": [
+        "For more information on Whois status codes, please visit https:\/\/icann.org\/epp",
+        "",
+        "The registration data available in this service is limited. Additional",
+        "data may be available at https:\/\/lookup.icann.org",
+        "",
+        "The Whois and RDAP services are provided by CentralNic, and contain",
+        "information pertaining to Internet domain names registered by our",
+        "our customers. By using this service you are agreeing (1) not to use any",
+        "information presented here for any purpose other than determining",
+        "ownership of domain names, (2) not to store or reproduce this data in",
+        "any way, (3) not to use any high-volume, automated, electronic processes",
+        "to obtain data from this service. Abuse of this service is monitored and",
+        "actions in contravention of these terms will result in being permanently",
+        "blacklisted. All data is (c) CentralNic Ltd (https:\/\/www.centralnicregistry.com)",
+        "",
+        "Access to the Whois and RDAP services is rate limited. For more",
+        "information, visit https:\/\/centralnicregistry.com\/policies\/whois-guidance."
+      ],
+      "links": [
+        {
+          "title": "Terms of Use",
+          "rel": "terms-of-service",
+          "value": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net",
+          "href": "https:\/\/www.centralnicregistry.com\/"
+        }
+      ]
+    },
+    {
+      "title": "Data Policy",
+      "type": "object truncated due to authorization",
+      "description": [
+        "The contact information for one or more entities associated with this domain has been redacted in accordance with the entity's disclosure preferences."
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Authoritative URL for this resource",
+      "rel": "self",
+      "type": "application\/rdap+json",
+      "value": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net",
+      "href": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net"
+    },
+    {
+      "title": "RDAP Service Help",
+      "rel": "help",
+      "type": "text\/html",
+      "value": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net",
+      "href": "https:\/\/whois.centralnic.com\/rdap"
+    },
+    {
+      "title": "URL of Sponsoring Registrar's RDAP Record",
+      "rel": "related",
+      "type": "application\/rdap+json",
+      "value": "https:\/\/rdap.centralnic.com\/jp.net\/domain\/microsoft.jp.net",
+      "href": "https:\/\/rdap.gmo-onamae.com\/rdap\/v1\/domain\/microsoft.jp.net"
+    }
+  ]
+}

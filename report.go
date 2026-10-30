@@ -65,6 +65,7 @@ type Report struct {
 	CAA                  *CAAReport           `json:"caa,omitempty"`
 	TLSA                 *TLSAReport          `json:"tlsa,omitempty"`
 	Wildcard             *WildcardReport      `json:"wildcard,omitempty"`
+	RDAP                 *RDAPReport          `json:"rdap,omitempty"`
 	ReservedAddresses    []string             `json:"reserved_addresses,omitempty"`
 	HSTSPreload          string               `json:"hsts_preload,omitempty"`
 	HSTSPreloadCoveredBy string               `json:"hsts_preload_covered_by,omitempty"`
@@ -238,6 +239,7 @@ func buildFindings(rep *Report) {
 		f.reachabilityFindings(rep.DNS.ResolverReachable)
 		f.deadlineFindings(rep)
 		f.fail("zone_unreachable", "", "no delegated nameserver answers for the zone: %s", describeSilentServers(rep.Nameservers))
+		f.rdapFindings(rep.RDAP)
 		f.finish(rep)
 		return
 	}
@@ -256,6 +258,7 @@ func buildFindings(rep *Report) {
 		return
 	}
 	f.dnsFindings(rep)
+	f.rdapFindings(rep.RDAP)
 	f.dnssecFindings(rep)
 	f.delegationFindings(rep)
 	f.reachabilityFindings(rep.DNS.ResolverReachable)
@@ -264,6 +267,27 @@ func buildFindings(rep *Report) {
 	f.webFindings("www", rep.Web.WWW)
 	f.deepFindings(rep)
 	f.finish(rep)
+}
+
+// rdapFindings reports a registration the registry has taken out of the
+// zone (a hold) or that is being deleted, and says when a lookup failed so
+// that silence is never read as a clean registration.
+func (f *findings) rdapFindings(r *RDAPReport) {
+	if r == nil {
+		return
+	}
+	if held := matchedStatuses(r, rdapHoldStatus); len(held) > 0 {
+		f.fail("domain_on_hold", "", "RDAP reports %s on hold: %s", r.Domain, strings.Join(held, ", "))
+	}
+	if leaving := matchedStatuses(r, rdapDeletionStatus); len(leaving) > 0 {
+		f.warn("domain_pending_deletion", "", "RDAP reports %s being deleted: %s", r.Domain, strings.Join(leaving, ", "))
+	}
+	if r.Registered == nil {
+		f.info("rdap_lookup_failed", "", "registry RDAP lookup for %s did not complete (%s): registration status unknown", r.Domain, r.Registry.Error)
+	}
+	if p := r.Registrar; p != nil && p.Error != "" {
+		f.info("rdap_lookup_failed", "", "registrar RDAP lookup for %s did not complete (%s): registrar status unknown", r.Domain, p.Error)
+	}
 }
 
 // deadlineFindings says when the run was cut off. It is about the probe,

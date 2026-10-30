@@ -1,0 +1,291 @@
+{
+  "objectClassName": "domain",
+  "handle": "example.cz",
+  "ldhName": "example.cz",
+  "links": [
+    {
+      "value": "https://rdap.nic.cz/domain/example.cz",
+      "rel": "self",
+      "href": "https://rdap.nic.cz/domain/example.cz",
+      "type": "application/rdap+json"
+    }
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2004-08-30T22:55:00+00:00"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2028-08-29T22:00:00+00:00"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2023-02-09T12:05:25+00:00"
+    },
+    {
+      "eventAction": "transfer",
+      "eventDate": "2007-01-25T02:05:00+00:00"
+    }
+  ],
+  "status": [
+    "active"
+  ],
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns1.he.net",
+      "links": [
+        {
+          "value": "https://rdap.nic.cz/nameserver/ns1.he.net",
+          "rel": "self",
+          "href": "https://rdap.nic.cz/nameserver/ns1.he.net",
+          "type": "application/rdap+json"
+        }
+      ],
+      "handle": "ns1.he.net"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns2.he.net",
+      "links": [
+        {
+          "value": "https://rdap.nic.cz/nameserver/ns2.he.net",
+          "rel": "self",
+          "href": "https://rdap.nic.cz/nameserver/ns2.he.net",
+          "type": "application/rdap+json"
+        }
+      ],
+      "handle": "ns2.he.net"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns3.he.net",
+      "links": [
+        {
+          "value": "https://rdap.nic.cz/nameserver/ns3.he.net",
+          "rel": "self",
+          "href": "https://rdap.nic.cz/nameserver/ns3.he.net",
+          "type": "application/rdap+json"
+        }
+      ],
+      "handle": "ns3.he.net"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns4.he.net",
+      "links": [
+        {
+          "value": "https://rdap.nic.cz/nameserver/ns4.he.net",
+          "rel": "self",
+          "href": "https://rdap.nic.cz/nameserver/ns4.he.net",
+          "type": "application/rdap+json"
+        }
+      ],
+      "handle": "ns4.he.net"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ns5.he.net",
+      "links": [
+        {
+          "value": "https://rdap.nic.cz/nameserver/ns5.he.net",
+          "rel": "self",
+          "href": "https://rdap.nic.cz/nameserver/ns5.he.net",
+          "type": "application/rdap+json"
+        }
+      ],
+      "handle": "ns5.he.net"
+    }
+  ],
+  "secureDNS": {
+    "zoneSigned": false,
+    "delegationSigned": false,
+    "maxSigLife": 1209600
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "handle": "EXAMPLE",
+      "roles": [
+        "registrant"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.nic.cz/entity/EXAMPLE",
+          "rel": "self",
+          "href": "https://rdap.nic.cz/entity/EXAMPLE",
+          "type": "application/rdap+json"
+        }
+      ]
+    },
+    {
+      "objectClassName": "entity",
+      "handle": "EXAMPLE",
+      "roles": [
+        "administrative"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.nic.cz/entity/EXAMPLE",
+          "rel": "self",
+          "href": "https://rdap.nic.cz/entity/EXAMPLE",
+          "type": "application/rdap+json"
+        }
+      ]
+    },
+    {
+      "objectClassName": "entity",
+      "handle": "REG-INTERNET-CZ",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "INTERNET CZ, a.s."
+          ],
+          [
+            "adr",
+            {
+              "type": ""
+            },
+            "text",
+            [
+              "",
+              "Kti\u0161 2",
+              "",
+              "",
+              "Kti\u0161",
+              "",
+              "38403",
+              "CZ"
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": [
+                "voice"
+              ]
+            },
+            "uri",
+            "tel:+420.383835353"
+          ]
+        ]
+      ],
+      "links": [
+        {
+          "value": "https://rdap.nic.cz/entity/REG-INTERNET-CZ",
+          "rel": "self",
+          "href": "https://rdap.nic.cz/entity/REG-INTERNET-CZ",
+          "type": "application/rdap+json"
+        }
+      ],
+      "roles": [
+        "registrar"
+      ]
+    }
+  ],
+  "fred_nsset": {
+    "objectClassName": "fred_nsset",
+    "handle": "EXAMPLECZHENET",
+    "links": [
+      {
+        "value": "https://rdap.nic.cz/fred_nsset/EXAMPLECZHENET",
+        "rel": "self",
+        "href": "https://rdap.nic.cz/fred_nsset/EXAMPLECZHENET",
+        "type": "application/rdap+json"
+      }
+    ],
+    "nameservers": [
+      {
+        "objectClassName": "nameserver",
+        "ldhName": "ns1.he.net",
+        "links": [
+          {
+            "value": "https://rdap.nic.cz/nameserver/ns1.he.net",
+            "rel": "self",
+            "href": "https://rdap.nic.cz/nameserver/ns1.he.net",
+            "type": "application/rdap+json"
+          }
+        ],
+        "handle": "ns1.he.net"
+      },
+      {
+        "objectClassName": "nameserver",
+        "ldhName": "ns2.he.net",
+        "links": [
+          {
+            "value": "https://rdap.nic.cz/nameserver/ns2.he.net",
+            "rel": "self",
+            "href": "https://rdap.nic.cz/nameserver/ns2.he.net",
+            "type": "application/rdap+json"
+          }
+        ],
+        "handle": "ns2.he.net"
+      },
+      {
+        "objectClassName": "nameserver",
+        "ldhName": "ns3.he.net",
+        "links": [
+          {
+            "value": "https://rdap.nic.cz/nameserver/ns3.he.net",
+            "rel": "self",
+            "href": "https://rdap.nic.cz/nameserver/ns3.he.net",
+            "type": "application/rdap+json"
+          }
+        ],
+        "handle": "ns3.he.net"
+      },
+      {
+        "objectClassName": "nameserver",
+        "ldhName": "ns4.he.net",
+        "links": [
+          {
+            "value": "https://rdap.nic.cz/nameserver/ns4.he.net",
+            "rel": "self",
+            "href": "https://rdap.nic.cz/nameserver/ns4.he.net",
+            "type": "application/rdap+json"
+          }
+        ],
+        "handle": "ns4.he.net"
+      },
+      {
+        "objectClassName": "nameserver",
+        "ldhName": "ns5.he.net",
+        "links": [
+          {
+            "value": "https://rdap.nic.cz/nameserver/ns5.he.net",
+            "rel": "self",
+            "href": "https://rdap.nic.cz/nameserver/ns5.he.net",
+            "type": "application/rdap+json"
+          }
+        ],
+        "handle": "ns5.he.net"
+      }
+    ]
+  },
+  "rdapConformance": [
+    "rdap_level_0",
+    "fred_version_0"
+  ],
+  "notices": [
+    {
+      "title": "Disclaimer",
+      "description": [
+        "(c) 2023 CZ.NIC, z.s.p.o.",
+        "Intended use of supplied data and information",
+        "Data contained in the domain name register, as well as information supplied through public information services of CZ.NIC association, are appointed only for purposes connected with Internet network administration and operation, or for the purpose of legal or other similar proceedings, in process as regards a matter connected particularly with holding and using a concrete domain name."
+      ]
+    }
+  ],
+  "port43": "whois.nic.cz"
+}

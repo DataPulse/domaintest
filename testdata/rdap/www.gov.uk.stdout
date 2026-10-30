@@ -1,0 +1,612 @@
+{
+  "rdapConformance": [
+    "nominet_profile_0",
+    "redacted",
+    "rdap_level_0"
+  ],
+  "objectClassName": "domain",
+  "links": [
+    {
+      "value": "https://rdap.nominet.uk/gov.uk/domain/www.gov.uk",
+      "rel": "self",
+      "href": "https://rdap.nominet.uk/gov.uk/domain/www.gov.uk",
+      "type": "application/rdap+json"
+    }
+  ],
+  "notices": [
+    {
+      "title": "Terms of Service",
+      "description": [
+        "The Registration Data Access Protocol (RDAP) service provides access to the records in the RDAP database for information purposes only, to assist you in obtaining information about the registration records of existing domain names. The stored information in the RDAP database is provided as is. We do not guarantee its accuracy or completeness, and cannot be held liable if the stored information in the RDAP database is wrong, incomplete, or inaccurate in any way. By querying the RDAP database in any way, you agree that you will not use this data: (i) to allow, enable or otherwise support the transmission of unsolicited, commercial advertising or other solicitations in any form or by any means; (ii) to enable high volume, automated, electronic processes that query or send data to the Registry Operator or registrar or registrant; (iii) for target advertising; (iv) to cause nuisance to registrants by sending (by any means) messages to or contacting them; (v) to violate any law, rule, regulation or statute; and/or (vi) in violation of applicable data and privacy protection acts. You are explicitly prohibited from extracting, copying and/or using or re-using in any form and by any means (electronically or not) all or part (quantitatively or qualitatively) of the contents of the RDAP database without prior and explicit permission from the RDAP server owner. Any copying or transmission of data for commercial purposes violates this prohibition. You agree that we can take measures to limit the use of the RDAP service to protect the privacy of registrants or the integrity of the database. We reserve the right to make changes to this website, the RDAP service, and these Terms and Conditions at any time without prior notice to you. You should review these Terms and Conditions each time you access or use the RDAP database and the RDAP service to learn of any changes. If you do not agree to the changes we have made, your only remedy is to stop your use of the RDAP database and the RDAP service. By executing a query, in any means whatsoever, you agree to these Terms of Service."
+      ],
+      "links": [
+        {
+          "value": "https://rdap.nominet.uk/gov.uk/domain/www.gov.uk",
+          "rel": "terms-of-service",
+          "href": "https://nominet.uk/rdap-tos",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "Status Codes",
+      "description": [
+        "For more information on domain status codes, please visit https://icann.org/epp"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.nominet.uk/gov.uk/domain/www.gov.uk",
+          "rel": "glossary",
+          "href": "https://icann.org/epp",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "RDDS Inaccuracy Complaint Form",
+      "description": [
+        "URL of the Nominet WHOIS data complaint process: https://www.nominet.uk/complaints/#complaining-about-incorrect-whois-data"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.nominet.uk/gov.uk/domain/www.gov.uk",
+          "rel": "help",
+          "href": "https://www.nominet.uk/complaints/#complaining-about-incorrect-whois-data",
+          "type": "text/html"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventActor": "clid9998",
+      "eventDate": "2012-09-24T11:00:00Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventActor": "clid9999",
+      "eventDate": "2026-09-24T11:00:13Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-09-24T11:00:00Z"
+    },
+    {
+      "eventAction": "transfer",
+      "eventDate": "2024-06-26T12:28:04Z"
+    },
+    {
+      "eventAction": "last update of RDAP database",
+      "eventDate": "2026-10-29T22:23:26.478183322Z"
+    }
+  ],
+  "status": [
+    "inactive",
+    "server transfer prohibited",
+    "server update prohibited",
+    "server delete prohibited",
+    "auto renew period"
+  ],
+  "handle": "D8983727-GOVUK",
+  "ldhName": "www.gov.uk",
+  "unicodeName": "www.gov.uk",
+  "secureDNS": {
+    "delegationSigned": false,
+    "maxSigLife": 3024000
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "links": [
+        {
+          "value": "https://rdap.nominet.uk/gov.uk/entity/clid9999",
+          "rel": "self",
+          "href": "https://rdap.nominet.uk/gov.uk/entity/clid9999",
+          "type": "application/rdap+json"
+        }
+      ],
+      "handle": "clid9999",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            ".gov.uk Registry"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrar"
+      ],
+      "publicIds": [
+        {
+          "type": "Registry Identifier",
+          "identifier": "clid9999"
+        }
+      ],
+      "entities": [
+        {
+          "objectClassName": "entity",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Abuse contact"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+44.3302369478"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "abuse@nominet.uk"
+              ]
+            ]
+          ],
+          "roles": [
+            "abuse"
+          ]
+        }
+      ]
+    },
+    {
+      "objectClassName": "entity",
+      "remarks": [
+        {
+          "title": "REDACTED FOR PRIVACY",
+          "type": "object redacted due to authorization",
+          "description": [
+            "Some of the data in this object has been removed"
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventAction": "registration",
+          "eventActor": "clid9998",
+          "eventDate": "2024-06-26T08:39:59Z"
+        },
+        {
+          "eventAction": "last changed",
+          "eventActor": "clid9999",
+          "eventDate": "2026-07-22T08:06:31.018Z"
+        }
+      ],
+      "handle": "C41103431-GOVUK",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "PLACEHOLDER"
+          ],
+          [
+            "adr",
+            {
+              "cc": "GB"
+            },
+            "text",
+            [
+              "",
+              "",
+              "PLACEHOLDER",
+              "PLACEHOLDER",
+              "",
+              "OX4 4DQ",
+              ""
+            ]
+          ],
+          [
+            "org",
+            {},
+            "text",
+            "Government Digital Service"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "placeholder@placeholder.gov.uk"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrant"
+      ]
+    },
+    {
+      "objectClassName": "entity",
+      "remarks": [
+        {
+          "title": "REDACTED FOR PRIVACY",
+          "type": "object redacted due to authorization",
+          "description": [
+            "Some of the data in this object has been removed"
+          ]
+        },
+        {
+          "title": "EMAIL REDACTED FOR PRIVACY",
+          "type": "object redacted due to authorization",
+          "description": [
+            "This data is not generally available, if you have legitimate reason to request access please review Nominets data release process."
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventAction": "registration",
+          "eventActor": "clid9999",
+          "eventDate": "2024-06-26T08:54:50Z"
+        },
+        {
+          "eventAction": "last changed",
+          "eventActor": "clid9999",
+          "eventDate": "2026-07-22T08:06:30.957Z"
+        }
+      ],
+      "handle": "C41103430-GOVUK",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            ""
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "redacted@nominet.uk"
+          ]
+        ]
+      ],
+      "roles": [
+        "administrative"
+      ]
+    },
+    {
+      "objectClassName": "entity",
+      "remarks": [
+        {
+          "title": "REDACTED FOR PRIVACY",
+          "type": "object redacted due to authorization",
+          "description": [
+            "Some of the data in this object has been removed"
+          ]
+        },
+        {
+          "title": "EMAIL REDACTED FOR PRIVACY",
+          "type": "object redacted due to authorization",
+          "description": [
+            "This data is not generally available, if you have legitimate reason to request access please review Nominets data release process."
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventAction": "registration",
+          "eventActor": "clid9999",
+          "eventDate": "2024-06-26T08:54:50Z"
+        },
+        {
+          "eventAction": "last changed",
+          "eventActor": "clid9999",
+          "eventDate": "2026-07-22T08:06:30.951Z"
+        }
+      ],
+      "handle": "C41103429-GOVUK",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            ""
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "redacted@nominet.uk"
+          ]
+        ]
+      ],
+      "roles": [
+        "administrative"
+      ]
+    }
+  ],
+  "publicIds": [
+    {
+      "type": "Registry Identifier",
+      "identifier": "D8983727-GOVUK"
+    }
+  ],
+  "redacted": [
+    {
+      "name": {
+        "type": "Registrant Phone"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[1].type=='voice')]",
+      "pathLang": "jsonpath",
+      "method": "removal"
+    },
+    {
+      "name": {
+        "type": "Registrant Phone Ext"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "prePath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[1].type=='voice')]",
+      "pathLang": "jsonpath",
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Name"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Organisation"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Street"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative City"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Region"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Postal Code"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Country"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Phone"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Phone Ext"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Fax"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Fax Ext"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Email"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "replacementValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Name"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Organisation"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Street"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative City"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Region"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Postal Code"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Country"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "emptyValue"
+    },
+    {
+      "name": {
+        "description": "Administrative Phone"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Phone Ext"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Fax"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Fax Ext"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Administrative Email"
+      },
+      "reason": {
+        "description": "Server policy"
+      },
+      "method": "replacementValue"
+    }
+  ]
+}

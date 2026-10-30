@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -419,7 +420,7 @@ func TestNormalizeDomain_Table(t *testing.T) {
 // an unknown flag, and real flags must still parse.
 func TestHyphenDomain(t *testing.T) {
 	var cfg config
-	fs, _, _, _ := newFlagSet(&cfg)
+	fs, _, _, _, _ := newFlagSet(&cfg)
 	for _, bad := range []string{"-badstart.com", "--badstart.com", "-sub.example.com"} {
 		if err := hyphenDomain(fs, []string{bad}); err == nil {
 			t.Errorf("%q: expected a domain error", bad)
@@ -461,7 +462,7 @@ func TestRunContext(t *testing.T) {
 
 func newTestFlagSet() *flag.FlagSet {
 	var cfg config
-	fs, _, _, _ := newFlagSet(&cfg)
+	fs, _, _, _, _ := newFlagSet(&cfg)
 	return fs
 }
 
@@ -479,4 +480,50 @@ func TestSplitArgs_EveryValueFlag(t *testing.T) {
 	check(t, "double dash", takesValue(fs, "--max-time"), true)
 	check(t, "inline value", takesValue(fs, "-max-time=3"), false)
 	check(t, "unknown flag", takesValue(fs, "-nope"), false)
+}
+
+func TestParseArgs_RDAP(t *testing.T) {
+	cfg, err := parseArgs([]string{"example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "rdap on by default", cfg.RDAP, true)
+	check(t, "no path yet", cfg.RDAPPath, "")
+	cfg, err = parseArgs([]string{"-no-rdap", "example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "-no-rdap", cfg.RDAP, false)
+	cfg, err = parseArgs([]string{"example.com", "-rdap", "/opt/rdap"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, "-rdap path", cfg.RDAPPath, "/opt/rdap")
+	check(t, "domain kept", cfg.Domain, "example.com")
+}
+
+// A missing rdap on PATH costs only the registration lookup, which the
+// report says it could not make; an explicit -rdap that is wrong is a
+// usage error, and -no-rdap never looks.
+func TestResolveTools_RDAP(t *testing.T) {
+	dir := t.TempDir()
+	qp := filepath.Join(dir, "quicprobe")
+	if err := os.WriteFile(qp, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	base := config{DogPath: "/bin/true", DigPath: "/bin/true", QuicPath: qp, RDAP: true}
+
+	cfg := base
+	check(t, "missing on PATH is not fatal", resolveTools(&cfg), error(nil))
+	check(t, "path empty", cfg.RDAPPath, "")
+
+	cfg = base
+	cfg.RDAPPath = "/nonexistent/rdap"
+	err := resolveTools(&cfg)
+	check(t, "explicit missing is fatal", err != nil && strings.Contains(err.Error(), "rdap"), true)
+
+	cfg = base
+	cfg.RDAP, cfg.RDAPPath = false, "/nonexistent/rdap"
+	check(t, "-no-rdap never looks", resolveTools(&cfg), error(nil))
 }

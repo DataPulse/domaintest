@@ -4,7 +4,7 @@ Checks the technical configuration of a domain name and prints one compact
 JSON report.
 
 ```
-domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-redirectlog] [-pretty] [-quicprobe path] [-dog path] [-dig path] <domain> [@dnsserver[:port]]
+domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-no-rdap] [-rdap path] [-redirectlog] [-pretty] [-quicprobe path] [-dog path] [-dig path] <domain> [@dnsserver[:port]]
 domaintest -warm-hsts-cache
 domaintest -version
 ```
@@ -436,6 +436,12 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     `@127.0.0.1:8053` or any IPv4 literal, `ipv6` is always skipped even
     though `families` still lists it for the TCP and QUIC probes. That is
     expected, not a defect; key on the `skipped` prefix.
+15. **Registration status** (`rdap`, unless `-no-rdap`): the registered
+    domain's RDAP record at its registry, then at the registrar the
+    registry links to, with openrdap's `rdap` CLI. Every status value each
+    service serves is reported. A hold is a fail and a deletion state a
+    warning; transfer, update and delete locks are facts without a
+    finding. See [Registration status (RDAP)](#registration-status-rdap).
 
 Steps 5 to 9 run over both IPv4 and IPv6 unless `-4` or `-6` is given.
 DNS record data is fetched once; a literal `@server` address fixes the DNS
@@ -502,13 +508,85 @@ cache.
   the submission states `pending` and `rejected` that hstspreload.org
   reports; such domains read `absent`, which is what browsers do.
 
+## Registration status (RDAP)
+
+The lookup runs openrdap's `rdap` CLI, the binary the scrape workers build
+(upstream, commit 64c8c7d), so domaintest and scrape's RDAP jobs read the
+same records through the same client. The CLI keeps IANA's RDAP bootstrap
+in its disk cache (`$XDG_CACHE_HOME/openrdap` or `~/.cache/openrdap`,
+refreshed hourly), which the worker's entrypoint warms at start.
+
+- **What is asked**: the registered domain, not the probed name, so
+  `www.google.com` is looked up as `google.com`. A name under a private
+  suffix whose operator runs its own RDAP service (`microsoft.jp.net`) is
+  asked there with `-s`, from dpdomain's routing file; the base is
+  reported as `rdap.server`. A reserved name or a public suffix has no
+  registration, and no `rdap` section.
+- **Two lookups**: the registry first. When its answer links to the
+  registrar's record (`rel: related`, `application/rdap+json`), that is
+  fetched second. A link that is not https, or that points back at the
+  registry's own record, is reported in `registrar.error` and not
+  followed. Each lookup is one attempt with `-t` as its timeout: a refusal,
+  a 429 or a timeout is reported, not retried.
+- **Runs alongside everything else**: the lookups depend on nothing the DNS
+  finds, so they start with the run and are joined before the report is
+  written, including for a zone no nameserver answers for, which is what a
+  held domain usually looks like.
+- **No binary**: when `rdap` is not on `PATH` the rest of the run is
+  unaffected; `rdap.registry.error` is `rdap not found on PATH` and the
+  finding is `rdap_lookup_failed`. An explicit `-rdap` path that is not an
+  executable is a usage error.
+
+```json
+"rdap": {
+  "domain": "finalthreadss.com",
+  "registered": true,
+  "registry": {"url": "https://rdap.verisign.com/com/v1/domain/finalthreadss.com", "status": ["client hold"]},
+  "registrar": {"name": "Tucows Domains Inc.", "iana_id": "69",
+                "url": "https://opensrs.rdap.tucows.com/domain/FINALTHREADSS.COM", "status": ["client hold"]}
+}
+```
+
+- `domain` is the name asked about; `server` is present only for a
+  private-suffix route.
+- `registered` is `true` when the registry returned the domain, `false`
+  when it answered that the domain does not exist (404), and `null` when
+  the lookup did not complete (no RDAP service for the TLD, a refusal, a
+  timeout, output that is not an RDAP object). A consumer must not read
+  null as false.
+- `status` holds the values exactly as each service serves them, which is
+  usually the RFC 8056 form (`client hold`). Some registrars serve the EPP
+  form (`clientHold`) or values of their own (`delete prohibited`); the
+  findings match both standard forms, case-insensitively. It is `[]` when
+  the service served none, and `null` when that service was not asked or
+  did not answer. The registry and the registrar can disagree: a
+  `server hold` is set by the registry and often does not appear in the
+  registrar's record.
+- `registrar` carries the registrar's `name` and `iana_id` as the registry
+  names them, and its own `url`, `status` and `error` when the registry
+  linked to it. It is absent when the registry neither names nor links to
+  a registrar.
+
+Findings, each about the domain as a whole (`host` is `""`):
+
+- `domain_on_hold` (fail): `client hold` or `server hold` at either
+  service. The registry has taken the name out of the zone, so it appears
+  beside the DNS symptom (`apex_nxdomain`, `zone_unreachable`).
+- `domain_pending_deletion` (warn): `redemption period`, `pending delete`
+  or `pending restore`. `inactive` (no nameservers delegated) is reported
+  without a finding: Nominet serves it for `www.gov.uk`, a name registered
+  inside the gov.uk zone and never delegated.
+- `rdap_lookup_failed` (info): a lookup did not complete, so that service's
+  status is unknown. A registry 404 is an answer (`registered: false`), not
+  a failure.
+
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | 0 | no errors found |
 | 1 | the report contains errors (`"ok": false`) |
-| 2 | usage error, or `dog`, `dig` or `quicprobe` not found |
+| 2 | usage error, or `dog`, `dig` or `quicprobe` not found, or an `-rdap` path that is not an executable |
 
 ## Report
 
@@ -519,12 +597,14 @@ header: `version` (the build, as `-version` prints it) and `timestamp`
 top-level keys are `domain`, `unicode_domain` (IDN only), `resolver`, `families`, `timeout_sec`,
 `tcp_timeout_sec`, `quic_timeout_sec`, `max_time_sec`, `redirect_log` (whether chains were followed), `not_a_zone` and `enclosing_zone`
 (hosts only), `dns`, `dnssec`, `delegation`, `web`, `certificates` (when any address served one), `mail`,
-`nameservers` (zones only), `caa`, `tlsa`, `wildcard`,
+`nameservers` (zones only), `caa`, `tlsa`, `wildcard`, `rdap` (unless `-no-rdap`),
 `dns_concurrency`, `reserved_addresses` (when any), `hsts_preload`,
 `hsts_preload_covered_by`, `hsts_preload_include_subdomains` and
 `hsts_preload_error` (unless disabled),
 `errors`, `warnings`, `findings`, `ok`, `deadline_reached` (only when
-true), `elapsed_ms`.
+true), `elapsed_ms`. Read every key by name, not by position: scrape's API
+stores the report as a map, so `version` and `timestamp` do not stay first
+once it has passed through there.
 
 Each address entry under `web.apex` / `web.www` (`ipv4[]`, `ipv6[]`) has
 `ip`, `80`, `443` (open / refused / timeout / unreachable / error /
@@ -713,9 +793,9 @@ set.
 
 | severity | codes |
 |---|---|
-| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `ns_reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `redirect_self` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_include_loop` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` `dkim_key_too_short` |
-| warn | `reserved_name` `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `redirect_downgrade` `http_response_inconsistent` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_include_unchecked` `spf_problem` `dmarc_pct_invalid` `dmarc_subdomain_policy_unknown` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` `dkim_key_invalid` `h3_advertised_unreachable` `http_port80_partial` |
-| info | `not_a_zone` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `https_not_verified` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` `run_deadline_reached` `dnssec_unsigned` `caa_absent` `mta_sts_absent` `tls_rpt_absent` `http1_1_absent` `http2_absent` `http2_partial` `http3_absent` `http_redirect_temporary` `dkim_key_weak` `spf_redundant_ip` `ns_single_domain` `dkim_selector_dangling` |
+| fail | `zone_unreachable` `apex_nxdomain` `apex_empty` `ns_absent` `lookup_timeout` `lookup_failed` `dnssec_bogus` `resolver_servfail` `resolver_unreachable` `delegation_mismatch` `not_delegated` `delegation_nodata` `delegation_no_answer` `delegation_lame` `delegation_trace_failed` `reserved_address` `ns_reserved_address` `cert_expired` `cert_not_yet_valid` `cert_hostname_mismatch` `cert_self_signed` `cert_incomplete_chain` `cert_untrusted_root` `cert_invalid` `cert_handshake_failed` `http_server_error` `redirect_loop` `redirect_self` `mx_null_mixed` `mx_target_invalid` `mx_target_ip_literal` `mx_target_cname` `mx_target_nxdomain` `mx_target_no_address` `mx_invalid` `dmarc_multiple` `dmarc_policy_missing` `dmarc_policy_unknown` `dmarc_invalid` `spf_multiple` `spf_lookup_limit` `spf_unknown_mechanism` `spf_pass_all` `spf_include_loop` `spf_invalid` `mta_sts_enforce_failed` `mta_sts_enforce_mx_uncovered` `ns_count_low` `ns_cname` `ns_no_address` `ns_lame` `ns_no_answer` `glue_missing` `caa_issuer_denied` `tlsa_mismatch` `dkim_key_too_short` `domain_on_hold` |
+| warn | `reserved_name` `apex_no_address` `web_no_listener` `https_unreachable` `cert_expiry_urgent` (under 7 days) `cert_mismatch_between_addresses` `cert_sibling_uncovered` `http_cleartext` `http_redirect_insecure` `http_server_error_partial` `http_client_error` `redirect_ends_error` `redirect_hop_limit` `redirect_broken` `redirect_downgrade` `http_response_inconsistent` `spf_absent` `dmarc_absent` `dmarc_unknown` `spf_void_limit` `spf_no_all` `spf_ptr_deprecated` `spf_neutral_all` `spf_include_invalid` `spf_include_missing` `spf_include_unchecked` `spf_problem` `dmarc_pct_invalid` `dmarc_subdomain_policy_unknown` `mx_target_unresolved` `dkim_selector_revoked` `dkim_wildcard` `mta_sts_failed` `mta_sts_mx_uncovered` `dnssec_dnskey_no_ds` `dnssec_unknown` `ns_partial_answer` `ns_no_tcp` `ns_no_edns` `ns_same_v4_24` `ns_unaudited` `ns_none_reached` `glue_differs` `hsts_preload_header_missing` `hsts_preload_header_weak` `dkim_key_invalid` `h3_advertised_unreachable` `http_port80_partial` `domain_pending_deletion` |
+| info | `not_a_zone` `reserved_nxdomain` `www_nxdomain` `www_no_address` `www_wildcard` `aaaa_absent` `mx_absent` `mx_null` `cert_expiry_soon` (7 to 29 days) `tls_legacy_versions` `tls13_absent` `hsts_short_max_age` `hsts_preload_directive_unmet` `hsts_preload_unknown` `http_cleartext_preloaded` `http_redirect_insecure_preloaded` `http_probe_refused` `https_not_verified` `dmarc_policy_none` `dmarc_partial_pct` `spf_txt_over_udp_limit` `spf_txt_near_udp_limit` `spf_include_txt_over_udp_limit` `soa_serial_differs` `ns_same_v6_48` `tlsa_unsigned_zone` `quic_partial` `address_not_probed_reserved` `run_deadline_reached` `dnssec_unsigned` `caa_absent` `mta_sts_absent` `tls_rpt_absent` `http1_1_absent` `http2_absent` `http2_partial` `http3_absent` `http_redirect_temporary` `dkim_key_weak` `spf_redundant_ip` `ns_single_domain` `dkim_selector_dangling` `rdap_lookup_failed` |
 
 `host` names the probed name a finding is about when apex and www can
 differ: web, TLS, HTTP versions, CAA verdicts and address facts (`apex`,
@@ -837,6 +917,12 @@ second wave rather than in series at the end. When the delegated nameservers wer
 trace, the nameserver audit runs first under its own allowance of the
 same size, so the probes after it are not left with the remainder.
 
+The RDAP lookups run alongside all of this: the registry and then the
+registrar, each with `-t` as the CLI's `--timeout` and killed a second
+after it, so at most `2 × (-t + 1)` = 8 s with the defaults, inside the
+16 s. For a zone no nameserver answers for, which otherwise ends after the
+trace and the audit, the run waits for them.
+
 `-max-time` (default 18 s, `0` for none) is a deadline for the whole run.
 The sums above are what each phase is allowed, and a server that is slow
 at every stage can add to them; scrape kills a run at 20 s and keeps no
@@ -892,6 +978,9 @@ carry `public_suffix: true`.
 - `quicprobe` on `PATH`, at `../quicprobe/quicprobe` next to the binary or
   the working directory, or given with `-quicprobe`. It must support the
   `-ip` and `-t` flags.
+- openrdap's `rdap` CLI on `PATH`, or given with `-rdap`, for the
+  registration status (built from upstream 64c8c7d on the workers). Without
+  it the run completes and says the status is unknown.
 - Go 1.27.1 (the `go` directive in `go.mod`; an older `go` downloads it).
 
 ## Sample reports
@@ -927,7 +1016,8 @@ go test -tags calibration -run Calibration -v   # live severity calibration
 
 Unit tests never touch the network: DNS answers come from captured
 `dog`/`dig` output under `testdata/` (`testdata/dog/README.md` says where
-each dog capture came from), TLS and HTTP behaviour from local
+each dog capture came from), RDAP answers from captured `rdap` CLI output
+(`testdata/rdap/README.md`), TLS and HTTP behaviour from local
 `httptest` servers with certificates minted in-test, and the badssl.com,
 DANE, wildcard and reserved-address cases run live only in the integration
 suite.

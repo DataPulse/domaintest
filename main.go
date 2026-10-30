@@ -39,7 +39,7 @@ const (
 	// hand, before then: the deadline cuts off whatever is still running
 	// and the report says so.
 	defaultMaxTimeSec = 18
-	usage             = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-redirectlog] [-pretty] [-quicprobe path] [-dog path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
+	usage             = "usage: domaintest [-4|-6] [-t seconds] [-tcp-timeout seconds] [-quic-timeout seconds] [-max-time seconds] [-dns-concurrency n] [-no-hsts-preload] [-hsts-cache path] [-no-rdap] [-rdap path] [-redirectlog] [-pretty] [-quicprobe path] [-dog path] [-dig path] <domain> [@dnsserver[:port]]\n       domaintest -warm-hsts-cache\n       domaintest -version"
 )
 
 // config is the parsed command line.
@@ -60,6 +60,8 @@ type config struct {
 	HSTSCache      string // path to the cached preload list; "-" disables caching
 	WarmHSTSCache  bool   // populate the cache and exit
 	RedirectLog    bool   // follow and report redirect chains (off by default)
+	RDAP           bool   // look up registration status (on by default; -no-rdap disables)
+	RDAPPath       string // the rdap binary; "" when RDAP is on but none was found
 	ShowVersion    bool   // print the build version and exit
 	Pretty         bool
 	DogPath        string
@@ -205,7 +207,7 @@ func hyphenDomain(fs *flag.FlagSet, args []string) error {
 
 func parseArgs(args []string) (config, error) {
 	cfg := config{}
-	fs, only4, only6, noPreload := newFlagSet(&cfg)
+	fs, only4, only6, noPreload, noRDAP := newFlagSet(&cfg)
 	flagArgs, positional, server, err := splitArgs(fs, args)
 	if err != nil {
 		return config{}, err
@@ -226,6 +228,7 @@ func parseArgs(args []string) (config, error) {
 	}
 	cfg.Families = chooseFamilies(*only4, *only6)
 	cfg.HSTSPreload = !*noPreload
+	cfg.RDAP = !*noRDAP
 	cfg.dnsFamily = serverFamily(cfg.Resolver.Host)
 	return finishConfig(cfg, positional)
 }
@@ -272,14 +275,15 @@ func domainConfig(cfg config, positional []string) (config, error) {
 	return cfg, nil
 }
 
-// newFlagSet defines every flag against cfg, returning the three whose
+// newFlagSet defines every flag against cfg, returning the four whose
 // values are not fields of config.
-func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
+func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload, noRDAP *bool) {
 	fs = flag.NewFlagSet("domaintest", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	only4 = fs.Bool("4", false, "IPv4 only")
 	only6 = fs.Bool("6", false, "IPv6 only")
 	noPreload = fs.Bool("no-hsts-preload", false, "do not consult the HSTS preload list")
+	noRDAP = fs.Bool("no-rdap", false, "do not look up registration status over RDAP")
 	fs.IntVar(&cfg.TimeoutSec, "t", defaultTimeoutSec, "per-probe timeout in seconds")
 	fs.IntVar(&cfg.QuicTimeoutSec, "quic-timeout", defaultQuicTimeoutSec, "QUIC handshake timeout in seconds")
 	fs.IntVar(&cfg.TCPTimeoutSec, "tcp-timeout", defaultTCPTimeoutSec, "TCP connect timeout in seconds")
@@ -293,7 +297,8 @@ func newFlagSet(cfg *config) (fs *flag.FlagSet, only4, only6, noPreload *bool) {
 	fs.StringVar(&cfg.QuicPath, "quicprobe", "", "path to the quicprobe binary")
 	fs.StringVar(&cfg.DogPath, "dog", "", "path to dog")
 	fs.StringVar(&cfg.DigPath, "dig", "", "path to dig")
-	return fs, only4, only6, noPreload
+	fs.StringVar(&cfg.RDAPPath, "rdap", "", "path to the rdap binary (openrdap)")
+	return fs, only4, only6, noPreload, noRDAP
 }
 
 // defaultDNSConcurrency scales the DNS fan-out to the machine: twice the
@@ -431,7 +436,12 @@ func resolveTools(cfg *config) error {
 	if cfg.DigPath, err = requireTool(cfg.DigPath, "dig"); err != nil {
 		return err
 	}
-	cfg.QuicPath, err = findQuicprobe(cfg.QuicPath)
+	if cfg.QuicPath, err = findQuicprobe(cfg.QuicPath); err != nil {
+		return err
+	}
+	if cfg.RDAP {
+		cfg.RDAPPath, err = findRDAP(cfg.RDAPPath)
+	}
 	return err
 }
 

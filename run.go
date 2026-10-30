@@ -109,6 +109,10 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	// A name reserved by RFC is not in the global DNS, so there is no
 	// delegation to trace; classifyZone records why.
 	reserved := reservedName(cfg.Domain) != ""
+	// Registration status depends on nothing the DNS finds, so it runs
+	// alongside everything else and is joined before every return: a held
+	// domain is most often the dead zone the run stops early for.
+	rdap := startRDAP(ctx, cfg, r)
 	var dns dnsResults
 	web := &earlyWeb{}
 	defer web.stop()
@@ -140,6 +144,7 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 		rep.Nameservers, audited = auditFirst(ctx, cfg, dnsRunner, dns, rep), true
 		if zoneUnreachable(rep) {
 			web.stop() // nothing is reported about a zone no server answers for
+			rep.RDAP = rdap()
 			return finishReport(ctx, rep, start)
 		}
 	}
@@ -162,7 +167,19 @@ func run(ctx context.Context, cfg config, r Runner, d dialer) *Report {
 	)
 	rep.Wildcard = wildcardSection(dns, rep.Web)
 	rep.CAA, rep.TLSA = assessCertPolicies(dns, rep)
+	rep.RDAP = rdap()
 	return finishReport(ctx, rep, start)
+}
+
+// startRDAP begins the registration lookup and returns a function that
+// waits for its result. With -no-rdap the result is nil at once.
+func startRDAP(ctx context.Context, cfg config, r Runner) func() *RDAPReport {
+	if !cfg.RDAP {
+		return func() *RDAPReport { return nil }
+	}
+	done := make(chan *RDAPReport, 1)
+	go func() { done <- checkRDAP(ctx, cfg, r) }()
+	return func() *RDAPReport { return <-done }
 }
 
 // classifyDNS records the lookups and judges the zone. Every trust level
