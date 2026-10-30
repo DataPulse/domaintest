@@ -31,7 +31,7 @@ func rdapConfig(domain string) config {
 	return cfg
 }
 
-// onRDAP registers a lookup of query (a domain or a registrar URL).
+// onRDAP registers a lookup of query.
 func onRDAP(r *fakeRunner, cfg config, query, server string, c fakeCall) {
 	r.on("rdap", rdapArgs(query, server, cfg.TimeoutSec), c)
 }
@@ -65,15 +65,14 @@ func TestRDAPArgs(t *testing.T) {
 	check(t, "routed", rdapArgs("microsoft.jp.net", "https://rdap.centralnic.com/jp.net/", 3),
 		[]string{"--json", "--timeout", "3", "-s", "https://rdap.centralnic.com/jp.net/", "--", "microsoft.jp.net"})
 	check(t, "timeout at least 1", rdapArgs("x.com", "", 0)[2], "1")
-	// A URL is a query like any other, after the -- that ends the flags.
-	check(t, "registrar url", rdapArgs("https://rdap.markmonitor.com/rdap/domain/GOOGLE.COM", "", 3)[4], "https://rdap.markmonitor.com/rdap/domain/GOOGLE.COM")
 }
 
-func TestCheckRDAP_RegistryAndRegistrar(t *testing.T) {
+// One lookup, at the registry. The registrar is named from its answer and
+// not asked: Verisign links to MarkMonitor's record, which is not fetched.
+func TestCheckRDAP_RegistryOnly(t *testing.T) {
 	cfg := rdapConfig("www.google.com")
 	r := newFakeRunner()
 	onRDAP(r, cfg, "google.com", "", rdapCall(t, "google.com", false))
-	onRDAP(r, cfg, "https://rdap.markmonitor.com/rdap/domain/GOOGLE.COM", "", rdapCall(t, "google.com-registrar", false))
 	rep := checkRDAP(context.Background(), cfg, r)
 
 	check(t, "domain", rep.Domain, "google.com")
@@ -82,10 +81,8 @@ func TestCheckRDAP_RegistryAndRegistrar(t *testing.T) {
 	check(t, "registry url", rep.Registry.URL, "https://rdap.verisign.com/com/v1/domain/google.com")
 	check(t, "registry status", rep.Registry.Status, []string{"client delete prohibited", "client transfer prohibited",
 		"client update prohibited", "server delete prohibited", "server transfer prohibited", "server update prohibited"})
-	check(t, "registrar", *rep.Registrar, RDAPParty{Name: "MarkMonitor Inc.", IANAID: "292",
-		URL: "https://rdap.markmonitor.com/rdap/domain/GOOGLE.COM",
-		Status: []string{"client update prohibited", "client transfer prohibited", "client delete prohibited",
-			"server update prohibited", "server transfer prohibited", "server delete prohibited"}})
+	check(t, "registrar", *rep.Registrar, RDAPRegistrar{Name: "MarkMonitor Inc.", IANAID: "292"})
+	check(t, "one lookup", len(r.called("rdap")), 1)
 
 	var f findings
 	f.rdapFindings(rep)
@@ -94,26 +91,22 @@ func TestCheckRDAP_RegistryAndRegistrar(t *testing.T) {
 
 func TestCheckRDAP_Holds(t *testing.T) {
 	for _, c := range []struct {
-		domain, registrar, registrarURL string
-		want                            []string
-		message                         string
+		domain  string
+		want    []string
+		message string
 	}{
-		// clientHold at both the registry and the registrar (Tucows).
-		{"finalthreadss.com", "finalthreadss.com-registrar", "https://opensrs.rdap.tucows.com/domain/FINALTHREADSS.COM",
-			[]string{"fail:domain_on_hold"},
-			"RDAP reports finalthreadss.com on hold: client hold (registry), client hold (registrar)"},
-		// serverHold at the registry; GoDaddy's own record does not say so.
-		{"3pattifacebook.site", "3pattifacebook.site-registrar", "https://rdap.godaddy.com/v1/domain/3pattifacebook.site",
-			[]string{"fail:domain_on_hold"},
-			"RDAP reports 3pattifacebook.site on hold: server hold (registry)"},
-		{"datapulse.vip", "datapulse.vip-registrar", "https://rdap.namecheap.com/domain/datapulse.vip",
-			[]string{"warn:domain_pending_deletion"},
-			"RDAP reports datapulse.vip being deleted: pending delete (registry), redemption period (registry), pending delete (registrar), redemption period (registrar)"},
+		// A registrar's clientHold is set at the registry (Tucows, Verisign).
+		{"finalthreadss.com", []string{"fail:domain_on_hold"},
+			"RDAP reports finalthreadss.com on hold: client hold"},
+		// serverHold at the registry, which GoDaddy's own record omitted.
+		{"3pattifacebook.site", []string{"fail:domain_on_hold"},
+			"RDAP reports 3pattifacebook.site on hold: server hold"},
+		{"datapulse.vip", []string{"warn:domain_pending_deletion"},
+			"RDAP reports datapulse.vip being deleted: pending delete, redemption period"},
 	} {
 		cfg := rdapConfig(c.domain)
 		r := newFakeRunner()
 		onRDAP(r, cfg, c.domain, "", rdapCall(t, c.domain, false))
-		onRDAP(r, cfg, c.registrarURL, "", rdapCall(t, c.registrar, false))
 		rep := checkRDAP(context.Background(), cfg, r)
 		var f findings
 		f.rdapFindings(rep)
@@ -129,41 +122,34 @@ func TestCheckRDAP_InactiveAndHeld(t *testing.T) {
 	cfg := rdapConfig("loginmicrosoftonline.cloud")
 	r := newFakeRunner()
 	onRDAP(r, cfg, "loginmicrosoftonline.cloud", "", rdapCall(t, "loginmicrosoftonline.cloud", false))
-	onRDAP(r, cfg, "https://rdap.globaldomaingroup.com/domain/loginmicrosoftonline.cloud", "", fakeCall{err: errFake, stderr: "# Error: No RDAP servers responded successfully (tried 1 server(s))\n"})
 	rep := checkRDAP(context.Background(), cfg, r)
 	var f findings
 	f.rdapFindings(rep)
-	check(t, "codes", findingCodes(&f), []string{"fail:domain_on_hold", "info:rdap_lookup_failed"})
-	check(t, "registry still read", rep.Registered, boolPtr(true))
-	check(t, "registrar status unknown", rep.Registrar.Status, []string(nil))
-	check(t, "registrar error", rep.Registrar.Error, "rdap: No RDAP servers responded successfully (tried 1 server(s))")
+	check(t, "codes", findingCodes(&f), []string{"fail:domain_on_hold"})
+	check(t, "registered", rep.Registered, boolPtr(true))
 }
 
-// The registry names the registrar but links to no registrar service, as
-// CZ.NIC does: the name is kept and no second lookup is made.
-func TestCheckRDAP_NoRegistrarLink(t *testing.T) {
+// CZ.NIC names the registrar with no IANA ID (ccTLD registrars have none).
+func TestCheckRDAP_RegistrarWithoutIANAID(t *testing.T) {
 	cfg := rdapConfig("example.cz")
 	r := newFakeRunner()
 	onRDAP(r, cfg, "example.cz", "", rdapCall(t, "example.cz", false))
 	rep := checkRDAP(context.Background(), cfg, r)
 	check(t, "registry status", rep.Registry.Status, []string{"active"})
-	check(t, "registrar named", *rep.Registrar, RDAPParty{Name: "INTERNET CZ, a.s."})
-	check(t, "one call", len(r.called("rdap")), 1)
+	check(t, "registrar named", *rep.Registrar, RDAPRegistrar{Name: "INTERNET CZ, a.s."})
 	var f findings
 	f.rdapFindings(rep)
-	check(t, "no lookup was refused or failed", findingCodes(&f), []string{})
+	check(t, "no finding", findingCodes(&f), []string{})
 }
 
 func TestCheckRDAP_PrivateSuffixRoute(t *testing.T) {
 	cfg := rdapConfig("www.microsoft.jp.net")
 	r := newFakeRunner()
 	onRDAP(r, cfg, "microsoft.jp.net", "https://rdap.centralnic.com/jp.net/", rdapCall(t, "microsoft.jp.net", false))
-	onRDAP(r, cfg, "https://rdap.gmo-onamae.com/rdap/v1/domain/microsoft.jp.net", "", fakeCall{err: errFake, stderr: "# Error: RDAP server returned 404, object does not exist.\n"})
 	rep := checkRDAP(context.Background(), cfg, r)
 	check(t, "server", rep.Server, "https://rdap.centralnic.com/jp.net/")
 	check(t, "registered at the registry", rep.Registered, boolPtr(true))
 	check(t, "registrar", rep.Registrar.Name, "GMO Internet Group, Inc. d/b/a Onamae.com")
-	check(t, "registrar 404 is its error", rep.Registrar.Error, "rdap: RDAP server returned 404, object does not exist.")
 }
 
 func TestCheckRDAP_Failures(t *testing.T) {
@@ -196,7 +182,7 @@ func TestCheckRDAP_Failures(t *testing.T) {
 		check(t, c.name+" registered", rep.Registered, c.registered)
 		check(t, c.name+" error", rep.Registry.Error, c.err)
 		check(t, c.name+" status unknown", rep.Registry.Status, []string(nil))
-		check(t, c.name+" no registrar", rep.Registrar, (*RDAPParty)(nil))
+		check(t, c.name+" no registrar", rep.Registrar, (*RDAPRegistrar)(nil))
 		var f findings
 		f.rdapFindings(rep)
 		check(t, c.name+" codes", findingCodes(&f), c.codes)
@@ -238,72 +224,31 @@ func TestCheckRDAP_NothingToLookUp(t *testing.T) {
 	check(t, "nothing run", len(r.called("rdap")), 0)
 }
 
-// rewriteLinks returns a captured registry answer with its related link
-// replaced, for the links a registry could serve but none was caught doing.
-func rewriteLinks(t *testing.T, name, href string) string {
-	t.Helper()
-	var obj map[string]any
-	if err := json.Unmarshal([]byte(fixture(t, "rdap/"+name+".stdout")), &obj); err != nil {
-		t.Fatal(err)
-	}
-	links, ok := obj["links"].([]any)
-	if !ok {
-		t.Fatalf("%s has no links", name)
-	}
-	for _, l := range links {
-		if m, ok := l.(map[string]any); ok && m["rel"] == "related" {
-			m["href"] = href
-		}
-	}
-	b, err := json.Marshal(obj)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b)
-}
-
-// A registrar link that is not https, or that points back at the
-// registry's own record, is reported and not followed.
-func TestCheckRDAP_RegistrarLinkRefused(t *testing.T) {
-	for _, c := range []struct{ href, err string }{
-		{"http://rdap.markmonitor.com/rdap/domain/GOOGLE.COM", `registrar link "http://rdap.markmonitor.com/rdap/domain/GOOGLE.COM" is not https; not followed`},
-		{"https://rdap.verisign.com/com/v1/domain/google.com", "registrar link is the registry's own record; not followed"},
-		{"rdap.markmonitor.com/GOOGLE.COM", `registrar link "rdap.markmonitor.com/GOOGLE.COM" is not a URL; not followed`},
-	} {
-		cfg := rdapConfig("google.com")
-		r := newFakeRunner()
-		onRDAP(r, cfg, "google.com", "", fakeCall{stdout: rewriteLinks(t, "google.com", c.href)})
-		rep := checkRDAP(context.Background(), cfg, r)
-		check(t, c.href+" error", rep.Registrar.Error, c.err)
-		check(t, c.href+" still named", rep.Registrar.Name, "MarkMonitor Inc.")
-		check(t, c.href+" not followed", len(r.called("rdap")), 1)
-	}
-}
-
 // Registries serve RFC 8056 names ("client hold"); EPP's camelCase form
 // ("clientHold", as portdb stores them) must match the same rules.
 func TestStatusKey(t *testing.T) {
 	for _, s := range []string{"client hold", "clientHold", "CLIENT HOLD", " client_hold ", "client-hold"} {
 		check(t, s, statusKey(s), "clienthold")
 	}
-	rep := &RDAPReport{Domain: "auth-messenger.info", Registry: RDAPParty{Status: []string{
+	rep := &RDAPReport{Domain: "auth-messenger.info", Registry: RDAPRegistry{Status: []string{
 		"clientDeleteProhibited", "serverDeleteProhibited", "clientHold", "serverHold", "clientRenewProhibited"}}}
-	check(t, "camelCase holds", matchedStatuses(rep, rdapHoldStatus), []string{"clientHold (registry)", "serverHold (registry)"})
+	check(t, "camelCase holds", matchedStatuses(rep, rdapHoldStatus), []string{"clientHold", "serverHold"})
 	rep.Registry.Status = []string{"redemptionPeriod", "pendingDelete", "pendingRestore", "inactive", "autoRenewPeriod"}
 	check(t, "camelCase deletion", matchedStatuses(rep, rdapDeletionStatus),
-		[]string{"redemptionPeriod (registry)", "pendingDelete (registry)", "pendingRestore (registry)"})
+		[]string{"redemptionPeriod", "pendingDelete", "pendingRestore"})
 }
 
-// status is null when the service was not asked or did not answer and []
-// when it answered with none; registered is null when undetermined.
+// status is null when the lookup did not complete and [] when the registry
+// served none; registered is null when undetermined.
 func TestRDAPReport_JSONShape(t *testing.T) {
-	out, err := json.Marshal(&RDAPReport{Domain: "example.com", Registry: RDAPParty{Error: "rdap timed out"}})
+	out, err := json.Marshal(&RDAPReport{Domain: "example.com", Registry: RDAPRegistry{Error: "rdap timed out"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	check(t, "unknown", string(out), `{"domain":"example.com","registered":null,"registry":{"status":null,"error":"rdap timed out"}}`)
-	out, _ = json.Marshal(&RDAPReport{Domain: "example.com", Registered: boolPtr(true), Registry: RDAPParty{Status: []string{}}})
-	check(t, "none served", string(out), `{"domain":"example.com","registered":true,"registry":{"status":[]}}`)
+	out, _ = json.Marshal(&RDAPReport{Domain: "example.com", Registered: boolPtr(true), Registry: RDAPRegistry{Status: []string{}},
+		Registrar: &RDAPRegistrar{Name: "MarkMonitor Inc.", IANAID: "292"}})
+	check(t, "none served", string(out), `{"domain":"example.com","registered":true,"registry":{"status":[]},"registrar":{"name":"MarkMonitor Inc.","iana_id":"292"}}`)
 }
 
 func TestVCardName(t *testing.T) {
@@ -346,7 +291,6 @@ func TestRun_RDAPOnDeadZone(t *testing.T) {
 	s.cfg.TimeoutSec, s.cfg.TCPTimeoutSec, s.cfg.QuicTimeoutSec = 2, 1, 2
 	s.cfg.RDAP, s.cfg.RDAPPath = true, "rdap"
 	onRDAP(s.r, s.cfg, "google.com", "", rdapCall(t, "google.com", false))
-	onRDAP(s.r, s.cfg, "https://rdap.markmonitor.com/rdap/domain/GOOGLE.COM", "", rdapCall(t, "google.com-registrar", false))
 	full := fixture(t, "trace/google.txt")
 	cut := full[:strings.Index(full, ";; Received 287 bytes from 192.41.162.30")]
 	cut += ";; Received 287 bytes from 192.41.162.30#53(l.gtld-servers.net) in 36 ms\n\n;; communications error to 216.239.32.10#53: timed out\n"
@@ -365,7 +309,7 @@ func TestRun_RDAPOnDeadZone(t *testing.T) {
 		t.Fatal("no rdap section on the early return")
 	}
 	check(t, "registered", rep.RDAP.Registered, boolPtr(true))
-	check(t, "registrar followed", rep.RDAP.Registrar.Status != nil, true)
+	check(t, "registry status read", rep.RDAP.Registry.Status != nil, true)
 	check(t, "findings", reportCodes(rep), []string{"fail:zone_unreachable"})
 }
 
@@ -398,7 +342,6 @@ func TestRDAPFindings_BesideCollapsedReports(t *testing.T) {
 	cfg := rdapConfig("finalthreadss.com")
 	r := newFakeRunner()
 	onRDAP(r, cfg, "finalthreadss.com", "", rdapCall(t, "finalthreadss.com", false))
-	onRDAP(r, cfg, "https://opensrs.rdap.tucows.com/domain/FINALTHREADSS.COM", "", rdapCall(t, "finalthreadss.com-registrar", false))
 	held := checkRDAP(context.Background(), cfg, r)
 	for _, c := range []struct{ fixture, first string }{
 		{"skvr.site.json", "fail:zone_unreachable"},
@@ -422,7 +365,7 @@ func TestCheckRDAP_InactiveAloneIsAFact(t *testing.T) {
 	rep := checkRDAP(context.Background(), cfg, r)
 	check(t, "asked as itself", rep.Domain, "www.gov.uk")
 	check(t, "inactive reported", rep.Registry.Status[0], "inactive")
-	check(t, "no registrar link", rep.Registrar.URL, "")
+	check(t, "registrar as Nominet names it", *rep.Registrar, RDAPRegistrar{Name: ".gov.uk Registry"})
 	var f findings
 	f.rdapFindings(rep)
 	check(t, "no finding", findingCodes(&f), []string{})

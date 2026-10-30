@@ -285,9 +285,6 @@ func (f *findings) rdapFindings(r *RDAPReport) {
 	if r.Registered == nil {
 		f.info("rdap_lookup_failed", "", "registry RDAP lookup for %s did not complete (%s): registration status unknown", r.Domain, r.Registry.Error)
 	}
-	if p := r.Registrar; p != nil && p.Error != "" {
-		f.info("rdap_lookup_failed", "", "registrar RDAP lookup for %s did not complete (%s): registrar status unknown", r.Domain, p.Error)
-	}
 }
 
 // deadlineFindings says when the run was cut off. It is about the probe,

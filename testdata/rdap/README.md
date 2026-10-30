@@ -6,21 +6,19 @@ scrape workers build), captured on 2026-10-29 from a residential host:
 
 ```
 rdap --json --timeout 5 -- <domain>
-rdap --json --timeout 5 -- <registrar URL>    # the *-registrar captures
 ```
 
 | capture | what it shows |
 |---|---|
-| `google.com` | Verisign .com: six lock statuses, a `related` link to MarkMonitor |
-| `google.com-registrar` | MarkMonitor's record, the same six statuses |
-| `finalthreadss.com`, `-registrar` | `client hold` at Verisign and at Tucows |
-| `3pattifacebook.site`, `-registrar` | `server hold` at Radix; GoDaddy's record has no hold, and serves non-standard values (`delete prohibited`) |
-| `skvr.site-registrar` | GoDaddy, the same non-standard values |
-| `datapulse.vip`, `-registrar` | `pending delete` and `redemption period` at the registry and at Namecheap |
+| `google.com` | Verisign .com: six lock statuses, registrar MarkMonitor (IANA 292) |
+| `finalthreadss.com` | `client hold` at Verisign, registrar Tucows |
+| `3pattifacebook.site` | `server hold` at Radix (GoDaddy's own record, captured the same day, had no hold and spelled its locks `delete prohibited`) |
+| `skvr.site` | Radix, four client locks, registrar GoDaddy |
+| `datapulse.vip` | `pending delete` and `redemption period` at the registry |
 | `loginmicrosoftonline.cloud` | `inactive` with `client hold` |
-| `www.gov.uk` | Nominet: `inactive` for a name registered inside gov.uk and never delegated; no `related` link |
-| `example.cz` | CZ.NIC: names the registrar, links to no registrar service |
-| `microsoft.jp.net` | run with `-s https://rdap.centralnic.com/jp.net/` (dpdomain's private-suffix route); links to GMO's registrar service |
+| `www.gov.uk` | Nominet: `inactive` for a name registered inside gov.uk and never delegated |
+| `example.cz` | CZ.NIC: names the registrar, with no IANA ID |
+| `microsoft.jp.net` | run with `-s https://rdap.centralnic.com/jp.net/` (dpdomain's private-suffix route); registrar GMO |
 | `nonexist` | `datapulse-nonexistent-7f3a9c.com`: the registry's 404, exit 1 |
 | `microsoftskype.net` | a 404 for a name portdb recorded in `redemptionPeriod` the same day |
 | `de` | `denic.de`: no RDAP service for .de in the IANA bootstrap, exit 1 |

@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/url"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -15,9 +13,15 @@ import (
 
 // RDAP registration status, read with openrdap's `rdap` CLI: the binary the
 // scrape workers already build, with the IANA bootstrap cache their
-// entrypoint warms (~/.cache/openrdap). One lookup at the registry, then
-// one at the registrar's RDAP service when the registry links to it. Each
-// is a single attempt: a refusal or a timeout is reported, not retried.
+// entrypoint warms (~/.cache/openrdap). One lookup, at the registry, in a
+// single attempt: a refusal or a timeout is reported, not retried.
+//
+// The registry holds a domain's EPP status (RFC 5731): a registrar sets its
+// client statuses there, and the deletion states are the registry's own. The
+// registrar's RDAP record adds nothing the findings read, and captures show it
+// lagging or lossy: GoDaddy's record for 3pattifacebook.site lacked the
+// registry's server hold and spelled locks without client/server. So the
+// registrar is named from the registry's answer and not asked itself.
 
 const rdapName = "rdap"
 
@@ -34,23 +38,25 @@ type RDAPReport struct {
 	// Registered is true when the registry returned the domain, false when
 	// it answered that the domain does not exist, and null when the lookup
 	// did not complete.
-	Registered *bool      `json:"registered"`
-	Registry   RDAPParty  `json:"registry"`
-	Registrar  *RDAPParty `json:"registrar,omitempty"`
+	Registered *bool          `json:"registered"`
+	Registry   RDAPRegistry   `json:"registry"`
+	Registrar  *RDAPRegistrar `json:"registrar,omitempty"`
 }
 
-// RDAPParty is what one RDAP service said about the domain.
-type RDAPParty struct {
-	// Name and IANAID identify the registrar, as the registry names it.
-	Name   string `json:"name,omitempty"`
-	IANAID string `json:"iana_id,omitempty"`
-	// URL is the RDAP URL of the domain at this service: the registry's
-	// self link, or the registrar link that was followed.
+// RDAPRegistry is the registry's answer.
+type RDAPRegistry struct {
+	// URL is the domain's RDAP URL at the registry (its self link).
 	URL string `json:"url,omitempty"`
-	// Status is the service's status values as served ("client hold");
-	// [] when it served none, null when it was not asked or did not answer.
+	// Status is the registry's status values as served ("client hold");
+	// [] when it served none, null when the lookup did not complete.
 	Status []string `json:"status"`
 	Error  string   `json:"error,omitempty"`
+}
+
+// RDAPRegistrar is the sponsoring registrar as the registry names it.
+type RDAPRegistrar struct {
+	Name   string `json:"name,omitempty"`
+	IANAID string `json:"iana_id,omitempty"`
 }
 
 // rdapDomain is the part of an RFC 9083 domain object the check reads.
@@ -62,7 +68,6 @@ type rdapDomain struct {
 
 type rdapLink struct {
 	Rel  string `json:"rel"`
-	Type string `json:"type"`
 	Href string `json:"href"`
 }
 
@@ -112,7 +117,7 @@ func rdapTarget(domain string) (query, server string, ok bool) {
 	return r.Registrable, "", true
 }
 
-// rdapArgs builds argv for one lookup of query (a domain or an RDAP URL).
+// rdapArgs builds argv for the lookup of query.
 func rdapArgs(query, server string, timeoutSec int) []string {
 	args := []string{"--json", "--timeout", strconv.Itoa(maxInt(1, timeoutSec))}
 	if server != "" {
@@ -121,8 +126,8 @@ func rdapArgs(query, server string, timeoutSec int) []string {
 	return append(args, "--", query)
 }
 
-// checkRDAP looks the domain up at its registry and then at the registrar
-// the registry links to. It returns nil when there is nothing to look up.
+// checkRDAP looks the domain up at its registry. It returns nil when there
+// is nothing to look up.
 func checkRDAP(ctx context.Context, cfg config, r Runner) *RDAPReport {
 	query, server, ok := rdapTarget(cfg.Domain)
 	if !ok {
@@ -142,54 +147,23 @@ func checkRDAP(ctx context.Context, cfg config, r Runner) *RDAPReport {
 		return rep
 	}
 	rep.Registered = boolPtr(true)
-	rep.Registry = RDAPParty{URL: linkHref(obj.Links, "self"), Status: nonNil(obj.Status)}
-	rep.Registrar = registrarParty(ctx, cfg, r, obj, rep.Registry.URL)
+	rep.Registry = RDAPRegistry{URL: linkHref(obj.Links, "self"), Status: nonNil(obj.Status)}
+	rep.Registrar = registrarNamed(obj.Entities)
 	return rep
 }
 
-// registrarParty names the registrar the registry reports and follows the
-// registry's link to the registrar's own record. It returns nil when the
-// registry names no registrar and links to none.
-func registrarParty(ctx context.Context, cfg config, r Runner, reg rdapDomain, selfURL string) *RDAPParty {
-	p := &RDAPParty{}
-	if e := registrarEntity(reg.Entities); e != nil {
-		p.Name, p.IANAID = vcardName(e.VCard), ianaID(e.PublicIDs)
+// registrarNamed is the registrar entity of the registry's answer, nil when
+// it names none.
+func registrarNamed(es []rdapEntity) *RDAPRegistrar {
+	e := registrarEntity(es)
+	if e == nil {
+		return nil
 	}
-	href := relatedLink(reg.Links)
-	if href == "" {
-		if p.Name == "" && p.IANAID == "" {
-			return nil
-		}
-		return p
+	reg := &RDAPRegistrar{Name: vcardName(e.VCard), IANAID: ianaID(e.PublicIDs)}
+	if reg.Name == "" && reg.IANAID == "" {
+		return nil
 	}
-	p.URL = href
-	if err := checkRegistrarURL(href, selfURL); err != nil {
-		p.Error = err.Error()
-		return p
-	}
-	obj, errText := runRDAP(ctx, cfg, r, href, "")
-	if errText != "" {
-		p.Error = errText
-		return p
-	}
-	p.Status = nonNil(obj.Status)
-	return p
-}
-
-// checkRegistrarURL refuses a registrar link that is not an https URL, or
-// that points back at the registry's own record.
-func checkRegistrarURL(href, selfURL string) error {
-	u, err := url.Parse(href)
-	if err != nil || u.Host == "" {
-		return fmt.Errorf("registrar link %q is not a URL; not followed", href)
-	}
-	if u.Scheme != "https" {
-		return fmt.Errorf("registrar link %q is not https; not followed", href)
-	}
-	if selfURL != "" && strings.EqualFold(href, selfURL) {
-		return fmt.Errorf("registrar link is the registry's own record; not followed")
-	}
-	return nil
+	return reg
 }
 
 // runRDAP runs one lookup and decodes the domain object it prints. On
@@ -240,17 +214,6 @@ func parseRDAP(out []byte) (rdapDomain, string) {
 func linkHref(links []rdapLink, rel string) string {
 	for _, l := range links {
 		if strings.EqualFold(l.Rel, rel) && l.Href != "" {
-			return l.Href
-		}
-	}
-	return ""
-}
-
-// relatedLink returns the registry's link to the registrar's RDAP record:
-// rel "related" with the RDAP media type.
-func relatedLink(links []rdapLink) string {
-	for _, l := range links {
-		if strings.EqualFold(l.Rel, "related") && strings.EqualFold(l.Type, "application/rdap+json") && l.Href != "" {
 			return l.Href
 		}
 	}
@@ -321,21 +284,14 @@ var (
 	rdapDeletionStatus = map[string]bool{"redemptionperiod": true, "pendingdelete": true, "pendingrestore": true}
 )
 
-// matchedStatuses lists each status in set, with the party that served
-// it, in the order served: "client hold (registry)".
+// matchedStatuses lists the registry's statuses in set, as served and in
+// the order served.
 func matchedStatuses(rep *RDAPReport, set map[string]bool) []string {
 	var out []string
-	add := func(party string, p *RDAPParty) {
-		if p == nil {
-			return
-		}
-		for _, s := range p.Status {
-			if set[statusKey(s)] {
-				out = append(out, fmt.Sprintf("%s (%s)", s, party))
-			}
+	for _, s := range rep.Registry.Status {
+		if set[statusKey(s)] {
+			out = append(out, s)
 		}
 	}
-	add("registry", &rep.Registry)
-	add("registrar", rep.Registrar)
 	return out
 }

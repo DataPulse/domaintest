@@ -437,9 +437,9 @@ The domain may be given as a U-label (`münchen.de`) or an A-label
     though `families` still lists it for the TCP and QUIC probes. That is
     expected, not a defect; key on the `skipped` prefix.
 15. **Registration status** (`rdap`, unless `-no-rdap`): the registered
-    domain's RDAP record at its registry, then at the registrar the
-    registry links to, with openrdap's `rdap` CLI. Every status value each
-    service serves is reported. A hold is a fail and a deletion state a
+    domain's RDAP record at its registry, with openrdap's `rdap` CLI. Every
+    status value the registry serves is reported, with the registrar it
+    names. A hold is a fail and a deletion state a
     warning; transfer, update and delete locks are facts without a
     finding. See [Registration status (RDAP)](#registration-status-rdap).
 
@@ -522,14 +522,16 @@ refreshed hourly), which the worker's entrypoint warms at start.
   asked there with `-s`, from dpdomain's routing file; the base is
   reported as `rdap.server`. A reserved name or a public suffix has no
   registration, and no `rdap` section.
-- **Two lookups**: the registry first. When its answer links to the
-  registrar's record (`rel: related`, `application/rdap+json`), that is
-  fetched second. A link that is not https, or that points back at the
-  registry's own record, is reported in `registrar.error` and not
-  followed. Each lookup is one attempt with `-t` as its timeout: a refusal,
-  a 429 or a timeout is reported, not retried.
-- **Runs alongside everything else**: the lookups depend on nothing the DNS
-  finds, so they start with the run and are joined before the report is
+- **One lookup, at the registry**: one attempt with `-t` as its timeout; a
+  refusal, a 429 or a timeout is reported, not retried. The registry holds
+  a domain's EPP status (RFC 5731): a registrar sets its `client` statuses
+  there, and the deletion states are the registry's own. The registrar's
+  own RDAP record is not fetched. It adds nothing the findings read, and
+  where it differs it is the less accurate copy: GoDaddy's record for
+  `3pattifacebook.site` lacked the registry's `server hold` and spelled its
+  locks without `client`/`server`.
+- **Runs alongside everything else**: the lookup depends on nothing the DNS
+  finds, so it starts with the run and is joined before the report is
   written, including for a zone no nameserver answers for, which is what a
   held domain usually looks like.
 - **No binary**: when `rdap` is not on `PATH` the rest of the run is
@@ -542,8 +544,7 @@ refreshed hourly), which the worker's entrypoint warms at start.
   "domain": "finalthreadss.com",
   "registered": true,
   "registry": {"url": "https://rdap.verisign.com/com/v1/domain/finalthreadss.com", "status": ["client hold"]},
-  "registrar": {"name": "Tucows Domains Inc.", "iana_id": "69",
-                "url": "https://opensrs.rdap.tucows.com/domain/FINALTHREADSS.COM", "status": ["client hold"]}
+  "registrar": {"name": "Tucows Domains Inc.", "iana_id": "69"}
 }
 ```
 
@@ -554,30 +555,27 @@ refreshed hourly), which the worker's entrypoint warms at start.
   the lookup did not complete (no RDAP service for the TLD, a refusal, a
   timeout, output that is not an RDAP object). A consumer must not read
   null as false.
-- `status` holds the values exactly as each service serves them, which is
-  usually the RFC 8056 form (`client hold`). Some registrars serve the EPP
-  form (`clientHold`) or values of their own (`delete prohibited`); the
-  findings match both standard forms, case-insensitively. It is `[]` when
-  the service served none, and `null` when that service was not asked or
-  did not answer. The registry and the registrar can disagree: a
-  `server hold` is set by the registry and often does not appear in the
-  registrar's record.
-- `registrar` carries the registrar's `name` and `iana_id` as the registry
-  names them, and its own `url`, `status` and `error` when the registry
-  linked to it. It is absent when the registry neither names nor links to
-  a registrar.
+- `registry.status` holds the values exactly as the registry serves them,
+  usually the RFC 8056 form (`client hold`), from some the EPP form
+  (`clientHold`); the findings match both, case-insensitively. It is `[]`
+  when the registry served none and `null` when the lookup did not
+  complete, with `registry.error` saying why. `registry.url` is the
+  domain's RDAP URL at the registry.
+- `registrar` is the sponsoring registrar as the registry names it:
+  `name`, and `iana_id` where the registry gives one (ccTLD registrars
+  often have none). It is absent when the registry names no registrar.
 
 Findings, each about the domain as a whole (`host` is `""`):
 
-- `domain_on_hold` (fail): `client hold` or `server hold` at either
-  service. The registry has taken the name out of the zone, so it appears
+- `domain_on_hold` (fail): `client hold` or `server hold` at the
+  registry. The registry has taken the name out of the zone, so it appears
   beside the DNS symptom (`apex_nxdomain`, `zone_unreachable`).
 - `domain_pending_deletion` (warn): `redemption period`, `pending delete`
   or `pending restore`. `inactive` (no nameservers delegated) is reported
   without a finding: Nominet serves it for `www.gov.uk`, a name registered
   inside the gov.uk zone and never delegated.
-- `rdap_lookup_failed` (info): a lookup did not complete, so that service's
-  status is unknown. A registry 404 is an answer (`registered: false`), not
+- `rdap_lookup_failed` (info): the lookup did not complete, so the
+  registration status is unknown. A registry 404 is an answer (`registered: false`), not
   a failure.
 
 ## Exit codes
@@ -917,11 +915,10 @@ second wave rather than in series at the end. When the delegated nameservers wer
 trace, the nameserver audit runs first under its own allowance of the
 same size, so the probes after it are not left with the remainder.
 
-The RDAP lookups run alongside all of this: the registry and then the
-registrar, each with `-t` as the CLI's `--timeout` and killed a second
-after it, so at most `2 × (-t + 1)` = 8 s with the defaults, inside the
-16 s. For a zone no nameserver answers for, which otherwise ends after the
-trace and the audit, the run waits for them.
+The RDAP lookup runs alongside all of this, with `-t` as the CLI's
+`--timeout` and killed a second after it, so at most `-t + 1` = 4 s with
+the defaults, inside the 16 s. For a zone no nameserver answers for, which
+otherwise ends after the trace and the audit, the run waits for it.
 
 `-max-time` (default 18 s, `0` for none) is a deadline for the whole run.
 The sums above are what each phase is allowed, and a server that is slow
